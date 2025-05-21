@@ -1,0 +1,38 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace Laundry_Management
+{
+    public partial class Main : Form
+    {
+        public Main()
+        {
+            InitializeComponent();
+        }
+
+        private void btnAdd_Type_Service_Click(object sender, EventArgs e)
+        {
+            var addTypeServiceForm = new Add_Type__Service();
+            addTypeServiceForm.ShowDialog();
+        }
+
+        private void btnService_Click(object sender, EventArgs e)
+        {
+            var ServiceForm = new Service();
+            ServiceForm.ShowDialog();
+        }
+
+        private void btnCustomer_Click(object sender, EventArgs e)
+        {
+            var CustomerForm = new Customer();
+            CustomerForm.ShowDialog();
+        }
+    }
+}
