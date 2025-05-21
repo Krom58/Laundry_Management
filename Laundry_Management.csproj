@@ -46,66 +46,66 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Add_Type__Service.cs">
+    <Compile Include="Laundry\Add_Type__Service.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Add_Type__Service.Designer.cs">
+    <Compile Include="Laundry\Add_Type__Service.Designer.cs">
       <DependentUpon>Add_Type__Service.cs</DependentUpon>
     </Compile>
-    <Compile Include="Customer.cs">
+    <Compile Include="Laundry\Customer.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Customer.Designer.cs">
+    <Compile Include="Laundry\Customer.Designer.cs">
       <DependentUpon>Customer.cs</DependentUpon>
     </Compile>
-    <Compile Include="Item.cs">
+    <Compile Include="Laundry\Item.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Item.Designer.cs">
+    <Compile Include="Laundry\Item.Designer.cs">
       <DependentUpon>Item.cs</DependentUpon>
     </Compile>
-    <Compile Include="Main.cs">
+    <Compile Include="Laundry\Main.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Main.Designer.cs">
+    <Compile Include="Laundry\Main.Designer.cs">
       <DependentUpon>Main.cs</DependentUpon>
     </Compile>
-    <Compile Include="ModifyCustomer.cs">
+    <Compile Include="Laundry\ModifyCustomer.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="ModifyCustomer.Designer.cs">
+    <Compile Include="Laundry\ModifyCustomer.Designer.cs">
       <DependentUpon>ModifyCustomer.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modify_Type_Service.cs">
+    <Compile Include="Laundry\Modify_Type_Service.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modify_Type_Service.Designer.cs">
+    <Compile Include="Laundry\Modify_Type_Service.Designer.cs">
       <DependentUpon>Modify_Type_Service.cs</DependentUpon>
     </Compile>
-    <Compile Include="Program.cs" />
+    <Compile Include="Laundry\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Service.cs">
+    <Compile Include="Laundry\Service.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Service.Designer.cs">
+    <Compile Include="Laundry\Service.Designer.cs">
       <DependentUpon>Service.cs</DependentUpon>
     </Compile>
-    <EmbeddedResource Include="Add_Type__Service.resx">
+    <EmbeddedResource Include="Laundry\Add_Type__Service.resx">
       <DependentUpon>Add_Type__Service.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Customer.resx">
+    <EmbeddedResource Include="Laundry\Customer.resx">
       <DependentUpon>Customer.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Item.resx">
+    <EmbeddedResource Include="Laundry\Item.resx">
       <DependentUpon>Item.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Main.resx">
+    <EmbeddedResource Include="Laundry\Main.resx">
       <DependentUpon>Main.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="ModifyCustomer.resx">
+    <EmbeddedResource Include="Laundry\ModifyCustomer.resx">
       <DependentUpon>ModifyCustomer.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Modify_Type_Service.resx">
+    <EmbeddedResource Include="Laundry\Modify_Type_Service.resx">
       <DependentUpon>Modify_Type_Service.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -117,7 +117,7 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <EmbeddedResource Include="Service.resx">
+    <EmbeddedResource Include="Laundry\Service.resx">
       <DependentUpon>Service.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="Properties\Settings.settings">
@@ -131,7 +131,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <None Include="Laundry\App.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
