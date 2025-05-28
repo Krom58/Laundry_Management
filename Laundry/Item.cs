@@ -13,6 +13,9 @@ namespace Laundry_Management
 {
     public partial class Item : Form
     {
+        public string ItemNumber { get; set; } // Add this property
+        public string ItemName { get; set; }   // Add this property
+        public decimal TotalAmount { get; set; }
         public bool IsEditMode { get; set; }
         public int Quantity { get; set; }
         private decimal unitPrice;
@@ -20,6 +23,7 @@ namespace Laundry_Management
         private string itemName;
         private int quantity;
         // เพิ่ม constructor รับราคาและรหัสสินค้า
+
         public Item(decimal unitPrice, string itemNumber, string itemName, int quantity)
         {
             InitializeComponent();

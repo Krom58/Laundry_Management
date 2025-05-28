@@ -17,13 +17,14 @@ namespace Laundry_Management
     public partial class Modify_Type_Service : Form
     {
         public int ServiceID { get; set; } // ใช้สำหรับอ้างอิง record ที่จะแก้ไข
-
+        private string _serviceTypeToSelect;
+        private string _genderToSelect;
         public Modify_Type_Service(string itemName, string serviceType, string gender, string price, string itemNumber, int serviceId)
         {
             InitializeComponent();
             ItemName.Text = itemName;
-            ServiceType.Text = serviceType;
-            Gender.Text = gender;
+            _serviceTypeToSelect = serviceType;
+            _genderToSelect = gender;
             Price.Text = price;
             ItemNumber.Text = itemNumber;
             ServiceID = serviceId;
@@ -99,21 +100,20 @@ namespace Laundry_Management
             ServiceType.Items.Add("ซักแห้ง (Dry Cleaning Service)");
             ServiceType.Items.Add("ซักน้ำ (Laundry Service)");
 
-            // ตั้งค่าตัวเลือกเริ่มต้น
-            if (ServiceType.Items.Count > 0)
-            {
-                ServiceType.SelectedIndex = 0; // เลือกตัวเลือกแรก
-            }
-
             // เพิ่มข้อมูลใน ComboBox Gender
             Gender.Items.Add("สุภาพบุรุษ (Gentleman)");
             Gender.Items.Add("สุภาพสตรี (Ladies)");
 
-            // ตั้งค่าตัวเลือกเริ่มต้น
-            if (Gender.Items.Count > 0)
-            {
-                Gender.SelectedIndex = 0; // เลือกตัวเลือกแรก
-            }
+            // เลือกค่าตามที่ต้องการ
+            if (!string.IsNullOrEmpty(_serviceTypeToSelect) && ServiceType.Items.Contains(_serviceTypeToSelect))
+                ServiceType.SelectedItem = _serviceTypeToSelect;
+            else if (ServiceType.Items.Count > 0)
+                ServiceType.SelectedIndex = 0;
+
+            if (!string.IsNullOrEmpty(_genderToSelect) && Gender.Items.Contains(_genderToSelect))
+                Gender.SelectedItem = _genderToSelect;
+            else if (Gender.Items.Count > 0)
+                Gender.SelectedIndex = 0;
         }
     }
 }

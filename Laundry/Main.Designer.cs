@@ -53,7 +53,7 @@
             this.btnService.Name = "btnService";
             this.btnService.Size = new System.Drawing.Size(260, 109);
             this.btnService.TabIndex = 37;
-            this.btnService.Text = "สร้างรายการ";
+            this.btnService.Text = "สร้างใบรับผ้า";
             this.btnService.UseVisualStyleBackColor = true;
             this.btnService.Click += new System.EventHandler(this.btnService_Click);
             // 
@@ -79,7 +79,7 @@
             this.Controls.Add(this.btnAdd_Type_Service);
             this.Name = "Main";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Main";
+            this.Text = "หน้าหลัก";
             this.ResumeLayout(false);
             this.PerformLayout();
 

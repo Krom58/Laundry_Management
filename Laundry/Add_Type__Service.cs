@@ -111,7 +111,7 @@ namespace Laundry_Management
         private void LoadData()
         {
             string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            string query = "SELECT ServiceID, ItemNumber, ServiceType, ItemName, Price, Gender FROM LaundryService";
+            string query = "SELECT ServiceID, ItemNumber, ServiceType, ItemName, Price, Gender, CreatedAt, IsCancelled, CancelledDate FROM LaundryService";
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
@@ -120,6 +120,19 @@ namespace Laundry_Management
                     DataTable dataTable = new DataTable();
                     adapter.Fill(dataTable);
                     dataGridView1.DataSource = dataTable;
+                }
+                // สมมติว่าชื่อ DataGridView ของคุณคือ dataGridView1
+                dataGridView1.Columns["ItemNumber"].HeaderText = "หมายเลขรายการ";
+                dataGridView1.Columns["ServiceType"].HeaderText = "ประเภทการซัก";
+                dataGridView1.Columns["ItemName"].HeaderText = "ชื่อ-รายการ";
+                dataGridView1.Columns["Price"].HeaderText = "ราคา";
+                dataGridView1.Columns["Gender"].HeaderText = "เพศ";
+                dataGridView1.Columns["CreatedAt"].HeaderText = "สร้างเมื่อ";
+                dataGridView1.Columns["IsCancelled"].HeaderText = "การยกเลิก";
+                dataGridView1.Columns["CancelledDate"].HeaderText = "วันที่ยกเลิก";
+                if (dataGridView1.Columns["ServiceID"] != null)
+                {
+                    dataGridView1.Columns["ServiceID"].Visible = false;
                 }
             }
         }
@@ -148,21 +161,8 @@ namespace Laundry_Management
             ServiceType.Items.Add("ซักแห้ง (Dry Cleaning Service)");
             ServiceType.Items.Add("ซักน้ำ (Laundry Service)");
 
-            // ตั้งค่าตัวเลือกเริ่มต้น
-            if (ServiceType.Items.Count > 0)
-            {
-                ServiceType.SelectedIndex = 0; // เลือกตัวเลือกแรก
-            }
-
-            // เพิ่มข้อมูลใน ComboBox Gender
             Gender.Items.Add("สุภาพบุรุษ (Gentleman)");
             Gender.Items.Add("สุภาพสตรี (Ladies)");
-
-            // ตั้งค่าตัวเลือกเริ่มต้น
-            if (Gender.Items.Count > 0)
-            {
-                Gender.SelectedIndex = 0; // เลือกตัวเลือกแรก
-            }
 
             LoadData();
         }
@@ -195,6 +195,48 @@ namespace Laundry_Management
             else
             {
                 MessageBox.Show("กรุณาเลือกแถวที่ต้องการแก้ไข");
+            }
+        }
+
+        private void Search_Click(object sender, EventArgs e)
+        {
+            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
+            string itemName = ItemName.Text.Trim();
+            string itemNumber = ItemNumber.Text.Trim();
+            string gender = Gender.SelectedItem?.ToString() ?? "";
+            string serviceType = ServiceType.SelectedItem?.ToString() ?? "";
+
+            // สร้าง query โดยใช้ parameter เพื่อป้องกัน SQL Injection
+            string query = "SELECT ServiceID, ServiceType, ItemNumber, ItemName, Price, Gender FROM LaundryService WHERE 1=1";
+            if (!string.IsNullOrEmpty(itemName))
+                query += " AND ItemName LIKE @itemName";
+            if (!string.IsNullOrEmpty(itemNumber))
+                query += " AND ItemNumber LIKE @itemNumber";
+            if (!string.IsNullOrEmpty(gender))
+                query += " AND Gender = @gender";
+            if (!string.IsNullOrEmpty(serviceType))
+                query += " AND ServiceType = @serviceType";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    if (!string.IsNullOrEmpty(itemName))
+                        command.Parameters.AddWithValue("@itemName", "%" + itemName + "%");
+                    if (!string.IsNullOrEmpty(itemNumber))
+                        command.Parameters.AddWithValue("@itemNumber", "%" + itemNumber + "%");
+                    if (!string.IsNullOrEmpty(gender))
+                        command.Parameters.AddWithValue("@gender", gender);
+                    if (!string.IsNullOrEmpty(serviceType))
+                        command.Parameters.AddWithValue("@serviceType", serviceType);
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    {
+                        DataTable dataTable = new DataTable();
+                        adapter.Fill(dataTable);
+                        dataGridView1.DataSource = dataTable;
+                    }
+                }
             }
         }
     }

@@ -36,12 +36,14 @@
             this.txtFullName = new System.Windows.Forms.TextBox();
             this.btnOk = new System.Windows.Forms.Button();
             this.btnCancle = new System.Windows.Forms.Button();
+            this.label4 = new System.Windows.Forms.Label();
+            this.txtNote = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
             // txtDiscount
             // 
             this.txtDiscount.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtDiscount.Location = new System.Drawing.Point(316, 327);
+            this.txtDiscount.Location = new System.Drawing.Point(316, 247);
             this.txtDiscount.Name = "txtDiscount";
             this.txtDiscount.Size = new System.Drawing.Size(150, 51);
             this.txtDiscount.TabIndex = 46;
@@ -50,7 +52,7 @@
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(181, 330);
+            this.label3.Location = new System.Drawing.Point(181, 250);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(85, 43);
             this.label3.TabIndex = 45;
@@ -59,7 +61,7 @@
             // txtPhone
             // 
             this.txtPhone.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtPhone.Location = new System.Drawing.Point(316, 207);
+            this.txtPhone.Location = new System.Drawing.Point(316, 146);
             this.txtPhone.Name = "txtPhone";
             this.txtPhone.Size = new System.Drawing.Size(400, 51);
             this.txtPhone.TabIndex = 44;
@@ -68,7 +70,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(181, 210);
+            this.label2.Location = new System.Drawing.Point(181, 149);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(98, 43);
             this.label2.TabIndex = 43;
@@ -78,7 +80,7 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(181, 87);
+            this.label1.Location = new System.Drawing.Point(181, 42);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(129, 43);
             this.label1.TabIndex = 42;
@@ -87,7 +89,7 @@
             // txtFullName
             // 
             this.txtFullName.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtFullName.Location = new System.Drawing.Point(316, 84);
+            this.txtFullName.Location = new System.Drawing.Point(316, 39);
             this.txtFullName.Name = "txtFullName";
             this.txtFullName.Size = new System.Drawing.Size(516, 51);
             this.txtFullName.TabIndex = 41;
@@ -116,11 +118,31 @@
             this.btnCancle.UseVisualStyleBackColor = true;
             this.btnCancle.Click += new System.EventHandler(this.btnCancle_Click);
             // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label4.Location = new System.Drawing.Point(181, 358);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(100, 43);
+            this.label4.TabIndex = 50;
+            this.label4.Text = "หมายเหตุ";
+            // 
+            // txtNote
+            // 
+            this.txtNote.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtNote.Location = new System.Drawing.Point(316, 355);
+            this.txtNote.Name = "txtNote";
+            this.txtNote.Size = new System.Drawing.Size(516, 51);
+            this.txtNote.TabIndex = 49;
+            // 
             // ModifyCustomer
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(984, 586);
+            this.Controls.Add(this.label4);
+            this.Controls.Add(this.txtNote);
             this.Controls.Add(this.btnOk);
             this.Controls.Add(this.btnCancle);
             this.Controls.Add(this.txtDiscount);
@@ -131,7 +153,7 @@
             this.Controls.Add(this.txtFullName);
             this.Name = "ModifyCustomer";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "ModifyCustomer";
+            this.Text = "แก้ไขข้อมูลลูกค้า";
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -147,5 +169,7 @@
         private System.Windows.Forms.TextBox txtFullName;
         private System.Windows.Forms.Button btnOk;
         private System.Windows.Forms.Button btnCancle;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.TextBox txtNote;
     }
 }

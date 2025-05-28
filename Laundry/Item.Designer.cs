@@ -87,7 +87,7 @@
             this.Controls.Add(this.btnCancle);
             this.Name = "Item";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Item";
+            this.Text = "จำนวนสินค้า";
             this.ResumeLayout(false);
             this.PerformLayout();
 

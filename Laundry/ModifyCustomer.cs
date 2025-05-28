@@ -15,13 +15,14 @@ namespace Laundry_Management
     {
         private int customerId;
 
-        public ModifyCustomer(int customerId, string fullName, string phone, int? discount)
+        public ModifyCustomer(int customerId, string fullName, string phone, int? discount, string note)
         {
             InitializeComponent();
             this.customerId = customerId;
             txtFullName.Text = fullName;
             txtPhone.Text = phone;
             txtDiscount.Text = discount?.ToString() ?? "";
+            txtNote.Text = note;
         }
 
         public ModifyCustomer()
@@ -41,6 +42,7 @@ namespace Laundry_Management
             string phone = txtPhone.Text.Trim();
             string discountText = txtDiscount.Text.Trim();
             int? discount = null;
+            string note = txtNote.Text.Trim();
 
             if (string.IsNullOrEmpty(fullName) || string.IsNullOrEmpty(phone))
             {
@@ -60,7 +62,7 @@ namespace Laundry_Management
             }
 
             string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            string query = "UPDATE Customer SET FullName = @FullName, Phone = @Phone, Discount = @Discount WHERE CustomerID = @CustomerID";
+            string query = "UPDATE Customer SET FullName = @FullName, Phone = @Phone, Discount = @Discount, Note = @Note WHERE CustomerID = @CustomerID";
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
@@ -69,6 +71,7 @@ namespace Laundry_Management
                 command.Parameters.AddWithValue("@Phone", phone);
                 command.Parameters.AddWithValue("@Discount", (object)discount ?? DBNull.Value);
                 command.Parameters.AddWithValue("@CustomerID", customerId);
+                command.Parameters.AddWithValue("@Note", note);
 
                 connection.Open();
                 command.ExecuteNonQuery();

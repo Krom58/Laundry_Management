@@ -30,6 +30,7 @@ namespace Laundry_Management
             string phone = txtPhone.Text.Trim();
             string discountText = txtDiscount.Text.Trim();
             int? discount = null;
+            string note = txtNote.Text.Trim();
 
             if (string.IsNullOrEmpty(fullName) || string.IsNullOrEmpty(phone))
             {
@@ -49,7 +50,7 @@ namespace Laundry_Management
             }
 
             string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            string query = "INSERT INTO Customer (FullName, Phone, Discount) VALUES (@FullName, @Phone, @Discount)";
+            string query = "INSERT INTO Customer (FullName, Phone, Discount, Note) VALUES (@FullName, @Phone, @Discount, @Note)";
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
@@ -57,6 +58,7 @@ namespace Laundry_Management
                 command.Parameters.AddWithValue("@FullName", fullName);
                 command.Parameters.AddWithValue("@Phone", phone);
                 command.Parameters.AddWithValue("@Discount", (object)discount ?? DBNull.Value);
+                command.Parameters.AddWithValue("@Note", note);
 
                 connection.Open();
                 command.ExecuteNonQuery();
@@ -67,6 +69,7 @@ namespace Laundry_Management
             txtFullName.Text = "";
             txtPhone.Text = "";
             txtDiscount.Text = "";
+            txtNote.Text = "";
             LoadCustomerData();
         }
 
@@ -91,10 +94,11 @@ namespace Laundry_Management
             string phone = selectedRow.Cells["Phone"].Value?.ToString();
             string discountStr = selectedRow.Cells["Discount"].Value?.ToString();
             int? discount = null;
+            string note = selectedRow.Cells["Note"].Value?.ToString();
             if (int.TryParse(discountStr, out int d))
                 discount = d;
 
-            using (var modifyForm = new ModifyCustomer(customerId, fullName, phone, discount))
+            using (var modifyForm = new ModifyCustomer(customerId, fullName, phone, discount, note))
             {
                 if (modifyForm.ShowDialog() == DialogResult.OK)
                 {
@@ -105,7 +109,7 @@ namespace Laundry_Management
         private void LoadCustomerData()
         {
             string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            string query = "SELECT CustomerID, FullName, Phone, Discount FROM Customer";
+            string query = "SELECT CustomerID, FullName, Phone, Discount, Note FROM Customer";
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             using (SqlDataAdapter adapter = new SqlDataAdapter(query, connection))
@@ -114,6 +118,10 @@ namespace Laundry_Management
                 adapter.Fill(dt);
                 dataGridView1.DataSource = dt;
             }
+            dataGridView1.Columns["FullName"].HeaderText = "ชื่อ-นามสกุล";
+            dataGridView1.Columns["Phone"].HeaderText = "เบอร์โทร";
+            dataGridView1.Columns["Discount"].HeaderText = "ส่วนลด";
+            dataGridView1.Columns["Note"].HeaderText = "หมายเหตุ";
             if (dataGridView1.Columns["CustomerID"] != null)
             {
                 dataGridView1.Columns["CustomerID"].Visible = false;
@@ -163,6 +171,44 @@ namespace Laundry_Management
 
                 MessageBox.Show("ลบข้อมูลลูกค้าเรียบร้อยแล้ว");
                 LoadCustomerData();
+            }
+        }
+
+        private void Search_Click(object sender, EventArgs e)
+        {
+            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
+            string fullName = txtFullName.Text.Trim();
+            string phone = txtPhone.Text.Trim();
+
+            // Build the SQL query with parameters
+            string query = "SELECT CustomerID, FullName, Phone, Discount, Note FROM Customer WHERE 1=1";
+            if (!string.IsNullOrEmpty(fullName))
+            {
+                query += " AND FullName LIKE @FullName";
+            }
+            if (!string.IsNullOrEmpty(phone))
+            {
+                query += " AND Phone LIKE @Phone";
+            }
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                if (!string.IsNullOrEmpty(fullName))
+                {
+                    command.Parameters.AddWithValue("@FullName", "%" + fullName + "%");
+                }
+                if (!string.IsNullOrEmpty(phone))
+                {
+                    command.Parameters.AddWithValue("@Phone", "%" + phone + "%");
+                }
+
+                using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                {
+                    DataTable dt = new DataTable();
+                    adapter.Fill(dt);
+                    dataGridView1.DataSource = dt;
+                }
             }
         }
     }
