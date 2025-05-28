@@ -270,17 +270,37 @@ namespace Laundry_Management
                 return;
             }
 
-            // 1) เลือกลูกค้า
-            using (var selectCustomerForm = new Select_Customer(selectedItems))
+            // เลือกลูกค้า
+            using (var selectForm = new Select_Customer(selectedItems))
             {
-                if (selectCustomerForm.ShowDialog(this) != DialogResult.OK)
+                if (selectForm.ShowDialog(this) != DialogResult.OK)
                     return;
 
-                string customerName = selectCustomerForm.SelectedCustomerName;
-                string phone = selectCustomerForm.SelectedPhone;
-                decimal discount = selectCustomerForm.SelectedDiscount;
+                string customerName = selectForm.SelectedCustomerName;
+                string phone = selectForm.SelectedPhone;
+                decimal discount = selectForm.SelectedDiscount;
 
-                // เตรียมรายการสำหรับพิมพ์ (ยังไม่บันทึก)
+                // คำนวณยอด
+                decimal grandTotal = selectedItems.Sum(i => i.TotalAmount);
+                DateTime orderDate = DateTime.Now;
+                DateTime pickupDate = orderDate.AddDays(2);
+                decimal discountedTotal = discount > 0
+                    ? grandTotal - (grandTotal * (discount / 100m))
+                    : grandTotal;
+
+                // 1) Save Header → get orderId
+                int orderId = SaveHeaderToDatabase(
+                    customerName, phone, discount,
+                    grandTotal, discountedTotal,
+                    orderDate, pickupDate);
+
+                if (orderId == 0)
+                {
+                    MessageBox.Show("บันทึกหัวคำสั่งซื้อไม่สำเร็จ");
+                    return;
+                }
+
+                // เตรียมข้อมูลสำหรับพิมพ์
                 var serviceItems = selectedItems
                     .Select(i => new Print_Service.ServiceItem
                     {
@@ -290,46 +310,30 @@ namespace Laundry_Management
                     })
                     .ToList();
 
-                // 2) เปิดหน้า Print_Service ให้ผู้ใช้พรีวิว/ยืนยัน
+                // 2) แสดงฟอร์มพิมพ์
                 using (var printForm = new Print_Service(
                     customerName,
                     phone,
                     discount / 100m,
-                    /* ยังส่ง orderId ว่างๆ */ "",
+                    orderId.ToString(),
                     serviceItems))
                 {
-                    // สมมติว่าคุณตั้งให้ printForm.DialogResult = DialogResult.OK ในปุ่ม "Print"
-                    if (printForm.ShowDialog(this) != DialogResult.OK)
+                    printForm.ShowDialog(this);
+
+                    if (!printForm.IsPrinted)
                     {
-                        // ผู้ใช้ปิดหรือยกเลิกไม่ยืนยันพิมพ์
+                        // ยกเลิกการพิมพ์ → ลบ Header คืนแล้วจบ
+                        DeleteOrderHeader(orderId);
                         return;
                     }
                 }
 
-                // 3) ถ้าพิมพ์จริง → บันทึกลง DB
-                decimal grandTotal = selectedItems.Sum(i => i.TotalAmount);
-                DateTime orderDate = DateTime.Now;
-                DateTime pickupDate = orderDate.AddDays(2);
-                decimal discountedTotal = discount > 0
-                    ? grandTotal - (grandTotal * (discount / 100m))
-                    : grandTotal;
+                // 3) ถ้าพิมพ์สำเร็จ → Save Items
+                SaveItemsToDatabase(orderId, selectedItems);
 
-                int orderId = SaveOrderToDatabase(
-                    customerName, phone, discount,
-                    grandTotal, discountedTotal,
-                    orderDate, pickupDate,
-                    selectedItems
-                );
-
-                if (orderId == 0)
-                {
-                    MessageBox.Show("บันทึกคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่");
-                    return;
-                }
-
-                // 4) เคลียร์ตระกร้า และแจ้งผล
+                // 4) เคลียร์ตะกร้า และแจ้งผล
                 ClearSelectedItems();
-                MessageBox.Show("บันทึกและพิมพ์สำเร็จ");
+                MessageBox.Show("พิมพ์และบันทึกสำเร็จ");
             }
         }
         // เพิ่มเมธอดนี้ในคลาส Service
@@ -369,76 +373,83 @@ namespace Laundry_Management
 
             return selectedItems;
         }
-        private int SaveOrderToDatabase(
-    string customerName,
-    string phone,
-    decimal discount,
-    decimal grandTotal,
-    decimal discountedTotal,
-    DateTime orderDate,
-    DateTime pickupDate,
-    List<Item> items
-)
+        private int SaveHeaderToDatabase(
+    string customerName, string phone, decimal discount,
+    decimal grandTotal, decimal discountedTotal,
+    DateTime orderDate, DateTime pickupDate)
         {
             int orderId = 0;
             string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            using (var conn = new SqlConnection(cs))
+            using (SqlConnection conn = new SqlConnection(cs))
             {
                 conn.Open();
-                using (var tx = conn.BeginTransaction())
+                using (SqlCommand cmd = new SqlCommand(@"
+INSERT INTO OrderHeader
+  (CustomerName, Phone, Discount, GrandTotalPrice, DiscountedTotal, OrderDate, PickupDate)
+OUTPUT INSERTED.OrderID
+VALUES
+  (@cust,@phone,@disc,@grand,@discTot,@odt,@pdt);", conn))
                 {
-                    try
+                    cmd.Parameters.AddWithValue("@cust", customerName);
+                    cmd.Parameters.AddWithValue("@phone", phone);
+                    cmd.Parameters.AddWithValue("@disc", discount);
+                    cmd.Parameters.AddWithValue("@grand", grandTotal);
+                    cmd.Parameters.AddWithValue("@discTot", discountedTotal);
+                    cmd.Parameters.AddWithValue("@odt", orderDate);
+                    cmd.Parameters.AddWithValue("@pdt", pickupDate);
+
+                    object result = cmd.ExecuteScalar();
+                    if (result != null && int.TryParse(result.ToString(), out orderId))
                     {
-                        var cmdH = new SqlCommand(@"
-                    INSERT INTO OrderHeader
-                      (CustomerName, Phone, Discount, GrandTotalPrice, DiscountedTotal, OrderDate, PickupDate)
-                    OUTPUT INSERTED.OrderID
-                    VALUES
-                      (@CustomerName, @Phone, @Discount, @GrandTotalPrice, @DiscountedTotal, @OrderDate, @PickupDate);", conn, tx);
-
-                        cmdH.Parameters.AddWithValue("@CustomerName", customerName);
-                        cmdH.Parameters.AddWithValue("@Phone", phone);
-                        cmdH.Parameters.AddWithValue("@Discount", discount);
-                        cmdH.Parameters.AddWithValue("@GrandTotalPrice", grandTotal);
-                        cmdH.Parameters.AddWithValue("@DiscountedTotal", discountedTotal);
-                        cmdH.Parameters.AddWithValue("@OrderDate", orderDate);
-                        cmdH.Parameters.AddWithValue("@PickupDate", pickupDate);
-
-                        // **Only call ExecuteScalar once**
-                        var result = cmdH.ExecuteScalar();
-                        if (result == null || !int.TryParse(result.ToString(), out orderId))
-                        {
-                            throw new Exception("Failed to retrieve the new OrderID.");
-                        }
-
-                        // Now insert the order items
-                        foreach (var i in items)
-                        {
-                            var cmdI = new SqlCommand(@"
-                        INSERT INTO OrderItem
-                          (OrderID, ItemNumber, ItemName, Quantity, TotalAmount)
-                        VALUES
-                          (@OrderID, @ItemNumber, @ItemName, @Quantity, @TotalAmount);", conn, tx);
-
-                            cmdI.Parameters.AddWithValue("@OrderID", orderId);
-                            cmdI.Parameters.AddWithValue("@ItemNumber", i.ItemNumber);
-                            cmdI.Parameters.AddWithValue("@ItemName", i.ItemName);
-                            cmdI.Parameters.AddWithValue("@Quantity", i.Quantity);
-                            cmdI.Parameters.AddWithValue("@TotalAmount", i.TotalAmount);
-                            cmdI.ExecuteNonQuery();
-                        }
-
-                        tx.Commit();
+                        // got orderId
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        tx.Rollback();
-                        MessageBox.Show("Error while saving order:\n" + ex.Message,
-                                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        orderId = 0;
                     }
                 }
             }
             return orderId;
+        }
+        private void SaveItemsToDatabase(int orderId, List<Item> items)
+        {
+            string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
+            using (SqlConnection conn = new SqlConnection(cs))
+            {
+                conn.Open();
+                foreach (Item i in items)
+                {
+                    using (SqlCommand cmd = new SqlCommand(@"
+INSERT INTO OrderItem
+  (OrderID, ItemNumber, ItemName, Quantity, TotalAmount)
+VALUES
+  (@oid,@num,@name,@qty,@amt);", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@oid", orderId);
+                        cmd.Parameters.AddWithValue("@num", i.ItemNumber);
+                        cmd.Parameters.AddWithValue("@name", i.ItemName);
+                        cmd.Parameters.AddWithValue("@qty", i.Quantity);
+                        cmd.Parameters.AddWithValue("@amt", i.TotalAmount);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        // 3) ลบ Header ถ้าพิมพ์ไม่สำเร็จ
+        private void DeleteOrderHeader(int orderId)
+        {
+            string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
+            using (SqlConnection conn = new SqlConnection(cs))
+            {
+                using (SqlCommand cmd = new SqlCommand(
+                    "DELETE FROM OrderHeader WHERE OrderID = @id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", orderId);
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+            }
         }
     }
 }

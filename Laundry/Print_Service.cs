@@ -16,18 +16,13 @@ namespace Laundry_Management.Laundry
     {
         public class ServiceItem
         {
-            public string CustomerName { get; set; }
-            public string CustomerPhone { get; set; }
-            public decimal CustomerDiscount { get; set; }
-            public string OrderId { get; set; }
-            public List<ServiceItem> Items { get; set; }
             public string Name { get; set; }
             public int Quantity { get; set; }
             public decimal Price { get; set; }
         }
         public Print_Service(string customerName, string customerPhone, decimal customerDiscount,
-                     string orderId, List<ServiceItem> items)
-    : this()
+                         string orderId, List<ServiceItem> items)
+        : this()
         {
             _customerName = customerName;
             _customerPhone = customerPhone;
@@ -43,13 +38,16 @@ namespace Laundry_Management.Laundry
         private string _customerPhone;
         private decimal _customerDiscount;
         private List<ServiceItem> _items = new List<ServiceItem>();
+        private PrintPreviewDialog _previewDialog;
         public Print_Service()
         {
             InitializeComponent();
-            // สร้าง PrintDocument และผูกอีเวนต์
             _printDocument = new PrintDocument();
             _printDocument.PrintPage += PrintPageHandler;
+            _previewDialog = new PrintPreviewDialog { Document = _printDocument };
+            _printDocument.DefaultPageSettings.Margins = new Margins(15, 15, 15, 15);
         }
+        public bool IsPrinted { get; private set; } = false;
         private void PrintDoc_Click(object sender, EventArgs e)
         {
             using (var dlg = new PrintDialog())
@@ -60,23 +58,24 @@ namespace Laundry_Management.Laundry
                     try
                     {
                         _printDocument.Print();
-                        // หลังพิมพ์เสร็จให้ถือว่า OK
+                        // ถ้าถึงตรงนี้ แปลว่าพิมพ์ไม่เกิด Exception
+                        IsPrinted = true;
                         this.DialogResult = DialogResult.OK;
-                        this.Close();
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("เกิดข้อผิดพลาดขณะพิมพ์:\n" + ex.Message,
-                                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("เกิดข้อผิดพลาดขณะพิมพ์:\n" + ex.Message);
+                        IsPrinted = false;
+                        this.DialogResult = DialogResult.Cancel;
                     }
                 }
                 else
                 {
-                    // ยกเลิกการพิมพ์ ก็ถือเป็น DialogResult.Cancel
+                    IsPrinted = false;
                     this.DialogResult = DialogResult.Cancel;
-                    this.Close();
                 }
             }
+            this.Close();
         }
         private void PrintPageHandler(object sender, PrintPageEventArgs e)
         {
@@ -98,7 +97,7 @@ namespace Laundry_Management.Laundry
                 y += 5;
                 DrawChecklistLeft(g, bodyF, leftX, y);
                 // สรุปยอด...
-                DrawSummaryRight(g, bodyF, e.PageBounds, y);
+                DrawSummaryRight(g, bodyF, e.PageBounds, y , rightX);
             }
 
             e.HasMorePages = false;
@@ -301,23 +300,23 @@ namespace Laundry_Management.Laundry
                 lineY += font.GetHeight(g) + 2;
             }
         }
-        private void DrawSummaryRight(Graphics g, Font font, Rectangle page, float y)
+        private void DrawSummaryRight(Graphics g, Font font, Rectangle page, float y , float rightX)
         {
             decimal total = _items.Sum(i => i.Price * i.Quantity);
             decimal discounted = total * (1 - _customerDiscount);
 
             string totalLine = $"รวม: {total:N2} บาท";
-            var szTot = g.MeasureString(totalLine, font);
-            float xTot = page.Right - szTot.Width - 20;
-            g.DrawString(totalLine, font, Brushes.Black, xTot, y);
+            SizeF toL = g.MeasureString(totalLine, font);
+            g.DrawString(totalLine, font, Brushes.Black,
+                         rightX - toL.Width, y);
 
             if (_customerDiscount > 0m)
             {
                 y += font.GetHeight(g) + 4;
                 string discLine = $"หลังหักส่วนลด: {discounted:N2} บาท";
-                var szDisc = g.MeasureString(discLine, font);
-                float xDisc = page.Right - szDisc.Width - 20;
-                g.DrawString(discLine, font, Brushes.Black, xDisc, y);
+                SizeF diL = g.MeasureString(discLine, font);
+                g.DrawString(discLine, font, Brushes.Black,
+                             rightX - diL.Width, y);
             }
         }
     }

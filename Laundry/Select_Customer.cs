@@ -113,16 +113,17 @@ namespace Laundry_Management.Laundry
                 MessageBox.Show("กรุณาเลือกลูกค้า");
                 return;
             }
-            // เลือกลูกค้าเหมือนเดิม
+
             var row = dataGridView1.SelectedRows[0];
             SelectedCustomerName = row.Cells["FullName"].Value.ToString();
             SelectedPhone = row.Cells["Phone"].Value.ToString();
-            SelectedDiscount = row.Cells["Discount"].Value == DBNull.Value
-                                ? 0m
-                                : Convert.ToDecimal(row.Cells["Discount"].Value);
+            SelectedDiscount = row.Cells["Discount"].Value != DBNull.Value
+                                   ? Convert.ToDecimal(row.Cells["Discount"].Value)
+                                   : 0m;
 
-            DialogResult = DialogResult.OK;
-            Close();
+            // ตรงนี้แค่ปิดฟอร์มเลือกลูกค้า ส่ง DialogResult
+            this.DialogResult = DialogResult.OK;
+            this.Close();
         }
     }
 }
