@@ -204,6 +204,7 @@ namespace Laundry_Management
             string itemName = ItemName.Text.Trim();
             string itemNumber = ItemNumber.Text.Trim();
             string gender = Gender.SelectedItem?.ToString() ?? "";
+            string price = Price.Text.ToString();
             string serviceType = ServiceType.SelectedItem?.ToString() ?? "";
 
             // สร้าง query โดยใช้ parameter เพื่อป้องกัน SQL Injection
@@ -212,6 +213,8 @@ namespace Laundry_Management
                 query += " AND ItemName LIKE @itemName";
             if (!string.IsNullOrEmpty(itemNumber))
                 query += " AND ItemNumber LIKE @itemNumber";
+            if (!string.IsNullOrEmpty(price))
+                query += " AND Price LIKE @price";
             if (!string.IsNullOrEmpty(gender))
                 query += " AND Gender = @gender";
             if (!string.IsNullOrEmpty(serviceType))
@@ -225,6 +228,8 @@ namespace Laundry_Management
                         command.Parameters.AddWithValue("@itemName", "%" + itemName + "%");
                     if (!string.IsNullOrEmpty(itemNumber))
                         command.Parameters.AddWithValue("@itemNumber", "%" + itemNumber + "%");
+                    if (!string.IsNullOrEmpty(price))
+                        command.Parameters.AddWithValue("@price", "%" + price + "%");
                     if (!string.IsNullOrEmpty(gender))
                         command.Parameters.AddWithValue("@gender", gender);
                     if (!string.IsNullOrEmpty(serviceType))

@@ -31,6 +31,7 @@
             this.btnAdd_Type_Service = new System.Windows.Forms.Button();
             this.btnService = new System.Windows.Forms.Button();
             this.btnCustomer = new System.Windows.Forms.Button();
+            this.btnFind_Service = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnAdd_Type_Service
@@ -69,11 +70,24 @@
             this.btnCustomer.UseVisualStyleBackColor = true;
             this.btnCustomer.Click += new System.EventHandler(this.btnCustomer_Click);
             // 
+            // btnFind_Service
+            // 
+            this.btnFind_Service.AutoSize = true;
+            this.btnFind_Service.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnFind_Service.Location = new System.Drawing.Point(12, 680);
+            this.btnFind_Service.Name = "btnFind_Service";
+            this.btnFind_Service.Size = new System.Drawing.Size(282, 109);
+            this.btnFind_Service.TabIndex = 39;
+            this.btnFind_Service.Text = "สร้างใบเสร็จ";
+            this.btnFind_Service.UseVisualStyleBackColor = true;
+            this.btnFind_Service.Click += new System.EventHandler(this.btnFind_Service_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.btnFind_Service);
             this.Controls.Add(this.btnCustomer);
             this.Controls.Add(this.btnService);
             this.Controls.Add(this.btnAdd_Type_Service);
@@ -90,5 +104,6 @@
         private System.Windows.Forms.Button btnAdd_Type_Service;
         private System.Windows.Forms.Button btnService;
         private System.Windows.Forms.Button btnCustomer;
+        private System.Windows.Forms.Button btnFind_Service;
     }
 }

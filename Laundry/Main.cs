@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Laundry_Management.Laundry;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -33,6 +34,12 @@ namespace Laundry_Management
         {
             var CustomerForm = new Customer();
             CustomerForm.ShowDialog();
+        }
+
+        private void btnFind_Service_Click(object sender, EventArgs e)
+        {
+            var findServiceForm = new Find_Service();
+            findServiceForm.ShowDialog();
         }
     }
 }
