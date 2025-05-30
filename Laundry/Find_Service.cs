@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace Laundry_Management.Laundry
     public partial class Find_Service : Form
     {
         private readonly OrderRepository _repo = new OrderRepository();
+        private PrintDocument _printDocument;
         public Find_Service()
         {
             InitializeComponent();
@@ -46,6 +48,7 @@ namespace Laundry_Management.Laundry
             public int OrderID { get; set; }
             public string CustomerName { get; set; }
             public string Phone { get; set; }
+            public decimal Discount { get; set; }
             public DateTime OrderDate { get; set; }
             public DateTime PickupDate { get; set; }
             public decimal GrandTotalPrice { get; set; }
@@ -84,7 +87,7 @@ namespace Laundry_Management.Laundry
                 {
                     cmd.Connection = cn;
                     var sb = new StringBuilder(@"
-            SELECT OH.OrderID, OH.CustomerName, OH.Phone, OH.OrderDate,
+            SELECT OH.OrderID, OH.Discount, OH.CustomerName, OH.Phone, OH.OrderDate,
                    OH.PickupDate, OH.GrandTotalPrice, OH.DiscountedTotal
               FROM OrderHeader OH
              WHERE 1=1");
@@ -116,6 +119,9 @@ namespace Laundry_Management.Laundry
                                 OrderID = Convert.ToInt32(r["OrderID"]),
                                 CustomerName = r["CustomerName"] as string ?? "",
                                 Phone = r["Phone"] as string ?? "",
+                                Discount = r["Discount"] == DBNull.Value
+                                                  ? 0m
+                                                  : Convert.ToDecimal(r["Discount"]),
                                 OrderDate = r["OrderDate"] == DBNull.Value
                                                   ? DateTime.MinValue
                                                   : Convert.ToDateTime(r["OrderDate"]),
@@ -292,7 +298,7 @@ namespace Laundry_Management.Laundry
             var header = dgvOrders.CurrentRow.DataBoundItem as OrderHeaderDto;
             if (header == null) return;
 
-            // ดึงข้อมูลทั้งหมดจาก dgvItems แล้วกรองเฉพาะรายการที่ยังไม่ถูกยกเลิก
+            // กรองรายการที่ยังไม่ยกเลิก
             var items = dgvItems.Rows
                 .Cast<DataGridViewRow>()
                 .Select(r => r.DataBoundItem as OrderItemDto)
@@ -301,39 +307,43 @@ namespace Laundry_Management.Laundry
 
             if (!items.Any())
             {
-                MessageBox.Show("ยังไม่ได้เลือกรายการ", "แจ้งเตือน",
+                MessageBox.Show("ยังไม่มีรายการที่ต้องออกใบเสร็จ", "แจ้งเตือน",
                                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // 3) สร้าง Receipt ใหม่
-            int receiptId;
+            // 1) เปิดฟอร์ม ReceiptPrintForm ก่อน เพื่อให้ผู้ใช้เลือก print จริง
+            int tempReceiptId = -1; // ยังไม่สร้าง receipt จริง
+            using (var rptForm = new ReceiptPrintForm(tempReceiptId, header, items))
+            {
+                rptForm.ShowDialog(this);
+                if (!rptForm.IsPrinted)
+                {
+                    MessageBox.Show("ยกเลิกการออกใบเสร็จ");
+                    return;
+                }
+            }
+
             try
             {
-                receiptId = _repo.CreateReceipt(header.OrderID);
+                // 2) ถ้าผู้ใช้ print จริง ค่อย save Receipt และ Items
+                int receiptId = _repo.CreateReceipt(header.OrderID);
+                foreach (var item in items)
+                {
+                    _repo.CreateReceiptItem(
+                        receiptId: receiptId,
+                        orderItemId: item.OrderItemID,
+                        quantity: item.Quantity,
+                        amount: item.TotalAmount
+                    );
+                }
+
+                MessageBox.Show("พิมพ์และบันทึกใบเสร็จสำเร็จ");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"สร้างใบเสร็จไม่สำเร็จ: {ex.Message}", "Error",
-                                MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            // 4) บันทึกรายการลง ReceiptItem
-            foreach (var item in items)
-            {
-                _repo.CreateReceiptItem(
-                    receiptId: receiptId,
-                    orderItemId: item.OrderItemID,
-                    quantity: item.Quantity,
-                    amount: item.TotalAmount
-                );
-            }
-
-            // 5) เปิดฟอร์มพิมพ์
-            using (var rptForm = new ReceiptPrintForm(receiptId, header, items))
-            {
-                rptForm.ShowDialog(this);
+                MessageBox.Show("เกิดข้อผิดพลาดขณะบันทึก:\n" + ex.Message,
+                                "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

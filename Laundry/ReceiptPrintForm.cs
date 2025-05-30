@@ -14,6 +14,7 @@ namespace Laundry_Management.Laundry
 {
     public partial class ReceiptPrintForm : Form
     {
+        public bool IsPrinted { get; private set; } = false;
         private readonly int _receiptId;
         private readonly OrderHeaderDto _header;
         private readonly List<OrderItemDto> _items;
@@ -219,8 +220,14 @@ namespace Laundry_Management.Laundry
         }
         private void DrawSummaryRight(Graphics g, Font font, Rectangle page, float y, float rightX)
         {
-            decimal total = _items.Sum(i => i.TotalAmount);
-            decimal discountAt = _header.GrandTotalPrice - _header.DiscountedTotal;
+            // รวมเฉพาะรายการที่ไม่ถูกยกเลิก
+            var validItems = _items.Where(i => !i.IsCanceled).ToList();
+            decimal total = validItems.Sum(i => i.TotalAmount);
+
+            // ส่วนลดคิดจากเปอร์เซ็นต์ Discount ของ _header
+            decimal discountPercent = _header.Discount;
+            decimal discountAmount = (discountPercent > 0m) ? (total * (discountPercent / 100m)) : 0m;
+            decimal discountedTotal = total - discountAmount;
 
             // รวม
             string totalLine = $"รวม: {total:N2} บาท";
@@ -228,20 +235,22 @@ namespace Laundry_Management.Laundry
             g.DrawString(totalLine, font, Brushes.Black, rightX - toL.Width, y);
 
             // หลังหักส่วนลด (กรณีมีส่วนลดเท่านั้น)
-            if (discountAt > 0m)
+            if (discountAmount > 0m)
             {
                 y += font.GetHeight(g) + 4;
-                string discLine = $"หลังหักส่วนลด: {_header.DiscountedTotal:N2} บาท";
+                string discLine = $"หลังหักส่วนลด: {discountedTotal:N2} บาท";
                 SizeF diL = g.MeasureString(discLine, font);
                 g.DrawString(discLine, font, Brushes.Black, rightX - diL.Width, y);
             }
         }
         private void PrintDoc_Click(object sender, EventArgs e)
         {
-            // ให้ปุ่มเดิมถ้าเผลอกดมาที่นี่ก็ไปรัน PrintDialog
             using (var dlg = new PrintDialog { Document = _printDocument })
                 if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
                     _printDocument.Print();
+                    IsPrinted = true; // กด print จริง
+                }
             this.Close();
         }
     }
