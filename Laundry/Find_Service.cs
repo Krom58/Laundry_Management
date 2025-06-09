@@ -15,11 +15,53 @@ namespace Laundry_Management.Laundry
     public partial class Find_Service : Form
     {
         private readonly OrderRepository _repo = new OrderRepository();
-        private PrintDocument _printDocument;
         public Find_Service()
         {
             InitializeComponent();
             LoadOrders(null, null, null);
+            dgvOrders.DataBindingComplete += DgvOrders_DataBindingComplete;
+            dgvItems.DataBindingComplete += DgvItems_DataBindingComplete;
+        }
+        private void DgvItems_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
+        {
+            if (dgvItems.Columns["ItemNumber"] != null)
+                dgvItems.Columns["ItemNumber"].HeaderText = "รหัสสินค้า";
+            if (dgvItems.Columns["ItemName"] != null)
+                dgvItems.Columns["ItemName"].HeaderText = "ชื่อผ้า/บริการ";
+            if (dgvItems.Columns["Quantity"] != null)
+                dgvItems.Columns["Quantity"].HeaderText = "จำนวน";
+            if (dgvItems.Columns["TotalAmount"] != null)
+                dgvItems.Columns["TotalAmount"].HeaderText = "ราคารวม";
+            if (dgvItems.Columns["IsCanceled"] != null)
+                dgvItems.Columns["IsCanceled"].HeaderText = "ยกเลิกรายการ";
+            if (dgvItems.Columns["CancelReason"] != null)
+                dgvItems.Columns["CancelReason"].HeaderText = "เหตุผลการยกเลิก";
+        }
+        private void DgvOrders_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
+        {
+            if (dgvOrders.Columns["CustomerName"] != null)
+                dgvOrders.Columns["CustomerName"].HeaderText = "ชื่อ-นามสกุล ลูกค้า";
+            if (dgvOrders.Columns["Phone"] != null)
+                dgvOrders.Columns["Phone"].HeaderText = "เบอร์โทร";
+            if (dgvOrders.Columns["Discount"] != null)
+                dgvOrders.Columns["Discount"].HeaderText = "ส่วนลด";
+            if (dgvOrders.Columns["OrderDate"] != null)
+                dgvOrders.Columns["OrderDate"].HeaderText = "วันที่สั่งOrder";
+            if (dgvOrders.Columns["PickupDate"] != null)
+                dgvOrders.Columns["PickupDate"].HeaderText = "วันรับ";
+            if (dgvOrders.Columns["GrandTotalPrice"] != null)
+                dgvOrders.Columns["GrandTotalPrice"].HeaderText = "ราคารวมทั้งหมด";
+            if (dgvOrders.Columns["DiscountedTotal"] != null)
+                dgvOrders.Columns["DiscountedTotal"].HeaderText = "ราคาหลังลดราคา";
+            if (dgvOrders.Columns["ReceiptId"] != null)
+                dgvOrders.Columns["ReceiptId"].HeaderText = "เลขใบเสร็จ";
+            if (dgvOrders.Columns["ReceivedStatus"] != null)
+                dgvOrders.Columns["ReceivedStatus"].HeaderText = "สถานะการรับผ้า";
+            // ซ่อนคอลัมน์ TodayDiscount และ IsTodayDiscountPercent
+            if (dgvOrders.Columns["TodayDiscount"] != null)
+                dgvOrders.Columns["TodayDiscount"].Visible = false;
+            if (dgvOrders.Columns["IsTodayDiscountPercent"] != null)
+                dgvOrders.Columns["IsTodayDiscountPercent"].Visible = false;
         }
         private void LoadOrders(string customerFilter = null,
     int? orderIdFilter = null,
@@ -49,12 +91,17 @@ namespace Laundry_Management.Laundry
             public string CustomerName { get; set; }
             public string Phone { get; set; }
             public decimal Discount { get; set; }
+            public decimal TodayDiscount { get; set; }
+            public bool IsTodayDiscountPercent { get; set; } // Add this property
             public DateTime OrderDate { get; set; }
             public DateTime PickupDate { get; set; }
             public decimal GrandTotalPrice { get; set; }
             public decimal DiscountedTotal { get; set; }
+            public int? ReceiptId { get; set; }
+            public string ReceivedStatus { get; set; }
         }
-
+        private readonly string _cs =
+                "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
         public class OrderRepository
         {
             private readonly string _cs =
@@ -88,8 +135,9 @@ namespace Laundry_Management.Laundry
                     cmd.Connection = cn;
                     var sb = new StringBuilder(@"
             SELECT OH.OrderID, OH.Discount, OH.CustomerName, OH.Phone, OH.OrderDate,
-                   OH.PickupDate, OH.GrandTotalPrice, OH.DiscountedTotal
+                   OH.PickupDate, OH.GrandTotalPrice, OH.DiscountedTotal,R.ReceiptID,R.IsPickedUp
               FROM OrderHeader OH
+                LEFT JOIN Receipt R ON OH.OrderID = R.OrderID
              WHERE 1=1");
 
                     if (!string.IsNullOrWhiteSpace(customerFilter))
@@ -119,21 +167,13 @@ namespace Laundry_Management.Laundry
                                 OrderID = Convert.ToInt32(r["OrderID"]),
                                 CustomerName = r["CustomerName"] as string ?? "",
                                 Phone = r["Phone"] as string ?? "",
-                                Discount = r["Discount"] == DBNull.Value
-                                                  ? 0m
-                                                  : Convert.ToDecimal(r["Discount"]),
-                                OrderDate = r["OrderDate"] == DBNull.Value
-                                                  ? DateTime.MinValue
-                                                  : Convert.ToDateTime(r["OrderDate"]),
-                                PickupDate = r["PickupDate"] == DBNull.Value
-                                                  ? DateTime.MinValue
-                                                  : Convert.ToDateTime(r["PickupDate"]),
-                                GrandTotalPrice = r["GrandTotalPrice"] == DBNull.Value
-                                                  ? 0m
-                                                  : Convert.ToDecimal(r["GrandTotalPrice"]),
-                                DiscountedTotal = r["DiscountedTotal"] == DBNull.Value
-                                                  ? 0m
-                                                  : Convert.ToDecimal(r["DiscountedTotal"])
+                                Discount = r["Discount"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Discount"]),
+                                OrderDate = r["OrderDate"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(r["OrderDate"]),
+                                PickupDate = r["PickupDate"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(r["PickupDate"]),
+                                GrandTotalPrice = r["GrandTotalPrice"] == DBNull.Value ? 0m : Convert.ToDecimal(r["GrandTotalPrice"]),
+                                DiscountedTotal = r["DiscountedTotal"] == DBNull.Value ? 0m : Convert.ToDecimal(r["DiscountedTotal"]),
+                                ReceiptId = r["ReceiptID"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["ReceiptID"]),
+                                ReceivedStatus = r["IsPickedUp"] as string ?? ""
                             });
                         }
                     }
@@ -312,22 +352,58 @@ namespace Laundry_Management.Laundry
                 return;
             }
 
-            // 1) เปิดฟอร์ม ReceiptPrintForm ก่อน เพื่อให้ผู้ใช้เลือก print จริง
-            int tempReceiptId = -1; // ยังไม่สร้าง receipt จริง
-            using (var rptForm = new ReceiptPrintForm(tempReceiptId, header, items))
+            // เปิดฟอร์ม Sale_Day เพื่อดึงส่วนลดของวัน
+            decimal todayDiscount = 0;
+            using (var saleForm = new Sale_Day())
             {
-                rptForm.ShowDialog(this);
-                if (!rptForm.IsPrinted)
+                if (saleForm.ShowDialog(this) == DialogResult.OK)
                 {
-                    MessageBox.Show("ยกเลิกการออกใบเสร็จ");
+                    // ดึงค่าส่วนลดจากฟอร์ม Sale_Day
+                    if (decimal.TryParse(saleForm.GetDiscount(), out decimal discount))
+                    {
+                        // ตรวจสอบว่าเป็นเปอร์เซ็นต์หรือบาท
+                        if (saleForm.IsPercentDiscount())
+                        {
+                            todayDiscount = discount;
+                            // อัพเดทส่วนลดให้กับ header ที่จะนำไปใช้ในการพิมพ์
+                            header.TodayDiscount = todayDiscount;
+                            // เก็บข้อมูลว่าส่วนลดเป็นเปอร์เซ็นต์หรือบาท
+                            header.IsTodayDiscountPercent = saleForm.IsPercentDiscount();
+                        }
+                        else
+                        {
+                            // ถ้าเป็นบาท ต้องคำนวณเป็นเปอร์เซ็นต์ก่อนใส่ใน header.Discount
+                            // หาผลรวมของรายการที่ไม่ถูกยกเลิก
+                            decimal total = items.Sum(i => i.TotalAmount);
+
+                            // ถ้ายอดรวมเป็น 0 หรือน้อยกว่าส่วนลด
+                            if (total <= 0 || discount > total)
+                            {
+                                MessageBox.Show("ไม่สามารถใช้ส่วนลดเป็นบาทได้ เนื่องจากยอดรวมน้อยกว่าส่วนลด",
+                                    "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                return;
+                            }
+
+                            header.TodayDiscount = discount;
+                        }
+                    }
+                    else
+                    {
+                        header.TodayDiscount = 0;
+                    }
+                }
+                else
+                {
+                    // ถ้ายกเลิกการใส่ส่วนลด
                     return;
                 }
             }
 
+            int receiptId = -1;
             try
             {
-                // 2) ถ้าผู้ใช้ print จริง ค่อย save Receipt และ Items
-                int receiptId = _repo.CreateReceipt(header.OrderID);
+                // 1) สร้าง Receipt จริงก่อน
+                receiptId = _repo.CreateReceipt(header.OrderID);
                 foreach (var item in items)
                 {
                     _repo.CreateReceiptItem(
@@ -336,6 +412,40 @@ namespace Laundry_Management.Laundry
                         quantity: item.Quantity,
                         amount: item.TotalAmount
                     );
+                }
+
+                // 2) เปิดฟอร์ม ReceiptPrintForm พร้อม receiptId จริง
+                using (var rptForm = new ReceiptPrintForm(receiptId, header, items))
+                {
+                    rptForm.ShowDialog(this);
+                    if (!rptForm.IsPrinted)
+                    {
+                        using (var cn = new SqlConnection(_cs))
+                        {
+                            cn.Open();
+                            using (var tx = cn.BeginTransaction())
+                            {
+                                // ลบ ReceiptItem ที่เกี่ยวข้อง
+                                using (var cmd1 = new SqlCommand(
+                                    "DELETE FROM ReceiptItem WHERE ReceiptID = @rid", cn, tx))
+                                {
+                                    cmd1.Parameters.AddWithValue("@rid", receiptId);
+                                    cmd1.ExecuteNonQuery();
+                                }
+                                // ลบ Receipt
+                                using (var cmd2 = new SqlCommand(
+                                    "DELETE FROM Receipt WHERE ReceiptID = @rid", cn, tx))
+                                {
+                                    cmd2.Parameters.AddWithValue("@rid", receiptId);
+                                    cmd2.ExecuteNonQuery();
+                                }
+                                tx.Commit();
+                            }
+                        }
+                        // Optional: ลบ Receipt ที่สร้างทิ้ง ถ้าผู้ใช้ยกเลิกการปริ้น
+                        MessageBox.Show("ยกเลิกการออกใบเสร็จ");
+                        return;
+                    }
                 }
 
                 MessageBox.Show("พิมพ์และบันทึกใบเสร็จสำเร็จ");

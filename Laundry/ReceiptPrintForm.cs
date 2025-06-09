@@ -224,7 +224,7 @@ namespace Laundry_Management.Laundry
             var validItems = _items.Where(i => !i.IsCanceled).ToList();
             decimal total = validItems.Sum(i => i.TotalAmount);
 
-            // ส่วนลดคิดจากเปอร์เซ็นต์ Discount ของ _header
+            // ส่วนลดคิดจากเปอร์เซ็นต์ Discount ของ _header (ส่วนลดปกติ)
             decimal discountPercent = _header.Discount;
             decimal discountAmount = (discountPercent > 0m) ? (total * (discountPercent / 100m)) : 0m;
             decimal discountedTotal = total - discountAmount;
@@ -241,6 +241,52 @@ namespace Laundry_Management.Laundry
                 string discLine = $"หลังหักส่วนลด: {discountedTotal:N2} บาท";
                 SizeF diL = g.MeasureString(discLine, font);
                 g.DrawString(discLine, font, Brushes.Black, rightX - diL.Width, y);
+            }
+
+            // คำนวณส่วนลดพิเศษของวันนี้ (TodayDiscount) ปิดท้าย
+            if (_header.TodayDiscount > 0m)
+            {
+                // เลือกใช้ discountedTotal หรือ total ในการคำนวณ
+                // หากไม่มีส่วนลดปกติ (discountAmount เป็น 0) ให้ใช้ total แทน
+                decimal baseAmountForTodayDiscount = discountAmount > 0 ? discountedTotal : total;
+
+                decimal todayDiscountAmount;
+                decimal finalTotal;
+
+                // ตรวจสอบว่าส่วนลดวันนี้เป็นบาทหรือเปอร์เซ็นต์
+                // โดยเช็คจาก _header.IsTodayDiscountPercent
+                if (_header.IsTodayDiscountPercent)
+                {
+                    // ถ้าเป็นเปอร์เซ็นต์ คำนวณส่วนลดจากเปอร์เซ็นต์
+                    todayDiscountAmount = baseAmountForTodayDiscount * (_header.TodayDiscount / 100m);
+                    finalTotal = baseAmountForTodayDiscount - todayDiscountAmount;
+
+                    // แสดงส่วนลดของวันนี้
+                    y += font.GetHeight(g) + 4;
+                    string todayDiscLine = $"ส่วนลดพิเศษประจำวัน {_header.TodayDiscount:N2}%: {todayDiscountAmount:N2} บาท";
+                    SizeF todayDisL = g.MeasureString(todayDiscLine, font);
+                    g.DrawString(todayDiscLine, font, Brushes.Black, rightX - todayDisL.Width, y);
+                }
+                else
+                {
+                    // ถ้าเป็นบาท ใช้ค่าส่วนลดเป็นบาทโดยตรง
+                    todayDiscountAmount = _header.TodayDiscount;
+                    // ป้องกันไม่ให้ส่วนลดมากกว่ายอดเงินที่เหลือ
+                    todayDiscountAmount = Math.Min(todayDiscountAmount, baseAmountForTodayDiscount);
+                    finalTotal = baseAmountForTodayDiscount - todayDiscountAmount;
+
+                    // แสดงส่วนลดของวันนี้
+                    y += font.GetHeight(g) + 4;
+                    string todayDiscLine = $"ส่วนลดพิเศษประจำวัน: {todayDiscountAmount:N2} บาท";
+                    SizeF todayDisL = g.MeasureString(todayDiscLine, font);
+                    g.DrawString(todayDiscLine, font, Brushes.Black, rightX - todayDisL.Width, y);
+                }
+
+                // แสดงยอดสุทธิหลังหักส่วนลดทั้งหมด
+                y += font.GetHeight(g) + 4;
+                string finalLine = $"ยอดสุทธิ: {finalTotal:N2} บาท";
+                SizeF finalL = g.MeasureString(finalLine, font);
+                g.DrawString(finalLine, font, Brushes.Black, rightX - finalL.Width, y);
             }
         }
         private void PrintDoc_Click(object sender, EventArgs e)

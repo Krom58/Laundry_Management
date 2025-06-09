@@ -212,7 +212,7 @@
             this.Controls.Add(this.ItemName);
             this.Name = "Modify_Type_Service";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Modify_Type_Service";
+            this.Text = "แก้ไขข้อมูลรายการ";
             this.Load += new System.EventHandler(this.Modify_Type_Service_Load);
             this.ResumeLayout(false);
             this.PerformLayout();

@@ -52,6 +52,12 @@
     <Compile Include="Laundry\Add_Type__Service.Designer.cs">
       <DependentUpon>Add_Type__Service.cs</DependentUpon>
     </Compile>
+    <Compile Include="Laundry\Check_List.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Laundry\Check_List.Designer.cs">
+      <DependentUpon>Check_List.cs</DependentUpon>
+    </Compile>
     <Compile Include="Laundry\Customer.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -88,6 +94,12 @@
     <Compile Include="Laundry\Modify_Type_Service.Designer.cs">
       <DependentUpon>Modify_Type_Service.cs</DependentUpon>
     </Compile>
+    <Compile Include="Laundry\Pickup_List.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Laundry\Pickup_List.Designer.cs">
+      <DependentUpon>Pickup_List.cs</DependentUpon>
+    </Compile>
     <Compile Include="Laundry\Print_Service.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -100,6 +112,12 @@
     </Compile>
     <Compile Include="Laundry\ReceiptPrintForm.Designer.cs">
       <DependentUpon>ReceiptPrintForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Laundry\Sale_Day.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Laundry\Sale_Day.Designer.cs">
+      <DependentUpon>Sale_Day.cs</DependentUpon>
     </Compile>
     <Compile Include="Laundry\Select_Customer.cs">
       <SubType>Form</SubType>
@@ -116,6 +134,9 @@
     </Compile>
     <EmbeddedResource Include="Laundry\Add_Type__Service.resx">
       <DependentUpon>Add_Type__Service.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Laundry\Check_List.resx">
+      <DependentUpon>Check_List.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Laundry\Customer.resx">
       <DependentUpon>Customer.cs</DependentUpon>
@@ -135,11 +156,17 @@
     <EmbeddedResource Include="Laundry\Modify_Type_Service.resx">
       <DependentUpon>Modify_Type_Service.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Laundry\Pickup_List.resx">
+      <DependentUpon>Pickup_List.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Laundry\Print_Service.resx">
       <DependentUpon>Print_Service.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Laundry\ReceiptPrintForm.resx">
       <DependentUpon>ReceiptPrintForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Laundry\Sale_Day.resx">
+      <DependentUpon>Sale_Day.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Laundry\Select_Customer.resx">
       <DependentUpon>Select_Customer.cs</DependentUpon>

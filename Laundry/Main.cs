@@ -41,5 +41,17 @@ namespace Laundry_Management
             var findServiceForm = new Find_Service();
             findServiceForm.ShowDialog();
         }
+
+        private void Check_List_Click(object sender, EventArgs e)
+        {
+            var Check_ListForm = new Check_List();
+            Check_ListForm.ShowDialog();
+        }
+
+        private void Pickup_List_Click(object sender, EventArgs e)
+        {
+            var Pickup_ListForm = new Pickup_List();
+            Pickup_ListForm.ShowDialog();
+        }
     }
 }

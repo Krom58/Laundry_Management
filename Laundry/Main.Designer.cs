@@ -32,6 +32,8 @@
             this.btnService = new System.Windows.Forms.Button();
             this.btnCustomer = new System.Windows.Forms.Button();
             this.btnFind_Service = new System.Windows.Forms.Button();
+            this.Check_List = new System.Windows.Forms.Button();
+            this.Pickup_List = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnAdd_Type_Service
@@ -64,7 +66,7 @@
             this.btnCustomer.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnCustomer.Location = new System.Drawing.Point(404, 505);
             this.btnCustomer.Name = "btnCustomer";
-            this.btnCustomer.Size = new System.Drawing.Size(260, 109);
+            this.btnCustomer.Size = new System.Drawing.Size(282, 109);
             this.btnCustomer.TabIndex = 38;
             this.btnCustomer.Text = "เพิ่มรายชื่อลูกค้า";
             this.btnCustomer.UseVisualStyleBackColor = true;
@@ -82,11 +84,37 @@
             this.btnFind_Service.UseVisualStyleBackColor = true;
             this.btnFind_Service.Click += new System.EventHandler(this.btnFind_Service_Click);
             // 
+            // Check_List
+            // 
+            this.Check_List.AutoSize = true;
+            this.Check_List.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Check_List.Location = new System.Drawing.Point(404, 680);
+            this.Check_List.Name = "Check_List";
+            this.Check_List.Size = new System.Drawing.Size(282, 109);
+            this.Check_List.TabIndex = 40;
+            this.Check_List.Text = "ดูรายการทั้งหมด";
+            this.Check_List.UseVisualStyleBackColor = true;
+            this.Check_List.Click += new System.EventHandler(this.Check_List_Click);
+            // 
+            // Pickup_List
+            // 
+            this.Pickup_List.AutoSize = true;
+            this.Pickup_List.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Pickup_List.Location = new System.Drawing.Point(807, 680);
+            this.Pickup_List.Name = "Pickup_List";
+            this.Pickup_List.Size = new System.Drawing.Size(282, 109);
+            this.Pickup_List.TabIndex = 41;
+            this.Pickup_List.Text = "เช็คการมารับผ้า";
+            this.Pickup_List.UseVisualStyleBackColor = true;
+            this.Pickup_List.Click += new System.EventHandler(this.Pickup_List_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.Pickup_List);
+            this.Controls.Add(this.Check_List);
             this.Controls.Add(this.btnFind_Service);
             this.Controls.Add(this.btnCustomer);
             this.Controls.Add(this.btnService);
@@ -105,5 +133,7 @@
         private System.Windows.Forms.Button btnService;
         private System.Windows.Forms.Button btnCustomer;
         private System.Windows.Forms.Button btnFind_Service;
+        private System.Windows.Forms.Button Check_List;
+        private System.Windows.Forms.Button Pickup_List;
     }
 }
