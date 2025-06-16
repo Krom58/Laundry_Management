@@ -75,14 +75,20 @@ namespace Laundry_Management
 
         private void btnModify_Click(object sender, EventArgs e)
         {
-            if (dataGridView1.SelectedRows.Count == 0)
+            // ตรวจสอบว่ามีการเลือกเซลล์หรือไม่
+            if (dataGridView1.CurrentCell == null)
             {
-                MessageBox.Show("กรุณาเลือกแถวที่ต้องการแก้ไข");
+                MessageBox.Show("กรุณาเลือกข้อมูลที่ต้องการแก้ไข");
                 return;
             }
 
-            var selectedRow = dataGridView1.SelectedRows[0];
-            var customerIdObj = selectedRow.Cells["CustomerID"].Value;
+            // ดึงแถวที่เซลล์ปัจจุบันอยู่
+            int rowIndex = dataGridView1.CurrentCell.RowIndex;
+            DataGridViewRow row = dataGridView1.Rows[rowIndex];
+
+            // ดึงค่า CustomerID จากแถวนั้น
+            var customerIdObj = row.Cells["CustomerID"].Value;
+
             if (customerIdObj == null)
             {
                 MessageBox.Show("ไม่พบข้อมูลรหัสลูกค้า");
@@ -90,14 +96,16 @@ namespace Laundry_Management
             }
             int customerId = Convert.ToInt32(customerIdObj);
 
-            string fullName = selectedRow.Cells["FullName"].Value?.ToString();
-            string phone = selectedRow.Cells["Phone"].Value?.ToString();
-            string discountStr = selectedRow.Cells["Discount"].Value?.ToString();
+            // ดึงข้อมูลลูกค้าจากแถว
+            string fullName = row.Cells["FullName"].Value?.ToString();
+            string phone = row.Cells["Phone"].Value?.ToString();
+            string discountStr = row.Cells["Discount"].Value?.ToString();
             int? discount = null;
-            string note = selectedRow.Cells["Note"].Value?.ToString();
+            string note = row.Cells["Note"].Value?.ToString();
             if (int.TryParse(discountStr, out int d))
                 discount = d;
 
+            // เปิดฟอร์มแก้ไขข้อมูล
             using (var modifyForm = new ModifyCustomer(customerId, fullName, phone, discount, note))
             {
                 if (modifyForm.ShowDialog() == DialogResult.OK)
@@ -133,19 +141,25 @@ namespace Laundry_Management
             // ตั้งค่า AutoSizeColumnsMode และ AutoSizeRowsMode
             dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dataGridView1.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            LoadCustomerData();
         }
 
         private void btnDelete_Click(object sender, EventArgs e)
         {
-            if (dataGridView1.SelectedRows.Count == 0)
+            // ตรวจสอบว่ามีการเลือกเซลล์หรือไม่
+            if (dataGridView1.CurrentCell == null)
             {
-                MessageBox.Show("กรุณาเลือกแถวที่ต้องการลบ");
+                MessageBox.Show("กรุณาเลือกข้อมูลที่ต้องการลบ");
                 return;
             }
 
-            // ดึงค่า CustomerID จากแถวที่เลือก (แม้คอลัมน์จะถูกซ่อน แต่ยังเข้าถึงได้)
-            var selectedRow = dataGridView1.SelectedRows[0];
-            var customerIdObj = selectedRow.Cells["CustomerID"].Value;
+            // ดึงแถวที่เซลล์ปัจจุบันอยู่
+            int rowIndex = dataGridView1.CurrentCell.RowIndex;
+            DataGridViewRow row = dataGridView1.Rows[rowIndex];
+
+            // ดึงค่า CustomerID จากแถวนั้น
+            var customerIdObj = row.Cells["CustomerID"].Value;
 
             if (customerIdObj == null)
             {
@@ -154,8 +168,52 @@ namespace Laundry_Management
             }
 
             int customerId = Convert.ToInt32(customerIdObj);
+            string customerName = row.Cells["FullName"].Value?.ToString() ?? "ไม่ระบุชื่อ";
 
-            var confirmResult = MessageBox.Show("คุณต้องการลบข้อมูลลูกค้ารายนี้หรือไม่?", "ยืนยันการลบ", MessageBoxButtons.YesNo);
+            // สร้าง Custom Confirmation Dialog ขนาดใหญ่พร้อมตัวอักษรขนาดใหญ่
+            Form confirmDialog = new Form();
+            confirmDialog.Text = "ยืนยันการลบข้อมูล";
+            confirmDialog.StartPosition = FormStartPosition.CenterParent;
+            confirmDialog.Size = new Size(900, 600);
+            confirmDialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+            confirmDialog.MaximizeBox = false;
+            confirmDialog.MinimizeBox = false;
+
+            // ข้อความแจ้งเตือน
+            Label confirmLabel = new Label();
+            confirmLabel.Text = $"คุณต้องการลบข้อมูลลูกค้า\n\"{customerName}\"\nใช่หรือไม่?";
+            confirmLabel.Font = new Font("Angsana New", 28, FontStyle.Bold);
+            confirmLabel.AutoSize = true;
+            confirmLabel.Location = new Point(confirmDialog.Width - 600, confirmDialog.Height - 450);
+            confirmLabel.TextAlign = ContentAlignment.MiddleCenter;
+            confirmLabel.Padding = new Padding(0, 30, 0, 30);
+
+            // ปุ่มยืนยัน
+            Button yesButton = new Button();
+            yesButton.Text = "ใช่ ลบข้อมูล";
+            yesButton.Font = new Font("Angsana New", 22, FontStyle.Bold);
+            yesButton.DialogResult = DialogResult.Yes;
+            yesButton.Size = new Size(180, 70);
+            yesButton.Location = new Point(confirmDialog.Width - 400, confirmDialog.Height - 150);
+            yesButton.BackColor = Color.FromArgb(192, 0, 0); // สีแดง
+            yesButton.ForeColor = Color.White;
+
+            // ปุ่มยกเลิก
+            Button noButton = new Button();
+            noButton.Text = "ไม่ ยกเลิก";
+            noButton.Font = new Font("Angsana New", 22, FontStyle.Regular);
+            noButton.DialogResult = DialogResult.No;
+            noButton.Size = new Size(180, 70);
+            noButton.Location = new Point(confirmDialog.Width - 200, confirmDialog.Height - 150);
+
+            // เพิ่มองค์ประกอบทั้งหมดลงในฟอร์ม
+            confirmDialog.Controls.Add(confirmLabel);
+            confirmDialog.Controls.Add(yesButton);
+            confirmDialog.Controls.Add(noButton);
+
+            // แสดงฟอร์มและรอการตอบกลับ
+            DialogResult confirmResult = confirmDialog.ShowDialog(this);
+
             if (confirmResult == DialogResult.Yes)
             {
                 string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
@@ -169,7 +227,8 @@ namespace Laundry_Management
                     command.ExecuteNonQuery();
                 }
 
-                MessageBox.Show("ลบข้อมูลลูกค้าเรียบร้อยแล้ว");
+                MessageBox.Show("ลบข้อมูลลูกค้าเรียบร้อยแล้ว", "สำเร็จ",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadCustomerData();
             }
         }

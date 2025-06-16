@@ -45,7 +45,7 @@
             // 
             this.btnOk.AutoSize = true;
             this.btnOk.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnOk.Location = new System.Drawing.Point(733, 465);
+            this.btnOk.Location = new System.Drawing.Point(1183, 565);
             this.btnOk.Name = "btnOk";
             this.btnOk.Size = new System.Drawing.Size(239, 109);
             this.btnOk.TabIndex = 37;
@@ -57,7 +57,7 @@
             // 
             this.btnCancle.AutoSize = true;
             this.btnCancle.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnCancle.Location = new System.Drawing.Point(12, 465);
+            this.btnCancle.Location = new System.Drawing.Point(12, 565);
             this.btnCancle.Name = "btnCancle";
             this.btnCancle.Size = new System.Drawing.Size(239, 109);
             this.btnCancle.TabIndex = 36;
@@ -68,7 +68,7 @@
             // txtPhone
             // 
             this.txtPhone.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtPhone.Location = new System.Drawing.Point(304, 130);
+            this.txtPhone.Location = new System.Drawing.Point(504, 141);
             this.txtPhone.Name = "txtPhone";
             this.txtPhone.Size = new System.Drawing.Size(400, 51);
             this.txtPhone.TabIndex = 42;
@@ -77,7 +77,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(169, 133);
+            this.label2.Location = new System.Drawing.Point(369, 144);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(98, 43);
             this.label2.TabIndex = 41;
@@ -87,7 +87,7 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(169, 50);
+            this.label1.Location = new System.Drawing.Point(369, 61);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(129, 43);
             this.label1.TabIndex = 40;
@@ -96,7 +96,7 @@
             // txtFullName
             // 
             this.txtFullName.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtFullName.Location = new System.Drawing.Point(304, 47);
+            this.txtFullName.Location = new System.Drawing.Point(504, 58);
             this.txtFullName.Name = "txtFullName";
             this.txtFullName.Size = new System.Drawing.Size(516, 51);
             this.txtFullName.TabIndex = 39;
@@ -122,14 +122,14 @@
             this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle2;
             this.dataGridView1.Location = new System.Drawing.Point(-1, 230);
             this.dataGridView1.Name = "dataGridView1";
-            this.dataGridView1.Size = new System.Drawing.Size(986, 229);
+            this.dataGridView1.Size = new System.Drawing.Size(1435, 329);
             this.dataGridView1.TabIndex = 43;
             // 
             // Search
             // 
             this.Search.AutoSize = true;
             this.Search.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Search.Location = new System.Drawing.Point(752, 128);
+            this.Search.Location = new System.Drawing.Point(952, 139);
             this.Search.Name = "Search";
             this.Search.Size = new System.Drawing.Size(144, 53);
             this.Search.TabIndex = 44;
@@ -141,7 +141,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(984, 586);
+            this.ClientSize = new System.Drawing.Size(1434, 686);
             this.Controls.Add(this.Search);
             this.Controls.Add(this.dataGridView1);
             this.Controls.Add(this.txtPhone);

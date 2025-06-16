@@ -47,6 +47,8 @@
             this.label7 = new System.Windows.Forms.Label();
             this.btnModify = new System.Windows.Forms.Button();
             this.Search = new System.Windows.Forms.Button();
+            this.chkNotUse = new System.Windows.Forms.CheckBox();
+            this.chkUsing = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -186,6 +188,7 @@
             // Delete
             // 
             this.Delete.AutoSize = true;
+            this.Delete.Enabled = false;
             this.Delete.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Delete.Location = new System.Drawing.Point(1401, 277);
             this.Delete.Name = "Delete";
@@ -193,6 +196,7 @@
             this.Delete.TabIndex = 17;
             this.Delete.Text = "ลบ";
             this.Delete.UseVisualStyleBackColor = true;
+            this.Delete.Visible = false;
             this.Delete.Click += new System.EventHandler(this.Delete_Click);
             // 
             // ItemNumber
@@ -229,7 +233,7 @@
             // 
             this.Search.AutoSize = true;
             this.Search.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Search.Location = new System.Drawing.Point(820, 213);
+            this.Search.Location = new System.Drawing.Point(1102, 213);
             this.Search.Name = "Search";
             this.Search.Size = new System.Drawing.Size(144, 53);
             this.Search.TabIndex = 44;
@@ -237,11 +241,35 @@
             this.Search.UseVisualStyleBackColor = true;
             this.Search.Click += new System.EventHandler(this.Search_Click);
             // 
+            // chkNotUse
+            // 
+            this.chkNotUse.AutoSize = true;
+            this.chkNotUse.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.chkNotUse.Location = new System.Drawing.Point(957, 217);
+            this.chkNotUse.Name = "chkNotUse";
+            this.chkNotUse.Size = new System.Drawing.Size(119, 47);
+            this.chkNotUse.TabIndex = 52;
+            this.chkNotUse.Text = "ไม่ใช้งาน";
+            this.chkNotUse.UseVisualStyleBackColor = true;
+            // 
+            // chkUsing
+            // 
+            this.chkUsing.AutoSize = true;
+            this.chkUsing.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.chkUsing.Location = new System.Drawing.Point(820, 217);
+            this.chkUsing.Name = "chkUsing";
+            this.chkUsing.Size = new System.Drawing.Size(95, 47);
+            this.chkUsing.TabIndex = 51;
+            this.chkUsing.Text = "ใช้งาน";
+            this.chkUsing.UseVisualStyleBackColor = true;
+            // 
             // Add_Type__Service
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.chkNotUse);
+            this.Controls.Add(this.chkUsing);
             this.Controls.Add(this.Search);
             this.Controls.Add(this.btnModify);
             this.Controls.Add(this.ItemNumber);
@@ -287,6 +315,8 @@
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Button btnModify;
         private System.Windows.Forms.Button Search;
+        private System.Windows.Forms.CheckBox chkNotUse;
+        private System.Windows.Forms.CheckBox chkUsing;
     }
 }
 

@@ -34,6 +34,7 @@
             this.btnFind_Service = new System.Windows.Forms.Button();
             this.Check_List = new System.Windows.Forms.Button();
             this.Pickup_List = new System.Windows.Forms.Button();
+            this.btnSetting = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnAdd_Type_Service
@@ -80,7 +81,7 @@
             this.btnFind_Service.Name = "btnFind_Service";
             this.btnFind_Service.Size = new System.Drawing.Size(282, 109);
             this.btnFind_Service.TabIndex = 39;
-            this.btnFind_Service.Text = "สร้างใบเสร็จ";
+            this.btnFind_Service.Text = "ออกใบเสร็จ";
             this.btnFind_Service.UseVisualStyleBackColor = true;
             this.btnFind_Service.Click += new System.EventHandler(this.btnFind_Service_Click);
             // 
@@ -108,11 +109,24 @@
             this.Pickup_List.UseVisualStyleBackColor = true;
             this.Pickup_List.Click += new System.EventHandler(this.Pickup_List_Click);
             // 
+            // btnSetting
+            // 
+            this.btnSetting.AutoSize = true;
+            this.btnSetting.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSetting.Location = new System.Drawing.Point(807, 505);
+            this.btnSetting.Name = "btnSetting";
+            this.btnSetting.Size = new System.Drawing.Size(282, 109);
+            this.btnSetting.TabIndex = 42;
+            this.btnSetting.Text = "ตั้งค่า";
+            this.btnSetting.UseVisualStyleBackColor = true;
+            this.btnSetting.Click += new System.EventHandler(this.btnSetting_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.btnSetting);
             this.Controls.Add(this.Pickup_List);
             this.Controls.Add(this.Check_List);
             this.Controls.Add(this.btnFind_Service);
@@ -135,5 +149,6 @@
         private System.Windows.Forms.Button btnFind_Service;
         private System.Windows.Forms.Button Check_List;
         private System.Windows.Forms.Button Pickup_List;
+        private System.Windows.Forms.Button btnSetting;
     }
 }

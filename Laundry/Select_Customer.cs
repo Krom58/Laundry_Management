@@ -34,6 +34,9 @@ namespace Laundry_Management.Laundry
         {
             dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dataGridView1.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
+
+            LoadCustomerData();
         }
 
         private void btnCancle_Click(object sender, EventArgs e)
@@ -108,13 +111,25 @@ namespace Laundry_Management.Laundry
 
         private void btnOk_Click(object sender, EventArgs e)
         {
-            if (dataGridView1.SelectedRows.Count == 0)
+            // ตรวจสอบว่ามีการเลือกเซลล์หรือไม่
+            if (dataGridView1.CurrentCell == null)
             {
                 MessageBox.Show("กรุณาเลือกลูกค้า");
                 return;
             }
 
-            var row = dataGridView1.SelectedRows[0];
+            // ดึงแถวที่เซลล์ปัจจุบันอยู่
+            int rowIndex = dataGridView1.CurrentCell.RowIndex;
+            DataGridViewRow row = dataGridView1.Rows[rowIndex];
+
+            // ตรวจสอบว่าแถวนั้นมีข้อมูลหรือไม่
+            if (row.Cells["FullName"].Value == null || row.Cells["Phone"].Value == null)
+            {
+                MessageBox.Show("ข้อมูลลูกค้าไม่ครบถ้วน");
+                return;
+            }
+
+            // ดึงข้อมูลลูกค้าจากแถว
             SelectedCustomerName = row.Cells["FullName"].Value.ToString();
             SelectedPhone = row.Cells["Phone"].Value.ToString();
             SelectedDiscount = row.Cells["Discount"].Value != DBNull.Value

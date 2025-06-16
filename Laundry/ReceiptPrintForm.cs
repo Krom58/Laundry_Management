@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.Linq;
@@ -34,8 +35,16 @@ namespace Laundry_Management.Laundry
             // เตรียม PrintDocument
             _printDocument = new PrintDocument();
             _printDocument.PrintPage += PrintPageHandler;
+
+            // Set A5 paper size in portrait orientation - เหมือนกับ Print_Service
+            PaperSize paperSize = new PaperSize("A5", 583, 827); // A5 dimensions in hundredths of an inch
+            _printDocument.DefaultPageSettings.PaperSize = paperSize;
+            _printDocument.DefaultPageSettings.Landscape = false; // false = portrait orientation
+
+            // Adjust margins to be smaller for A5 - เหมือนกับ Print_Service
             _printDocument.DefaultPageSettings.Margins = new Margins(15, 35, 15, 15);
         }
+        // Modify PrintPageHandler to use smaller fonts for A5 paper - เหมือนกับ Print_Service
         private void PrintPageHandler(object sender, PrintPageEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -44,18 +53,16 @@ namespace Laundry_Management.Laundry
             float rightX = e.MarginBounds.Right;
             float y = topY;
 
-            using (Font headerF = new Font("Arial", 8, FontStyle.Bold))
-            using (Font subF = new Font("Arial", 6))
-            using (Font bodyF = new Font("Arial", 6))
+            // Use smaller fonts for A5 paper - เหมือนกับ Print_Service
+            using (Font headerF = new Font("Arial", 9, FontStyle.Bold))
+            using (Font subF = new Font("Arial", 7))
+            using (Font bodyF = new Font("Arial", 7))
             {
-                // header เดิม...
                 DrawHeader(g, headerF, subF, leftX, ref y, rightX);
-                y += 5;
+                y += 3; // Reduced spacing - เหมือนกับ Print_Service
                 DrawServiceDetails(g, bodyF, leftX, ref y, rightX);
-                // checklist ฝั่งซ้าย
-                y += 5;
+                y += 3; // Reduced spacing - เหมือนกับ Print_Service
                 DrawChecklistLeft(g, bodyF, leftX, y);
-                // สรุปยอด...
                 DrawSummaryRight(g, bodyF, e.PageBounds, y, rightX);
             }
 
@@ -65,12 +72,12 @@ namespace Laundry_Management.Laundry
                         float leftX, ref float y, float rightX)
         {
             // ชื่อร้าน (ฝั่งซ้าย)
-            g.DrawString($"Resceipt ID: {_receiptId}", headerFont, Brushes.Black, leftX, y);
+            g.DrawString($"หมายเลขใบเสร็จ : {_header.CustomReceiptId}", headerFont, Brushes.Black, leftX, y);
             y += headerFont.GetHeight(g) + 3;
             g.DrawString("เอเชียซักแห้ง", headerFont, Brushes.Black, leftX, y);
 
             // Order ID + วันที่ (ฝั่งขวา) ให้ตัวอักษรตัวแรกตรงกับ leftX + same indent
-            string idLine = $"Order ID: {_header.OrderID}";
+            string idLine = $"หมายเลขใบรับผ้า : {_header.CustomOrderId}";
             SizeF idSz = g.MeasureString(idLine, headerFont);
             g.DrawString(idLine, headerFont, Brushes.Black,
                          rightX - idSz.Width, y);
@@ -115,11 +122,11 @@ namespace Laundry_Management.Laundry
 
             // ข้อความเตือน Quick service
             string[] warnings = {
-        "กรณีซักผ้าด่วน ส่งก่อน 10.00 น.",
-        "[  ] รับผ้าภายในเวลา 17.00 น. ในวันเดียวกัน คิดค่าบริการเพิ่ม 100%",
-        "[  ] รับผ้าในวันถัดไปภายใน 17.00 น. คิดค่าบริการเพิ่ม 50%",
-        "[  ] ผ้าอบไอน้ำ เศษของเมตรคิดเป็น 1 เมตร"
-    };
+                "กรณีซักผ้าด่วน ส่งก่อน 10.00 น.",
+                "[  ] รับผ้าภายในเวลา 17.00 น. ในวันเดียวกัน คิดค่าบริการเพิ่ม 100%",
+                "[  ] รับผ้าในวันถัดไปภายใน 17.00 น. คิดค่าบริการเพิ่ม 50%",
+                "[  ] ผ้าอบไอน้ำ เศษของเมตรคิดเป็น 1 เมตร"
+            };
             foreach (var w in warnings)
             {
                 g.DrawString(w, subHeaderFont, Brushes.Black, leftX, y);
@@ -200,22 +207,23 @@ namespace Laundry_Management.Laundry
             y += 10;
         }
 
+        // Modify spacing in DrawChecklistLeft to match Print_Service
         private void DrawChecklistLeft(Graphics g, Font font, float leftX, float y)
         {
             string[] checks = new[]
             {
-        "[  ] หดรอยเตารีด เหลือง ไหม้                   [  ] สีเปลี่ยนจากเดิมจุดด่าง",
-        "[  ] สีกล้ำ เปื้อนน้ำมัน                         [  ] ขาดแยกปริ",
-        "[  ] เปื้อนสี หมึก เลือด อาหาร                   [  ] เป็นเงามันจากเตารีด",
-        "[  ] ไม่สมประกอบ กระดุมแตก หาย                [  ] เปื้อนชา กาแฟ",
-        "[  ] รอยย่น                                [  ] ขอบยางยืด"
-    };
+                "[  ] หดรอยเตารีด เหลือง ไหม้                   [  ] สีเปลี่ยนจากเดิมจุดด่าง",
+                "[  ] สีกล้ำ เปื้อนน้ำมัน                         [  ] ขาดแยกปริ",
+                "[  ] เปื้อนสี หมึก เลือด อาหาร                   [  ] เป็นเงามันจากเตารีด",
+                "[  ] ไม่สมประกอบ กระดุมแตก หาย                [  ] เปื้อนชา กาแฟ",
+                "[  ] รอยย่น                                [  ] ขอบยางยืด"
+            };
 
             float lineY = y;
             foreach (var line in checks)
             {
                 g.DrawString(line, font, Brushes.Black, leftX, lineY);
-                lineY += font.GetHeight(g) + 2;
+                lineY += font.GetHeight(g) + 1; // Reduced spacing - เหมือนกับ Print_Service
             }
         }
         private void DrawSummaryRight(Graphics g, Font font, Rectangle page, float y, float rightX)
@@ -242,62 +250,125 @@ namespace Laundry_Management.Laundry
                 SizeF diL = g.MeasureString(discLine, font);
                 g.DrawString(discLine, font, Brushes.Black, rightX - diL.Width, y);
             }
-
+            y += font.GetHeight(g) + 25;
+            string sign = $"เซ็นชื่อผู้รับเงิน : _______________________________";
+            SizeF si = g.MeasureString(sign, font);
+            g.DrawString(sign, font, Brushes.Black, rightX - si.Width, y);
             // คำนวณส่วนลดพิเศษของวันนี้ (TodayDiscount) ปิดท้าย
-            if (_header.TodayDiscount > 0m)
-            {
-                // เลือกใช้ discountedTotal หรือ total ในการคำนวณ
-                // หากไม่มีส่วนลดปกติ (discountAmount เป็น 0) ให้ใช้ total แทน
-                decimal baseAmountForTodayDiscount = discountAmount > 0 ? discountedTotal : total;
+            //if (_header.TodayDiscount > 0m)
+            //{
+            //    // เลือกใช้ discountedTotal หรือ total ในการคำนวณ
+            //    // หากไม่มีส่วนลดปกติ (discountAmount เป็น 0) ให้ใช้ total แทน
+            //    decimal baseAmountForTodayDiscount = discountAmount > 0 ? discountedTotal : total;
 
-                decimal todayDiscountAmount;
-                decimal finalTotal;
+            //    decimal todayDiscountAmount;
+            //    decimal finalTotal;
 
-                // ตรวจสอบว่าส่วนลดวันนี้เป็นบาทหรือเปอร์เซ็นต์
-                // โดยเช็คจาก _header.IsTodayDiscountPercent
-                if (_header.IsTodayDiscountPercent)
-                {
-                    // ถ้าเป็นเปอร์เซ็นต์ คำนวณส่วนลดจากเปอร์เซ็นต์
-                    todayDiscountAmount = baseAmountForTodayDiscount * (_header.TodayDiscount / 100m);
-                    finalTotal = baseAmountForTodayDiscount - todayDiscountAmount;
+            //    // ตรวจสอบว่าส่วนลดวันนี้เป็นบาทหรือเปอร์เซ็นต์
+            //    // โดยเช็คจาก _header.IsTodayDiscountPercent
+            //    if (_header.IsTodayDiscountPercent)
+            //    {
+            //        // ถ้าเป็นเปอร์เซ็นต์ คำนวณส่วนลดจากเปอร์เซ็นต์
+            //        todayDiscountAmount = baseAmountForTodayDiscount * (_header.TodayDiscount / 100m);
+            //        finalTotal = baseAmountForTodayDiscount - todayDiscountAmount;
 
-                    // แสดงส่วนลดของวันนี้
-                    y += font.GetHeight(g) + 4;
-                    string todayDiscLine = $"ส่วนลดพิเศษประจำวัน {_header.TodayDiscount:N2}%: {todayDiscountAmount:N2} บาท";
-                    SizeF todayDisL = g.MeasureString(todayDiscLine, font);
-                    g.DrawString(todayDiscLine, font, Brushes.Black, rightX - todayDisL.Width, y);
-                }
-                else
-                {
-                    // ถ้าเป็นบาท ใช้ค่าส่วนลดเป็นบาทโดยตรง
-                    todayDiscountAmount = _header.TodayDiscount;
-                    // ป้องกันไม่ให้ส่วนลดมากกว่ายอดเงินที่เหลือ
-                    todayDiscountAmount = Math.Min(todayDiscountAmount, baseAmountForTodayDiscount);
-                    finalTotal = baseAmountForTodayDiscount - todayDiscountAmount;
+            //        // แสดงส่วนลดของวันนี้
+            //        y += font.GetHeight(g) + 4;
+            //        string todayDiscLine = $"ส่วนลดพิเศษประจำวัน {_header.TodayDiscount:N2}%: {todayDiscountAmount:N2} บาท";
+            //        SizeF todayDisL = g.MeasureString(todayDiscLine, font);
+            //        g.DrawString(todayDiscLine, font, Brushes.Black, rightX - todayDisL.Width, y);
+            //    }
+            //    else
+            //    {
+            //        // ถ้าเป็นบาท ใช้ค่าส่วนลดเป็นบาทโดยตรง
+            //        todayDiscountAmount = _header.TodayDiscount;
+            //        // ป้องกันไม่ให้ส่วนลดมากกว่ายอดเงินที่เหลือ
+            //        todayDiscountAmount = Math.Min(todayDiscountAmount, baseAmountForTodayDiscount);
+            //        finalTotal = baseAmountForTodayDiscount - todayDiscountAmount;
 
-                    // แสดงส่วนลดของวันนี้
-                    y += font.GetHeight(g) + 4;
-                    string todayDiscLine = $"ส่วนลดพิเศษประจำวัน: {todayDiscountAmount:N2} บาท";
-                    SizeF todayDisL = g.MeasureString(todayDiscLine, font);
-                    g.DrawString(todayDiscLine, font, Brushes.Black, rightX - todayDisL.Width, y);
-                }
+            //        // แสดงส่วนลดของวันนี้
+            //        y += font.GetHeight(g) + 4;
+            //        string todayDiscLine = $"ส่วนลดพิเศษประจำวัน: {todayDiscountAmount:N2} บาท";
+            //        SizeF todayDisL = g.MeasureString(todayDiscLine, font);
+            //        g.DrawString(todayDiscLine, font, Brushes.Black, rightX - todayDisL.Width, y);
+            //    }
 
-                // แสดงยอดสุทธิหลังหักส่วนลดทั้งหมด
-                y += font.GetHeight(g) + 4;
-                string finalLine = $"ยอดสุทธิ: {finalTotal:N2} บาท";
-                SizeF finalL = g.MeasureString(finalLine, font);
-                g.DrawString(finalLine, font, Brushes.Black, rightX - finalL.Width, y);
-            }
+            //    // แสดงยอดสุทธิหลังหักส่วนลดทั้งหมด
+            //    y += font.GetHeight(g) + 4;
+            //    string finalLine = $"ยอดสุทธิ: {finalTotal:N2} บาท";
+            //    SizeF finalL = g.MeasureString(finalLine, font);
+            //    g.DrawString(finalLine, font, Brushes.Black, rightX - finalL.Width, y);
+            //}
         }
         private void PrintDoc_Click(object sender, EventArgs e)
         {
             using (var dlg = new PrintDialog { Document = _printDocument })
+            {
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     _printDocument.Print();
                     IsPrinted = true; // กด print จริง
+
+                    // อัพเดทสถานะการพิมพ์ในฐานข้อมูล
+                    UpdateReceiptPrintStatus(_receiptId, _header.OrderID);
                 }
+            }
             this.Close();
+        }
+        private void UpdateReceiptPrintStatus(int receiptId, int orderId)
+        {
+            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // อัพเดทสถานะ Receipt
+                        using (var cmd = new SqlCommand(
+                            "UPDATE Receipt SET ReceiptStatus = @status WHERE ReceiptID = @rid",
+                            connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@status", "พิมพ์เรียบร้อยแล้ว");
+                            cmd.Parameters.AddWithValue("@rid", receiptId);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // บันทึกประวัติการเปลี่ยนสถานะ
+                        using (var cmd = new SqlCommand(
+                            @"INSERT INTO ReceiptStatusHistory (ReceiptID, PreviousStatus, NewStatus, ChangeBy)
+                      VALUES (@rid, @prevStatus, @newStatus, @changeBy)",
+                            connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@rid", receiptId);
+                            cmd.Parameters.AddWithValue("@prevStatus", "ออกใบเสร็จแล้ว");
+                            cmd.Parameters.AddWithValue("@newStatus", "พิมพ์เรียบร้อยแล้ว");
+                            cmd.Parameters.AddWithValue("@changeBy", Environment.UserName);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // อัพเดทสถานะ OrderHeader
+                        using (var cmd = new SqlCommand(
+                            "UPDATE OrderHeader SET OrderStatus = @status, IsReceiptPrinted = 1 WHERE OrderID = @oid",
+                            connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@status", "ออกใบเสร็จแล้ว");
+                            cmd.Parameters.AddWithValue("@oid", orderId);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        MessageBox.Show($"เกิดข้อผิดพลาดในการอัพเดทสถานะ: {ex.Message}", "ข้อผิดพลาด",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
         }
     }
 }

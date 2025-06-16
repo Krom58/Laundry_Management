@@ -128,8 +128,8 @@ namespace Laundry_Management
                 dataGridView1.Columns["Price"].HeaderText = "ราคา";
                 dataGridView1.Columns["Gender"].HeaderText = "เพศ";
                 dataGridView1.Columns["CreatedAt"].HeaderText = "สร้างเมื่อ";
-                dataGridView1.Columns["IsCancelled"].HeaderText = "การยกเลิก";
-                dataGridView1.Columns["CancelledDate"].HeaderText = "วันที่ยกเลิก";
+                dataGridView1.Columns["IsCancelled"].HeaderText = "การใช้งาน";
+                dataGridView1.Columns["CancelledDate"].HeaderText = "วันที่ยกเลิกการใช้งาน";
                 if (dataGridView1.Columns["ServiceID"] != null)
                 {
                     dataGridView1.Columns["ServiceID"].Visible = false;
@@ -158,13 +158,33 @@ namespace Laundry_Management
             Gender.DropDownStyle = ComboBoxStyle.DropDownList;
 
             // เพิ่มข้อมูลใน ComboBox ServiceType
+            ServiceType.Items.Add("");
             ServiceType.Items.Add("ซักแห้ง (Dry Cleaning Service)");
             ServiceType.Items.Add("ซักน้ำ (Laundry Service)");
 
+            Gender.Items.Add("");
             Gender.Items.Add("สุภาพบุรุษ (Gentleman)");
             Gender.Items.Add("สุภาพสตรี (Ladies)");
 
+            chkUsing.CheckedChanged += ChkStatus_CheckedChanged;
+            chkNotUse.CheckedChanged += ChkStatus_CheckedChanged;
+
             LoadData();
+        }
+        private void ChkStatus_CheckedChanged(object sender, EventArgs e)
+        {
+            CheckBox currentCheckBox = (CheckBox)sender;
+
+            // ถ้า checkbox ที่เพิ่งถูกคลิกถูก checked
+            if (currentCheckBox.Checked)
+            {
+                // ถ้าเป็น chkBaht (ใช้งาน) ให้ยกเลิกการเลือก chkPercent (ไม่ใช้งาน)
+                if (currentCheckBox == chkUsing)
+                    chkNotUse.Checked = false;
+                // ถ้าเป็น chkPercent (ไม่ใช้งาน) ให้ยกเลิกการเลือก chkBaht (ใช้งาน)
+                else if (currentCheckBox == chkNotUse)
+                    chkUsing.Checked = false;
+            }
         }
 
         private void Back_Click(object sender, EventArgs e)
@@ -174,27 +194,37 @@ namespace Laundry_Management
 
         private void btnModify_Click(object sender, EventArgs e)
         {
-            if (dataGridView1.SelectedRows.Count > 0)
+            // ตรวจสอบว่ามีการเลือกเซลล์ใดๆ หรือไม่
+            if (dataGridView1.CurrentCell != null)
             {
-                DataGridViewRow row = dataGridView1.SelectedRows[0];
+                // ดึงข้อมูลจากแถวที่เซลล์ปัจจุบันอยู่
+                int rowIndex = dataGridView1.CurrentCell.RowIndex;
+                DataGridViewRow row = dataGridView1.Rows[rowIndex];
 
-                int serviceId = Convert.ToInt32(row.Cells["ServiceID"].Value);
-                string serviceType = row.Cells["ServiceType"].Value.ToString();
-                string itemName = row.Cells["ItemName"].Value.ToString();
-                string price = row.Cells["Price"].Value.ToString();
-                string gender = row.Cells["Gender"].Value.ToString();
-                string itemNumber = row.Cells["ItemNumber"].Value.ToString();
+                // ตรวจสอบว่าแถวนั้นมีข้อมูลหรือไม่
+                if (row.Cells["ServiceID"].Value != null)
+                {
+                    int serviceId = Convert.ToInt32(row.Cells["ServiceID"].Value);
+                    string serviceType = row.Cells["ServiceType"].Value?.ToString() ?? "";
+                    string itemName = row.Cells["ItemName"].Value?.ToString() ?? "";
+                    string price = row.Cells["Price"].Value?.ToString() ?? "";
+                    string gender = row.Cells["Gender"].Value?.ToString() ?? "";
+                    string itemNumber = row.Cells["ItemNumber"].Value?.ToString() ?? "";
 
+                    // เปิดฟอร์มแก้ไข
+                    var modifyForm = new Modify_Type_Service(itemName, serviceType, gender, price, itemNumber, serviceId);
 
-                // To this:
-                var modifyForm = new Modify_Type_Service(itemName, serviceType, gender, price, itemNumber, serviceId);
-
-                if (modifyForm.ShowDialog() == DialogResult.OK)
-                    LoadData();
+                    if (modifyForm.ShowDialog() == DialogResult.OK)
+                        LoadData();
+                }
+                else
+                {
+                    MessageBox.Show("ไม่พบข้อมูลในแถวที่เลือก", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
             else
             {
-                MessageBox.Show("กรุณาเลือกแถวที่ต้องการแก้ไข");
+                MessageBox.Show("กรุณาเลือกรายการที่ต้องการแก้ไข", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -208,7 +238,7 @@ namespace Laundry_Management
             string serviceType = ServiceType.SelectedItem?.ToString() ?? "";
 
             // สร้าง query โดยใช้ parameter เพื่อป้องกัน SQL Injection
-            string query = "SELECT ServiceID, ServiceType, ItemNumber, ItemName, Price, Gender FROM LaundryService WHERE 1=1";
+            string query = "SELECT ServiceID, ItemNumber, ServiceType, ItemName, Price, Gender, CreatedAt, IsCancelled, CancelledDate FROM LaundryService WHERE 1=1";
             if (!string.IsNullOrEmpty(itemName))
                 query += " AND ItemName LIKE @itemName";
             if (!string.IsNullOrEmpty(itemNumber))
@@ -219,6 +249,10 @@ namespace Laundry_Management
                 query += " AND Gender = @gender";
             if (!string.IsNullOrEmpty(serviceType))
                 query += " AND ServiceType = @serviceType";
+            if (chkUsing.Checked && !chkNotUse.Checked)
+                query += " AND (IsCancelled IS NULL OR IsCancelled = N'ใช้งาน')";
+            else if (!chkUsing.Checked && chkNotUse.Checked)
+                query += " AND IsCancelled = N'ไม่ใช้งาน'";
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {

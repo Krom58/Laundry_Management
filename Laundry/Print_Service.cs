@@ -45,6 +45,13 @@ namespace Laundry_Management.Laundry
             _printDocument = new PrintDocument();
             _printDocument.PrintPage += PrintPageHandler;
             _previewDialog = new PrintPreviewDialog { Document = _printDocument };
+
+            // Set A5 paper size in portrait orientation
+            PaperSize paperSize = new PaperSize("A5", 583, 827); // A5 dimensions in hundredths of an inch
+            _printDocument.DefaultPageSettings.PaperSize = paperSize;
+            _printDocument.DefaultPageSettings.Landscape = false; // false = portrait orientation
+
+            // Adjust margins to be smaller for A5
             _printDocument.DefaultPageSettings.Margins = new Margins(15, 35, 15, 15);
         }
         public bool IsPrinted { get; private set; } = false;
@@ -77,6 +84,7 @@ namespace Laundry_Management.Laundry
             }
             this.Close();
         }
+        // Modify PrintPageHandler to use smaller fonts for A5 paper
         private void PrintPageHandler(object sender, PrintPageEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -85,19 +93,18 @@ namespace Laundry_Management.Laundry
             float rightX = e.MarginBounds.Right;
             float y = topY;
 
-            using (Font headerF = new Font("Arial", 8, FontStyle.Bold))
-            using (Font subF = new Font("Arial", 6))
-            using (Font bodyF = new Font("Arial", 6))
+            // Use smaller fonts for A5 paper
+            using (Font headerF = new Font("Arial", 9, FontStyle.Bold))
+            using (Font subF = new Font("Arial", 7))
+            using (Font bodyF = new Font("Arial", 7))
             {
-                // header เดิม...
+                // Rest of the code remains the same...
                 DrawHeader(g, headerF, subF, leftX, ref y, rightX);
-                y += 5;
+                y += 3; // Reduced spacing
                 DrawServiceDetails(g, bodyF, leftX, ref y, rightX);
-                // checklist ฝั่งซ้าย
-                y += 5;
+                y += 3; // Reduced spacing
                 DrawChecklistLeft(g, bodyF, leftX, y);
-                // สรุปยอด...
-                DrawSummaryRight(g, bodyF, e.PageBounds, y , rightX);
+                DrawSummaryRight(g, bodyF, e.PageBounds, y, rightX);
             }
 
             e.HasMorePages = false;
@@ -150,7 +157,7 @@ namespace Laundry_Management.Laundry
             g.DrawString("เอเชียซักแห้ง", headerFont, Brushes.Black, leftX, y);
 
             // Order ID + วันที่ (ฝั่งขวา) ให้ตัวอักษรตัวแรกตรงกับ leftX + same indent
-            string idLine = $"Order ID: {_orderId}";
+            string idLine = $"หมายเลขใบรับผ้า : {_orderId}";
             SizeF idSz = g.MeasureString(idLine, headerFont);
             g.DrawString(idLine, headerFont, Brushes.Black,
                          rightX - idSz.Width, y);
@@ -297,7 +304,7 @@ namespace Laundry_Management.Laundry
             foreach (var line in checks)
             {
                 g.DrawString(line, font, Brushes.Black, leftX, lineY);
-                lineY += font.GetHeight(g) + 2;
+                lineY += font.GetHeight(g) + 1;
             }
         }
         private void DrawSummaryRight(Graphics g, Font font, Rectangle page, float y , float rightX)

@@ -53,5 +53,11 @@ namespace Laundry_Management
             var Pickup_ListForm = new Pickup_List();
             Pickup_ListForm.ShowDialog();
         }
+
+        private void btnSetting_Click(object sender, EventArgs e)
+        {
+            var Setting_IdForm = new Setting_Id();
+            Setting_IdForm.ShowDialog();
+        }
     }
 }

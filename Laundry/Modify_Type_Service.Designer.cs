@@ -43,6 +43,7 @@
             this.btnCancle = new System.Windows.Forms.Button();
             this.chkIsCancelled = new System.Windows.Forms.CheckBox();
             this.dtpCancelledDate = new System.Windows.Forms.DateTimePicker();
+            this.chkCancel = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // label1
@@ -105,7 +106,7 @@
             // 
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label5.Location = new System.Drawing.Point(395, 361);
+            this.label5.Location = new System.Drawing.Point(285, 359);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(56, 43);
             this.label5.TabIndex = 15;
@@ -114,7 +115,7 @@
             // Price
             // 
             this.Price.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Price.Location = new System.Drawing.Point(247, 358);
+            this.Price.Location = new System.Drawing.Point(137, 356);
             this.Price.Name = "Price";
             this.Price.Size = new System.Drawing.Size(142, 51);
             this.Price.TabIndex = 14;
@@ -123,7 +124,7 @@
             // 
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(180, 361);
+            this.label4.Location = new System.Drawing.Point(70, 359);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(61, 43);
             this.label4.TabIndex = 13;
@@ -132,7 +133,7 @@
             // ItemNumber
             // 
             this.ItemNumber.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.ItemNumber.Location = new System.Drawing.Point(670, 358);
+            this.ItemNumber.Location = new System.Drawing.Point(560, 356);
             this.ItemNumber.Name = "ItemNumber";
             this.ItemNumber.Size = new System.Drawing.Size(142, 51);
             this.ItemNumber.TabIndex = 21;
@@ -141,7 +142,7 @@
             // 
             this.label7.AutoSize = true;
             this.label7.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label7.Location = new System.Drawing.Point(502, 361);
+            this.label7.Location = new System.Drawing.Point(392, 359);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(162, 43);
             this.label7.TabIndex = 20;
@@ -175,26 +176,38 @@
             // 
             this.chkIsCancelled.AutoSize = true;
             this.chkIsCancelled.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkIsCancelled.Location = new System.Drawing.Point(282, 461);
+            this.chkIsCancelled.Location = new System.Drawing.Point(285, 448);
             this.chkIsCancelled.Name = "chkIsCancelled";
-            this.chkIsCancelled.Size = new System.Drawing.Size(157, 90);
+            this.chkIsCancelled.Size = new System.Drawing.Size(417, 47);
             this.chkIsCancelled.TabIndex = 38;
-            this.chkIsCancelled.Text = "ยกเลิกรายการ\r\nของเก่า";
+            this.chkIsCancelled.Text = "หยุดการใช้งานรายการนี้และเพิ่มรายการใหม่";
             this.chkIsCancelled.UseVisualStyleBackColor = true;
             // 
             // dtpCancelledDate
             // 
             this.dtpCancelledDate.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.dtpCancelledDate.Location = new System.Drawing.Point(457, 478);
+            this.dtpCancelledDate.Location = new System.Drawing.Point(727, 356);
             this.dtpCancelledDate.Name = "dtpCancelledDate";
             this.dtpCancelledDate.Size = new System.Drawing.Size(245, 51);
             this.dtpCancelledDate.TabIndex = 39;
+            // 
+            // chkCancel
+            // 
+            this.chkCancel.AutoSize = true;
+            this.chkCancel.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.chkCancel.Location = new System.Drawing.Point(367, 501);
+            this.chkCancel.Name = "chkCancel";
+            this.chkCancel.Size = new System.Drawing.Size(246, 47);
+            this.chkCancel.TabIndex = 40;
+            this.chkCancel.Text = "หยุดการใช้งานรายการนี้";
+            this.chkCancel.UseVisualStyleBackColor = true;
             // 
             // Modify_Type_Service
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(984, 586);
+            this.Controls.Add(this.chkCancel);
             this.Controls.Add(this.dtpCancelledDate);
             this.Controls.Add(this.chkIsCancelled);
             this.Controls.Add(this.btnOk);
@@ -236,5 +249,6 @@
         private System.Windows.Forms.Button btnCancle;
         private System.Windows.Forms.CheckBox chkIsCancelled;
         private System.Windows.Forms.DateTimePicker dtpCancelledDate;
+        private System.Windows.Forms.CheckBox chkCancel;
     }
 }

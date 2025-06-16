@@ -40,6 +40,9 @@
             this.label1 = new System.Windows.Forms.Label();
             this.dgvOrders = new System.Windows.Forms.DataGridView();
             this.Customer_Pickup_Check = new System.Windows.Forms.Button();
+            this.chkPickedup = new System.Windows.Forms.CheckBox();
+            this.chkNotPickup = new System.Windows.Forms.CheckBox();
+            this.btnCancel = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dgvOrders)).BeginInit();
             this.SuspendLayout();
             // 
@@ -160,11 +163,48 @@
             this.Customer_Pickup_Check.UseVisualStyleBackColor = true;
             this.Customer_Pickup_Check.Click += new System.EventHandler(this.Customer_Pickup_Check_Click);
             // 
+            // chkPickedup
+            // 
+            this.chkPickedup.AutoSize = true;
+            this.chkPickedup.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.chkPickedup.Location = new System.Drawing.Point(789, 202);
+            this.chkPickedup.Name = "chkPickedup";
+            this.chkPickedup.Size = new System.Drawing.Size(121, 47);
+            this.chkPickedup.TabIndex = 63;
+            this.chkPickedup.Text = "มารับแล้ว";
+            this.chkPickedup.UseVisualStyleBackColor = true;
+            // 
+            // chkNotPickup
+            // 
+            this.chkNotPickup.AutoSize = true;
+            this.chkNotPickup.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.chkNotPickup.Location = new System.Drawing.Point(585, 202);
+            this.chkNotPickup.Name = "chkNotPickup";
+            this.chkNotPickup.Size = new System.Drawing.Size(130, 47);
+            this.chkNotPickup.TabIndex = 62;
+            this.chkNotPickup.Text = "ยังไม่มารับ";
+            this.chkNotPickup.UseVisualStyleBackColor = true;
+            // 
+            // btnCancel
+            // 
+            this.btnCancel.AutoSize = true;
+            this.btnCancel.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnCancel.Location = new System.Drawing.Point(1500, 244);
+            this.btnCancel.Name = "btnCancel";
+            this.btnCancel.Size = new System.Drawing.Size(165, 53);
+            this.btnCancel.TabIndex = 64;
+            this.btnCancel.Text = "ยกเลิกการมารับ";
+            this.btnCancel.UseVisualStyleBackColor = true;
+            this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
+            // 
             // Pickup_List
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.btnCancel);
+            this.Controls.Add(this.chkPickedup);
+            this.Controls.Add(this.chkNotPickup);
             this.Controls.Add(this.dgvOrders);
             this.Controls.Add(this.Customer_Pickup_Check);
             this.Controls.Add(this.label3);
@@ -195,5 +235,8 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.DataGridView dgvOrders;
         private System.Windows.Forms.Button Customer_Pickup_Check;
+        private System.Windows.Forms.CheckBox chkPickedup;
+        private System.Windows.Forms.CheckBox chkNotPickup;
+        private System.Windows.Forms.Button btnCancel;
     }
 }

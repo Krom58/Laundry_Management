@@ -28,7 +28,7 @@ namespace Laundry_Management
             string serviceType = ServiceType.SelectedItem?.ToString() ?? "";
 
             // สร้าง query โดยใช้ parameter เพื่อป้องกัน SQL Injection
-            string query = "SELECT ServiceID, ServiceType, ItemNumber, ItemName, Price, Gender FROM LaundryService WHERE 1=1";
+            string query = "SELECT ServiceID, ItemNumber, ItemName, ServiceType, Price, Gender FROM LaundryService WHERE IsCancelled = N'ใช้งาน'";
             if (!string.IsNullOrEmpty(itemName))
                 query += " AND ItemName LIKE @itemName";
             if (!string.IsNullOrEmpty(itemNumber))
@@ -56,6 +56,10 @@ namespace Laundry_Management
                         DataTable dataTable = new DataTable();
                         adapter.Fill(dataTable);
                         dataGridView1.DataSource = dataTable;
+                        if (dataGridView1.Columns["ServiceID"] != null)
+                        {
+                            dataGridView1.Columns["ServiceID"].Visible = false;
+                        }
                     }
                 }
             }
@@ -73,15 +77,21 @@ namespace Laundry_Management
             dataGridView1.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
             dataGridView2.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
 
+            // ตั้งค่า SelectionMode เป็น CellSelect เพื่อให้สามารถเลือกเซลล์เดียวได้
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            dataGridView2.SelectionMode = DataGridViewSelectionMode.CellSelect;
+
             // ป้องกันการพิมพ์ใน ComboBox
             ServiceType.DropDownStyle = ComboBoxStyle.DropDownList;
             Gender.DropDownStyle = ComboBoxStyle.DropDownList;
 
             // เพิ่มข้อมูลใน ComboBox ServiceType
+            ServiceType.Items.Add("");
             ServiceType.Items.Add("ซักแห้ง (Dry Cleaning Service)");
             ServiceType.Items.Add("ซักน้ำ (Laundry Service)");
 
             // เพิ่มข้อมูลใน ComboBox Gender
+            Gender.Items.Add("");
             Gender.Items.Add("สุภาพบุรุษ (Gentleman)");
             Gender.Items.Add("สุภาพสตรี (Ladies)");
 
@@ -91,7 +101,7 @@ namespace Laundry_Management
         private void LoadAllData()
         {
             string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            string query = "SELECT ItemNumber, ItemName, ServiceType, Price, Gender FROM LaundryService WHERE IsCancelled = N'ยังไม่ยกเลิก'";
+            string query = "SELECT ItemNumber, ItemName, ServiceType, Price, Gender FROM LaundryService WHERE IsCancelled = N'ใช้งาน'";
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
@@ -129,16 +139,21 @@ namespace Laundry_Management
 
         private void btnSaveSelected_Click(object sender, EventArgs e)
         {
-            if (dataGridView1.SelectedRows.Count == 0)
+            // ตรวจสอบว่ามีการเลือกเซลล์หรือไม่
+            if (dataGridView1.CurrentCell == null)
             {
-                MessageBox.Show("กรุณาเลือกแถวที่ต้องการ");
+                MessageBox.Show("กรุณาเลือกรายการที่ต้องการ");
                 return;
             }
 
-            var selectedRow = dataGridView1.SelectedRows[0];
-            var priceValue = selectedRow.Cells["Price"].Value?.ToString();
-            var itemNumber = selectedRow.Cells["ItemNumber"].Value?.ToString();
-            var itemName = selectedRow.Cells["ItemName"].Value?.ToString();
+            // ดึงแถวที่เซลล์ปัจจุบันอยู่
+            int rowIndex = dataGridView1.CurrentCell.RowIndex;
+            DataGridViewRow row = dataGridView1.Rows[rowIndex];
+
+            // ดึงข้อมูลจากแถวนั้น
+            var priceValue = row.Cells["Price"].Value?.ToString();
+            var itemNumber = row.Cells["ItemNumber"].Value?.ToString();
+            var itemName = row.Cells["ItemName"].Value?.ToString();
 
             if (string.IsNullOrEmpty(priceValue))
             {
@@ -177,14 +192,19 @@ namespace Laundry_Management
 
         private void Delete_Click(object sender, EventArgs e)
         {
-            if (dataGridView2.SelectedRows.Count == 0)
+            // ตรวจสอบว่ามีการเลือกเซลล์หรือไม่
+            if (dataGridView2.CurrentCell == null)
             {
-                MessageBox.Show("กรุณาเลือกแถวที่ต้องการลบ");
+                MessageBox.Show("กรุณาเลือกรายการที่ต้องการลบ");
                 return;
             }
 
-            var selectedRow = dataGridView2.SelectedRows[0];
-            var itemNumber = selectedRow.Cells["ItemNumber"].Value?.ToString();
+            // ดึงแถวที่เซลล์ปัจจุบันอยู่
+            int rowIndex = dataGridView2.CurrentCell.RowIndex;
+            DataGridViewRow row = dataGridView2.Rows[rowIndex];
+
+            // ดึงค่า ItemNumber จากแถวนั้น
+            var itemNumber = row.Cells["ItemNumber"].Value?.ToString();
 
             if (string.IsNullOrEmpty(itemNumber))
             {
@@ -212,17 +232,22 @@ namespace Laundry_Management
 
         private void btnFix_Click(object sender, EventArgs e)
         {
-            if (dataGridView2.SelectedRows.Count == 0)
+            // ตรวจสอบว่ามีการเลือกเซลล์หรือไม่
+            if (dataGridView2.CurrentCell == null)
             {
-                MessageBox.Show("กรุณาเลือกแถวที่ต้องการแก้ไข");
+                MessageBox.Show("กรุณาเลือกรายการที่ต้องการแก้ไข");
                 return;
             }
 
-            var selectedRow = dataGridView2.SelectedRows[0];
-            var itemNumber = selectedRow.Cells["ItemNumber"].Value?.ToString();
-            var itemName = selectedRow.Cells["ItemName"].Value?.ToString();
-            var quantityValue = selectedRow.Cells["Quantity"].Value?.ToString();
-            var totalAmountValue = selectedRow.Cells["TotalAmount"].Value?.ToString();
+            // ดึงแถวที่เซลล์ปัจจุบันอยู่
+            int rowIndex = dataGridView2.CurrentCell.RowIndex;
+            DataGridViewRow row = dataGridView2.Rows[rowIndex];
+
+            // ดึงข้อมูลจากแถวนั้น
+            var itemNumber = row.Cells["ItemNumber"].Value?.ToString();
+            var itemName = row.Cells["ItemName"].Value?.ToString();
+            var quantityValue = row.Cells["Quantity"].Value?.ToString();
+            var totalAmountValue = row.Cells["TotalAmount"].Value?.ToString();
 
             if (string.IsNullOrEmpty(itemNumber) || string.IsNullOrEmpty(itemName) ||
                 string.IsNullOrEmpty(quantityValue) || string.IsNullOrEmpty(totalAmountValue))
@@ -288,52 +313,96 @@ namespace Laundry_Management
                     ? grandTotal - (grandTotal * (discount / 100m))
                     : grandTotal;
 
-                // 1) Save Header → get orderId
-                int orderId = SaveHeaderToDatabase(
-                    customerName, phone, discount,
-                    grandTotal, discountedTotal,
-                    orderDate, pickupDate);
+                // ดึงค่า OrderId ที่ผู้ใช้ตั้งค่าไว้จาก AppSettingsManager
+                string customOrderId = AppSettingsManager.GetNextOrderId();
+                bool orderSaved = false;
+                int orderId = 0;
 
-                if (orderId == 0)
+                try
                 {
-                    MessageBox.Show("บันทึกหัวคำสั่งซื้อไม่สำเร็จ");
-                    return;
-                }
+                    // 1) Save Header → get orderId
+                    orderId = SaveHeaderToDatabase(
+                        customerName, phone, discount,
+                        grandTotal, discountedTotal,
+                        orderDate, pickupDate, customOrderId);
 
-                // เตรียมข้อมูลสำหรับพิมพ์
-                var serviceItems = selectedItems
-                    .Select(i => new Print_Service.ServiceItem
+                    if (orderId == 0)
                     {
-                        Name = i.ItemName,
-                        Quantity = i.Quantity,
-                        Price = i.TotalAmount / i.Quantity
-                    })
-                    .ToList();
-
-                // 2) แสดงฟอร์มพิมพ์
-                using (var printForm = new Print_Service(
-                    customerName,
-                    phone,
-                    discount / 100m,
-                    orderId.ToString(),
-                    serviceItems))
-                {
-                    printForm.ShowDialog(this);
-
-                    if (!printForm.IsPrinted)
-                    {
-                        // ยกเลิกการพิมพ์ → ลบ Header คืนแล้วจบ
-                        DeleteOrderHeader(orderId);
+                        MessageBox.Show("บันทึกหัวคำสั่งซื้อไม่สำเร็จ");
                         return;
                     }
+
+                    orderSaved = true;
+
+                    // เตรียมข้อมูลสำหรับพิมพ์
+                    var serviceItems = selectedItems
+                        .Select(i => new Print_Service.ServiceItem
+                        {
+                            Name = i.ItemName,
+                            Quantity = i.Quantity,
+                            Price = i.TotalAmount / i.Quantity
+                        })
+                        .ToList();
+
+                    // 2) แสดงฟอร์มพิมพ์ โดยส่ง customOrderId แทน orderId.ToString()
+                    using (var printForm = new Print_Service(
+                        customerName,
+                        phone,
+                        discount / 100m,
+                        customOrderId, // ใช้ OrderId ที่ผู้ใช้ตั้งค่าไว้แทน
+                        serviceItems))
+                    {
+                        printForm.ShowDialog(this);
+
+                        if (!printForm.IsPrinted)
+                        {
+                            // ถ้าพิมพ์ไม่สำเร็จ → อัพเดทสถานะเป็น "รายการถูกยกเลิก" แทนที่จะลบ
+                            UpdateOrderStatus(orderId, "รายการถูกยกเลิก");
+
+                            // คืนค่า OrderId กลับไปใช้เดิม (ไม่เพิ่มค่าใหม่)
+                            // โดยต้องลด OrderId ในฐานข้อมูลลง 1 ค่า เพื่อใช้ซ้ำในครั้งถัดไป
+                            string currentId = AppSettingsManager.GetSetting("NextOrderId");
+                            int nextId;
+                            if (int.TryParse(currentId, out nextId) && nextId > 1)
+                            {
+                                // ตั้งค่า NextOrderId ให้กลับไปเป็นค่าเดิม (ลดลง 1)
+                                AppSettingsManager.UpdateSetting("NextOrderId", (nextId - 1).ToString());
+                            }
+
+                            MessageBox.Show("ยกเลิกการพิมพ์ และบันทึกออร์เดอร์เป็นสถานะ 'รายการถูกยกเลิก'");
+                            return;
+                        }
+                    }
+
+                    // 3) ถ้าพิมพ์สำเร็จ → Save Items และอัพเดทสถานะเป็น "รอดำเนินการ"
+                    SaveItemsToDatabase(orderId, selectedItems);
+                    UpdateOrderStatus(orderId, "ดำเนินการสำเร็จ");
+
+                    // 4) เคลียร์ตะกร้า และแจ้งผล
+                    ClearSelectedItems();
+                    MessageBox.Show("พิมพ์และบันทึกสำเร็จ");
                 }
+                catch (Exception ex)
+                {
+                    // ถ้าเกิดข้อผิดพลาดระหว่างการทำงาน
+                    if (orderSaved && orderId > 0)
+                    {
+                        // ถ้ามีการบันทึก Header แล้ว ให้อัพเดทสถานะเป็น "รายการถูกยกเลิก"
+                        UpdateOrderStatus(orderId, "รายการถูกยกเลิก");
 
-                // 3) ถ้าพิมพ์สำเร็จ → Save Items
-                SaveItemsToDatabase(orderId, selectedItems);
+                        // คืนค่า OrderId กลับไปใช้เดิม
+                        string currentId = AppSettingsManager.GetSetting("NextOrderId");
+                        int nextId;
+                        if (int.TryParse(currentId, out nextId) && nextId > 1)
+                        {
+                            // ตั้งค่า NextOrderId ให้กลับไปเป็นค่าเดิม (ลดลง 1)
+                            AppSettingsManager.UpdateSetting("NextOrderId", (nextId - 1).ToString());
+                        }
+                    }
 
-                // 4) เคลียร์ตะกร้า และแจ้งผล
-                ClearSelectedItems();
-                MessageBox.Show("พิมพ์และบันทึกสำเร็จ");
+                    MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}", "ข้อผิดพลาด",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
         // เพิ่มเมธอดนี้ในคลาส Service
@@ -374,9 +443,9 @@ namespace Laundry_Management
             return selectedItems;
         }
         private int SaveHeaderToDatabase(
-    string customerName, string phone, decimal discount,
-    decimal grandTotal, decimal discountedTotal,
-    DateTime orderDate, DateTime pickupDate)
+            string customerName, string phone, decimal discount,
+            decimal grandTotal, decimal discountedTotal,
+            DateTime orderDate, DateTime pickupDate, string customOrderId)
         {
             int orderId = 0;
             string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
@@ -384,11 +453,11 @@ namespace Laundry_Management
             {
                 conn.Open();
                 using (SqlCommand cmd = new SqlCommand(@"
-INSERT INTO OrderHeader
-  (CustomerName, Phone, Discount, GrandTotalPrice, DiscountedTotal, OrderDate, PickupDate)
-OUTPUT INSERTED.OrderID
-VALUES
-  (@cust,@phone,@disc,@grand,@discTot,@odt,@pdt);", conn))
+        INSERT INTO OrderHeader
+          (CustomerName, Phone, Discount, GrandTotalPrice, DiscountedTotal, OrderDate, PickupDate, CustomOrderId, OrderStatus)
+        OUTPUT INSERTED.OrderID
+        VALUES
+          (@cust,@phone,@disc,@grand,@discTot,@odt,@pdt,@customId,@status);", conn))
                 {
                     cmd.Parameters.AddWithValue("@cust", customerName);
                     cmd.Parameters.AddWithValue("@phone", phone);
@@ -397,6 +466,8 @@ VALUES
                     cmd.Parameters.AddWithValue("@discTot", discountedTotal);
                     cmd.Parameters.AddWithValue("@odt", orderDate);
                     cmd.Parameters.AddWithValue("@pdt", pickupDate);
+                    cmd.Parameters.AddWithValue("@customId", customOrderId);
+                    cmd.Parameters.AddWithValue("@status", "ดำเนินการสำเร็จ"); // สถานะเริ่มต้น
 
                     object result = cmd.ExecuteScalar();
                     if (result != null && int.TryParse(result.ToString(), out orderId))
@@ -445,6 +516,21 @@ VALUES
                 using (SqlCommand cmd = new SqlCommand(
                     "DELETE FROM OrderHeader WHERE OrderID = @id", conn))
                 {
+                    cmd.Parameters.AddWithValue("@id", orderId);
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+        private void UpdateOrderStatus(int orderId, string status)
+        {
+            string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
+            using (SqlConnection conn = new SqlConnection(cs))
+            {
+                using (SqlCommand cmd = new SqlCommand(
+                    "UPDATE OrderHeader SET OrderStatus = @status WHERE OrderID = @id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@status", status);
                     cmd.Parameters.AddWithValue("@id", orderId);
                     conn.Open();
                     cmd.ExecuteNonQuery();

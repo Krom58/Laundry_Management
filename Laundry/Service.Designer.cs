@@ -207,7 +207,7 @@
             this.Back.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.Back.Size = new System.Drawing.Size(144, 53);
             this.Back.TabIndex = 31;
-            this.Back.Text = "Back";
+            this.Back.Text = "กลับ";
             this.Back.UseVisualStyleBackColor = true;
             this.Back.Click += new System.EventHandler(this.Back_Click);
             // 
