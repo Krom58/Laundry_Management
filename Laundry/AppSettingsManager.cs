@@ -9,19 +9,17 @@ namespace Laundry_Management.Laundry
 {
     internal class AppSettingsManager
     {
-        private static readonly string _cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-        // Get the next custom Order ID and increment it
+        // Removed _cs, now using DBconfig.GetConnection()
+
         public static string GetNextOrderId()
         {
             string nextId = GetSetting("NextOrderId", "1");
 
-            // Increment the ID for next use
             int numericId;
             if (int.TryParse(nextId, out numericId))
             {
                 if (!UpdateSetting("NextOrderId", (numericId + 1).ToString()))
                 {
-                    // Handle failed update if needed
                     System.Windows.Forms.MessageBox.Show("ไม่สามารถเพิ่มค่า Order ID ได้ กรุณาตรวจสอบการตั้งค่า",
                         "คำเตือน", System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Warning);
@@ -31,18 +29,15 @@ namespace Laundry_Management.Laundry
             return nextId;
         }
 
-        // Get the next custom Receipt ID and increment it
         public static string GetNextReceiptId()
         {
             string nextId = GetSetting("NextReceiptId", "1");
 
-            // Increment the ID for next use
             int numericId;
             if (int.TryParse(nextId, out numericId))
             {
                 if (!UpdateSetting("NextReceiptId", (numericId + 1).ToString()))
                 {
-                    // Handle failed update if needed
                     System.Windows.Forms.MessageBox.Show("ไม่สามารถเพิ่มค่า Receipt ID ได้ กรุณาตรวจสอบการตั้งค่า",
                         "คำเตือน", System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Warning);
@@ -52,19 +47,15 @@ namespace Laundry_Management.Laundry
             return nextId;
         }
 
-        // Get a setting value with default fallback
         public static string GetSetting(string key, string defaultValue = "")
         {
             try
             {
-                using (var conn = new SqlConnection(_cs))
+                using (var conn = DBconfig.GetConnection())
                 {
                     conn.Open();
-
-                    // Check if table exists, create if not
                     EnsureTableExists(conn);
 
-                    // Get the setting value
                     using (var cmd = new SqlCommand(
                         "SELECT SettingValue FROM AppSettings WHERE SettingKey = @key", conn))
                     {
@@ -74,7 +65,6 @@ namespace Laundry_Management.Laundry
                         if (result != null && result != DBNull.Value)
                             return result.ToString();
 
-                        // If setting doesn't exist, create it with default value
                         using (var insertCmd = new SqlCommand(
                             "INSERT INTO AppSettings (SettingKey, SettingValue) VALUES (@key, @value)", conn))
                         {
@@ -89,29 +79,24 @@ namespace Laundry_Management.Laundry
             }
             catch (Exception)
             {
-                // On error, return default value
                 return defaultValue;
             }
         }
 
-        // Update a setting value
         public static bool UpdateSetting(string key, string value)
         {
             try
             {
-                using (var conn = new SqlConnection(_cs))
+                using (var conn = DBconfig.GetConnection())
                 {
                     conn.Open();
-
-                    // Check if table exists, create if not
                     EnsureTableExists(conn);
 
-                    // Update or insert the setting
                     using (var cmd = new SqlCommand(
                         @"IF EXISTS (SELECT 1 FROM AppSettings WHERE SettingKey = @key)
-                            UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = @key
-                          ELSE
-                            INSERT INTO AppSettings (SettingKey, SettingValue) VALUES (@key, @value)",
+                                UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = @key
+                              ELSE
+                                INSERT INTO AppSettings (SettingKey, SettingValue) VALUES (@key, @value)",
                         conn))
                     {
                         cmd.Parameters.AddWithValue("@key", key);
@@ -123,7 +108,6 @@ namespace Laundry_Management.Laundry
             }
             catch (Exception ex)
             {
-                // Display error message to user
                 System.Windows.Forms.MessageBox.Show("เกิดข้อผิดพลาดในการบันทึกการตั้งค่า: " + ex.Message,
                     "ข้อผิดพลาด", System.Windows.Forms.MessageBoxButtons.OK,
                     System.Windows.Forms.MessageBoxIcon.Error);
@@ -131,7 +115,6 @@ namespace Laundry_Management.Laundry
             }
         }
 
-        // Ensure the AppSettings table exists
         private static void EnsureTableExists(SqlConnection conn)
         {
             using (var cmd = new SqlCommand(
@@ -143,9 +126,9 @@ namespace Laundry_Management.Laundry
                 {
                     using (var createCmd = new SqlCommand(
                         @"CREATE TABLE AppSettings (
-                            SettingKey NVARCHAR(50) PRIMARY KEY,
-                            SettingValue NVARCHAR(255) NULL
-                        )", conn))
+                                SettingKey NVARCHAR(50) PRIMARY KEY,
+                                SettingValue NVARCHAR(255) NULL
+                            )", conn))
                     {
                         createCmd.ExecuteNonQuery();
                     }

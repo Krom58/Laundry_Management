@@ -35,6 +35,7 @@
             this.Check_List = new System.Windows.Forms.Button();
             this.Pickup_List = new System.Windows.Forms.Button();
             this.btnSetting = new System.Windows.Forms.Button();
+            this.Report = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnAdd_Type_Service
@@ -93,7 +94,7 @@
             this.Check_List.Name = "Check_List";
             this.Check_List.Size = new System.Drawing.Size(282, 109);
             this.Check_List.TabIndex = 40;
-            this.Check_List.Text = "ดูรายการทั้งหมด";
+            this.Check_List.Text = "รายงานการขาย";
             this.Check_List.UseVisualStyleBackColor = true;
             this.Check_List.Click += new System.EventHandler(this.Check_List_Click);
             // 
@@ -121,11 +122,24 @@
             this.btnSetting.UseVisualStyleBackColor = true;
             this.btnSetting.Click += new System.EventHandler(this.btnSetting_Click);
             // 
+            // Report
+            // 
+            this.Report.AutoSize = true;
+            this.Report.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Report.Location = new System.Drawing.Point(1188, 680);
+            this.Report.Name = "Report";
+            this.Report.Size = new System.Drawing.Size(282, 109);
+            this.Report.TabIndex = 43;
+            this.Report.Text = "รายงานการขาย";
+            this.Report.UseVisualStyleBackColor = true;
+            this.Report.Click += new System.EventHandler(this.Report_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.Report);
             this.Controls.Add(this.btnSetting);
             this.Controls.Add(this.Pickup_List);
             this.Controls.Add(this.Check_List);
@@ -150,5 +164,6 @@
         private System.Windows.Forms.Button Check_List;
         private System.Windows.Forms.Button Pickup_List;
         private System.Windows.Forms.Button btnSetting;
+        private System.Windows.Forms.Button Report;
     }
 }

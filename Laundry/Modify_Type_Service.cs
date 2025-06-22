@@ -88,8 +88,7 @@ namespace Laundry_Management
             // ดำเนินการต่อเมื่อผู้ใช้ยืนยัน
             if (result == DialogResult.Yes)
             {
-                string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 {
                     conn.Open();
                     SqlCommand cmd = new SqlCommand();
@@ -99,7 +98,7 @@ namespace Laundry_Management
                     {
                         // สร้างรายการใหม่ก่อน
                         string insertQuery = "INSERT INTO LaundryService (ServiceType, ItemName, Price, Gender, ItemNumber) VALUES (@ServiceType, @ItemName, @Price, @Gender, @ItemNumber)";
-                        using (SqlConnection connection = new SqlConnection(connectionString))
+                        using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
                         using (SqlCommand command = new SqlCommand(insertQuery, connection))
                         {
                             command.Parameters.AddWithValue("@ServiceType", ServiceType.Text);
@@ -112,25 +111,25 @@ namespace Laundry_Management
                         }
                         // จากนั้นอัพเดทรายการเดิมเป็น "ไม่ใช้งาน"
                         cmd.CommandText = @"UPDATE LaundryService 
-                        SET IsCancelled = N'ไม่ใช้งาน', CancelledDate = @CancelledDate
-                        WHERE ServiceID = @ServiceID";
+                            SET IsCancelled = N'ไม่ใช้งาน', CancelledDate = @CancelledDate
+                            WHERE ServiceID = @ServiceID";
                         cmd.Parameters.AddWithValue("@CancelledDate", dtpCancelledDate.Value);
                     }
                     else if (chkCancel.Checked)
                     {
                         // เฉพาะอัพเดทสถานะเป็น "ไม่ใช้งาน" โดยไม่สร้างรายการใหม่
                         cmd.CommandText = @"UPDATE LaundryService 
-                        SET IsCancelled = N'ไม่ใช้งาน', CancelledDate = @CancelledDate
-                        WHERE ServiceID = @ServiceID";
+                            SET IsCancelled = N'ไม่ใช้งาน', CancelledDate = @CancelledDate
+                            WHERE ServiceID = @ServiceID";
                         cmd.Parameters.AddWithValue("@CancelledDate", dtpCancelledDate.Value);
                     }
                     else
                     {
                         // อัพเดทข้อมูลปกติและตั้งสถานะเป็น "ใช้งาน"
                         cmd.CommandText = @"UPDATE LaundryService 
-                        SET ServiceType = @ServiceType, ItemName = @ItemName, Price = @Price, Gender = @Gender, ItemNumber = @ItemNumber, 
-                            IsCancelled = N'ใช้งาน', CancelledDate = NULL
-                        WHERE ServiceID = @ServiceID";
+                            SET ServiceType = @ServiceType, ItemName = @ItemName, Price = @Price, Gender = @Gender, ItemNumber = @ItemNumber, 
+                                IsCancelled = N'ใช้งาน', CancelledDate = NULL
+                            WHERE ServiceID = @ServiceID";
                     }
 
                     cmd.Parameters.AddWithValue("@ServiceType", ServiceType.Text);

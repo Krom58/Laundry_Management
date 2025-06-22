@@ -61,10 +61,9 @@ namespace Laundry_Management
                 }
             }
 
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string query = "UPDATE Customer SET FullName = @FullName, Phone = @Phone, Discount = @Discount, Note = @Note WHERE CustomerID = @CustomerID";
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 command.Parameters.AddWithValue("@FullName", fullName);

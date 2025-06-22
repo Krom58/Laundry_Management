@@ -21,6 +21,9 @@ namespace Laundry_Management.Laundry
             chkNotPickup.CheckedChanged += chkNotPickup_CheckedChanged;
             chkPickedup.CheckedChanged += chkPickedup_CheckedChanged;
 
+            // Add this line to register the dtpCreateDate ValueChanged event
+            dtpCreateDate.ValueChanged += dtpCreateDate_ValueChanged;
+
             // Initialize the form
             LoadPickupOrders();
             chkNotPickup.Checked = true;
@@ -30,26 +33,25 @@ namespace Laundry_Management.Laundry
         }
         private void LoadPickupOrders()
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string query = @"
-                    SELECT 
-                        o.OrderID, 
-                        o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                        o.CustomerName as 'ชื่อลูกค้า', 
-                        o.Phone as 'เบอร์โทรศัพท์',
-                        r.ReceiptID,
-                        r.CustomReceiptId as 'หมายเลขใบเสร็จ',
-                        r.ReceiptDate as 'วันที่รับผ้า', 
-                        r.IsPickedUp as 'สถานะ', 
-                        r.CustomerPickupDate as 'วันที่มารับ'
-                    FROM OrderHeader o
-                    INNER JOIN Receipt r ON o.OrderID = r.OrderID
-                    WHERE (r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว')
-                    AND CAST(r.ReceiptDate AS DATE) = @TodayDate
-                    AND o.OrderStatus = N'ออกใบเสร็จแล้ว' AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
-                ";
+                        SELECT 
+                            o.OrderID, 
+                            o.CustomOrderId as 'หมายเลขใบรับผ้า', 
+                            o.CustomerName as 'ชื่อลูกค้า', 
+                            o.Phone as 'เบอร์โทรศัพท์',
+                            r.ReceiptID,
+                            r.CustomReceiptId as 'หมายเลขใบเสร็จ',
+                            r.ReceiptDate as 'วันที่รับผ้า', 
+                            r.IsPickedUp as 'สถานะ', 
+                            r.CustomerPickupDate as 'วันที่มารับ'
+                        FROM OrderHeader o
+                        INNER JOIN Receipt r ON o.OrderID = r.OrderID
+                        WHERE (r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว')
+                        AND CAST(r.ReceiptDate AS DATE) = @TodayDate
+                        AND o.OrderStatus = N'ออกใบเสร็จแล้ว' AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
+                    ";
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            using (SqlConnection conn = Laundry_Management.Laundry.DBconfig.GetConnection())
             {
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
@@ -79,23 +81,22 @@ namespace Laundry_Management.Laundry
             string customerFilter = txtCustomerFilter.Text.Trim();
             DateTime? createDate = dtpCreateDate.Checked ? (DateTime?)dtpCreateDate.Value.Date : null;
 
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             var query = @"
-                    SELECT 
-                        o.OrderID,
-                        o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                        o.CustomerName as 'ชื่อลูกค้า', 
-                        o.Phone as 'เบอร์โทรศัพท์', 
-                        r.ReceiptID,
-                        r.CustomReceiptId as 'หมายเลขใบเสร็จ',
-                        r.ReceiptDate as 'วันที่รับผ้า', 
-                        r.IsPickedUp as 'สถานะ', 
-                        r.CustomerPickupDate as 'วันที่มารับ'
-                    FROM OrderHeader o
-                    INNER JOIN Receipt r ON o.OrderID = r.OrderID
-                    WHERE 1=1
-                    AND o.OrderStatus = N'ออกใบเสร็จแล้ว' AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
-                ";
+                        SELECT 
+                            o.OrderID,
+                            o.CustomOrderId as 'หมายเลขใบรับผ้า', 
+                            o.CustomerName as 'ชื่อลูกค้า', 
+                            o.Phone as 'เบอร์โทรศัพท์', 
+                            r.ReceiptID,
+                            r.CustomReceiptId as 'หมายเลขใบเสร็จ',
+                            r.ReceiptDate as 'วันที่รับผ้า', 
+                            r.IsPickedUp as 'สถานะ', 
+                            r.CustomerPickupDate as 'วันที่มารับ'
+                        FROM OrderHeader o
+                        INNER JOIN Receipt r ON o.OrderID = r.OrderID
+                        WHERE 1=1
+                        AND o.OrderStatus = N'ออกใบเสร็จแล้ว' AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
+                    ";
 
             var filters = new List<string>();
             var parameters = new List<SqlParameter>();
@@ -154,7 +155,7 @@ namespace Laundry_Management.Laundry
                 query += " AND " + string.Join(" AND ", filters);
             }
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            using (SqlConnection conn = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlCommand cmd = new SqlCommand(query, conn))
             {
                 cmd.Parameters.AddRange(parameters.ToArray());
@@ -284,14 +285,13 @@ namespace Laundry_Management.Laundry
                 }
 
                 // ดำเนินการบันทึกข้อมูล - ใช้ receiptId ที่ดึงมาโดยตรงแทนการหาใหม่
-                string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
                 string updateQuery = @"
-                    UPDATE Receipt
-                    SET IsPickedUp = N'มารับแล้ว', CustomerPickupDate = @PickupDate
-                    WHERE ReceiptID = @ReceiptID
-                ";
+                        UPDATE Receipt
+                        SET IsPickedUp = N'มารับแล้ว', CustomerPickupDate = @PickupDate
+                        WHERE ReceiptID = @ReceiptID
+                    ";
 
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 {
                     conn.Open();
                     using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
@@ -418,14 +418,13 @@ namespace Laundry_Management.Laundry
                 }
 
                 // อัปเดตข้อมูลในฐานข้อมูล - ใช้ receiptId โดยตรง
-                string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
                 string updateQuery = @"
-                    UPDATE Receipt
-                    SET IsPickedUp = N'ยังไม่มารับ', CustomerPickupDate = NULL
-                    WHERE ReceiptID = @ReceiptID
-                ";
+                        UPDATE Receipt
+                        SET IsPickedUp = N'ยังไม่มารับ', CustomerPickupDate = NULL
+                        WHERE ReceiptID = @ReceiptID
+                    ";
 
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 {
                     conn.Open();
                     using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
@@ -467,6 +466,16 @@ namespace Laundry_Management.Laundry
             {
                 MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}\n\nStackTrace: {ex.StackTrace}",
                     "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        // Add this method to handle the DateTimePicker ValueChanged event
+        private void dtpCreateDate_ValueChanged(object sender, EventArgs e)
+        {
+            // Only trigger search if the DateTimePicker is checked (date is selected)
+            if (dtpCreateDate.Checked)
+            {
+                // Call the existing search functionality
+                btnSearch_Click(sender, e);
             }
         }
     }

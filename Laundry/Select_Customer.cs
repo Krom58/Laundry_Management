@@ -46,10 +46,9 @@ namespace Laundry_Management.Laundry
         }
         private void LoadCustomerData()
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string query = "SELECT CustomerID, FullName, Phone, Discount, Note FROM Customer";
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlDataAdapter adapter = new SqlDataAdapter(query, connection))
             {
                 DataTable dt = new DataTable();
@@ -68,7 +67,6 @@ namespace Laundry_Management.Laundry
 
         private void Search_Click(object sender, EventArgs e)
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string fullName = txtFullName.Text.Trim();
             string phone = txtPhone.Text.Trim();
 
@@ -83,7 +81,7 @@ namespace Laundry_Management.Laundry
                 query += " AND Phone LIKE @Phone";
             }
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 if (!string.IsNullOrEmpty(fullName))

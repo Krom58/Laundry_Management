@@ -9,11 +9,14 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Drawing.Printing;
 using System.Data.SqlClient;
+using System.IO;
+using System.Drawing.Drawing2D;
 
 namespace Laundry_Management.Laundry
 {
     public partial class Print_Service : Form
     {
+        private Bitmap _logoImage;
         public class ServiceItem
         {
             public string Name { get; set; }
@@ -52,7 +55,53 @@ namespace Laundry_Management.Laundry
             _printDocument.DefaultPageSettings.Landscape = false; // false = portrait orientation
 
             // Adjust margins to be smaller for A5
-            _printDocument.DefaultPageSettings.Margins = new Margins(15, 35, 15, 15);
+            _printDocument.DefaultPageSettings.Margins = new Margins(15, 40, 15, 15);
+            LoadLogoImage();
+        }
+        private void LoadLogoImage()
+        {
+            try
+            {
+                // โฟลเดอร์ Images จะถูกคัดลอกมาพร้อม exe 
+                string imagesFolder = Path.Combine(Application.StartupPath, "Images");
+                string logoPath = Path.Combine(imagesFolder, "Asia.jpg");
+
+                if (File.Exists(logoPath))
+                {
+                    _logoImage = new Bitmap(logoPath);
+                }
+                else
+                {
+                    // ถ้าไม่เจอ ให้ใช้ dummy
+                    _logoImage = CreateDummyLogo();
+                }
+            }
+            catch
+            {
+                _logoImage = CreateDummyLogo();
+            }
+        }
+
+        private Bitmap CreateDummyLogo()
+        {
+            // สร้างรูปเปล่าที่มีข้อความ "LOGO" ไว้ใช้แทนในกรณีที่หารูปไม่เจอ
+            Bitmap bmp = new Bitmap(70, 70);
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.White);
+                g.DrawRectangle(Pens.Gray, 0, 0, 69, 69);
+
+                using (Font f = new Font("Arial", 12, FontStyle.Bold))
+                {
+                    StringFormat sf = new StringFormat
+                    {
+                        Alignment = StringAlignment.Center,
+                        LineAlignment = StringAlignment.Center
+                    };
+                    g.DrawString("LOGO", f, Brushes.Gray, new RectangleF(0, 0, 70, 70), sf);
+                }
+            }
+            return bmp;
         }
         public bool IsPrinted { get; private set; } = false;
         private void PrintDoc_Click(object sender, EventArgs e)
@@ -88,23 +137,28 @@ namespace Laundry_Management.Laundry
         private void PrintPageHandler(object sender, PrintPageEventArgs e)
         {
             Graphics g = e.Graphics;
+
+            // Enable high-quality rendering
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
             float leftX = e.MarginBounds.Left;
             float topY = e.MarginBounds.Top;
             float rightX = e.MarginBounds.Right;
             float y = topY;
 
-            // Use smaller fonts for A5 paper
-            using (Font headerF = new Font("Arial", 9, FontStyle.Bold))
-            using (Font subF = new Font("Arial", 7))
-            using (Font bodyF = new Font("Arial", 7))
+            // Use slightly nicer fonts for A5 paper
+            using (Font headerF = new Font("Tahoma", 9.5f, FontStyle.Bold))
+            using (Font subF = new Font("Tahoma", 7.5f))
+            using (Font bodyF = new Font("Tahoma", 7.5f))
             {
-                // Rest of the code remains the same...
                 DrawHeader(g, headerF, subF, leftX, ref y, rightX);
                 y += 3; // Reduced spacing
                 DrawServiceDetails(g, bodyF, leftX, ref y, rightX);
                 y += 3; // Reduced spacing
-                DrawChecklistLeft(g, bodyF, leftX, y);
-                DrawSummaryRight(g, bodyF, e.PageBounds, y, rightX);
+
+                // Replace the old approach with the new footer
+                DrawFooter(g, bodyF, e.PageBounds, rightX);
             }
 
             e.HasMorePages = false;
@@ -113,13 +167,10 @@ namespace Laundry_Management.Laundry
         private DateTime _PickupDate;
         private void LoadOrderDateFromDatabase(string orderId)
         {
-            // 1) your real connection string
-            string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            using (var connection = new SqlConnection(cs))
+            using (var connection = Laundry_Management.Laundry.DBconfig.GetConnection())
             {
                 connection.Open();
 
-                // 2) correct table & column names
                 string query =
                     "SELECT OrderDate, PickupDate " +
                     "  FROM OrderHeader " +
@@ -153,178 +204,356 @@ namespace Laundry_Management.Laundry
         private void DrawHeader(Graphics g, Font headerFont, Font subHeaderFont,
                         float leftX, ref float y, float rightX)
         {
-            // ชื่อร้าน (ฝั่งซ้าย)
-            g.DrawString("เอเชียซักแห้ง", headerFont, Brushes.Black, leftX, y);
+            // กำหนดสีและสไตล์
+            Color primaryColor = Color.FromArgb(192, 0, 0);     // สีแดงเข้ม ASIB HOTEL
+            Color accentColor = Color.FromArgb(60, 60, 60);     // สีเทาเข้มสำหรับข้อความหลัก
+            Color secondaryColor = Color.FromArgb(90, 90, 90);  // สีเทาสำหรับข้อความรอง
+            Color separatorColor = Color.FromArgb(220, 220, 220); // สีเทาอ่อนสำหรับเส้นคั่น
 
-            // Order ID + วันที่ (ฝั่งขวา) ให้ตัวอักษรตัวแรกตรงกับ leftX + same indent
+            // กำหนดพื้นที่และระยะห่างเริ่มต้น
+            float initialY = y;
+            float headerHeight = 80; // ความสูงส่วนหัว
+
+            // 1. วาดสีพื้นเบาๆ สำหรับส่วนหัว
+            using (LinearGradientBrush headerBrush = new LinearGradientBrush(
+                new RectangleF(leftX, y, rightX - leftX, headerHeight),
+                Color.FromArgb(252, 252, 252),
+                Color.FromArgb(248, 248, 248),
+                90f))
+            {
+                g.FillRectangle(headerBrush, leftX, y, rightX - leftX, headerHeight);
+            }
+
+            // 2. วาดชื่อร้านซ้ายและหมายเลขใบรับผ้าขวา (ด้วยสไตล์สวยงาม)
+            string storeName = "เอเชียซักแห้ง";
+            SizeF storeNameSize = g.MeasureString(storeName, headerFont);
+
+            // วาดชื่อร้านด้วยสีดำ
+            g.DrawString(storeName, headerFont, new SolidBrush(accentColor), leftX, y);
+
+            // วาดหมายเลขใบรับผ้าด้านขวา
             string idLine = $"หมายเลขใบรับผ้า : {_orderId}";
             SizeF idSz = g.MeasureString(idLine, headerFont);
-            g.DrawString(idLine, headerFont, Brushes.Black,
-                         rightX - idSz.Width, y);
+            g.DrawString(idLine, headerFont, new SolidBrush(accentColor), rightX - idSz.Width, y);
 
-            y += headerFont.GetHeight(g) + 3;
-
-            // แถวถัดมา: โทร / วันที่
-            g.DrawString("โทร. 02-217-0808 ต่อ 5340", subHeaderFont, Brushes.Black, leftX, y);
-            string dateLine = $"วันที่: {_orderDate:dd/MM/yyyy}";
-            SizeF dtSz = g.MeasureString(dateLine, subHeaderFont);
-            g.DrawString(dateLine, subHeaderFont, Brushes.Black,
-                         rightX - dtSz.Width, y);
-
-            y += subHeaderFont.GetHeight(g) + 2;
-
-            // แถวที่ 3: ที่อยู่ / ชื่อลูกค้า
-            g.DrawString("296 ถนนพญาไท กทม. 10400", subHeaderFont, Brushes.Black, leftX, y);
-            string customerLine = $"ชื่อลูกค้า: {_customerName}";
-            SizeF custSz = g.MeasureString(customerLine, subHeaderFont);
-            g.DrawString(customerLine, subHeaderFont, Brushes.Black,
-                         rightX - custSz.Width, y);
-
-            y += subHeaderFont.GetHeight(g) + 2;
-
-            // แถวที่ 4: เลขประจำตัวผู้เสียภาษี / โทรศัพท์
-            g.DrawString("เลขประจำตัวผู้เสียภาษีอากร: 0107535000346", subHeaderFont, Brushes.Black, leftX, y);
-            string phoneLine = $"โทรศัพท์: {_customerPhone}";
-            SizeF phSz = g.MeasureString(phoneLine, subHeaderFont);
-            g.DrawString(phoneLine, subHeaderFont, Brushes.Black,
-                         rightX - phSz.Width, y);
-
-            y += subHeaderFont.GetHeight(g) + 2;
-
-            // แถวที่ 5: ชั่วโมงบริการ / วันรับผ้า
-            g.DrawString("เปิดบริการ 7.00-19.00 น. ทุกวัน", subHeaderFont, Brushes.Black, leftX, y);
-            string pickLine = $"วันที่ลูกค้ามารับ: {_PickupDate:dd/MM/yyyy}";
-            SizeF pkSz = g.MeasureString(pickLine, subHeaderFont);
-            g.DrawString(pickLine, subHeaderFont, Brushes.Black,
-                         rightX - pkSz.Width, y);
-
-            y += subHeaderFont.GetHeight(g) + 2;
-
-            // ข้อความเตือน Quick service
-            string[] warnings = {
-        "กรณีซักผ้าด่วน ส่งก่อน 10.00 น.",
-        "[  ] รับผ้าภายในเวลา 17.00 น. ในวันเดียวกัน คิดค่าบริการเพิ่ม 100%",
-        "[  ] รับผ้าในวันถัดไปภายใน 17.00 น. คิดค่าบริการเพิ่ม 50%",
-        "[  ] ผ้าอบไอน้ำ เศษของเมตรคิดเป็น 1 เมตร"
-    };
-            foreach (var w in warnings)
+            // 3. วาดโลโก้ตรงกลางของหัวกระดาษ
+            if (_logoImage != null)
             {
-                g.DrawString(w, subHeaderFont, Brushes.Black, leftX, y);
+                // ปรับขนาดและตำแหน่งภาพ
+                float imgWidth = 70;
+                float imgHeight = 70;
+
+                // วางภาพตรงกลางของกระดาษ (แนวนอน)
+                float pageCenter = leftX + (rightX - leftX) / 2;
+                float imgX = pageCenter - imgWidth / 2;
+
+                // วาง logo ด้านบนสุดของกระดาษ
+                float imgY = y - 10;  // ปรับตามความเหมาะสม
+
+                // กำหนดคุณภาพการวาดให้สูงขึ้น
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+
+                // วาดโลโก้ด้วยคุณภาพสูง
+                g.DrawImage(_logoImage, new RectangleF(imgX, imgY, imgWidth, imgHeight));
+            }
+
+            // เลื่อน y ลงตามโลโก้
+            y += 25;  // ปรับตามความสูงโลโก้
+
+            // 4. ข้อมูลร้าน - จัดแบบคู่ขนาน ซ้าย-ขวา และชิดหัวข้อ
+            float leftColumnX = leftX + 5;      // ช่องข้อความซ้าย
+            float rightColumnX = leftX + (rightX - leftX) / 2 + 10;  // ช่องข้อความขวา
+            float infoRowHeight = subHeaderFont.GetHeight(g) * 1.3f;  // ระยะห่างแต่ละแถว
+
+            // ข้อมูลที่จะแสดง - จัดคู่กัน
+            string[][] infoData = new string[][] {
+                new[] { "โทร. 02-217-0808 ต่อ 5340", $"วันที่: {_orderDate:dd/MM/yyyy}" },
+                new[] { "296 ถนนพญาไท กทม. 10400", $"ชื่อลูกค้า: {_customerName}" },
+                new[] { "เลขประจำตัวผู้เสียภาษีอากร: 0107535000346", $"โทรศัพท์: {_customerPhone}" },
+                new[] { "เปิดบริการ 7.00-19.00 น. ทุกวัน", $"วันที่ลูกค้ามารับ: {_PickupDate:dd/MM/yyyy}" }
+            };
+
+            // วาดแต่ละแถว
+            for (int i = 0; i < infoData.Length; i++)
+            {
+                // ฝั่งซ้าย
+                g.DrawString(infoData[i][0], subHeaderFont, new SolidBrush(secondaryColor),
+                            leftColumnX, y);
+
+                // ฝั่งขวา - เช็คความยาวและจัดให้อยู่ชิดขวา
+                SizeF rightSize = g.MeasureString(infoData[i][1], subHeaderFont);
+                g.DrawString(infoData[i][1], subHeaderFont, new SolidBrush(secondaryColor),
+                            rightX - rightSize.Width, y);
+
+                y += infoRowHeight;
+            }
+
+            // 5. เส้นคั่นเบาๆ ก่อนข้อมูลบริการด่วน
+            using (Pen separatorPen = new Pen(separatorColor, 1))
+            {
+                g.DrawLine(separatorPen, leftX, y + 3, rightX, y + 3);
+            }
+            y += 8;
+
+            // 6. ข้อความเตือน Quick service - ปรับให้สวยงาม
+            // แถบพื้นหลังสำหรับข้อความเตือน
+            RectangleF warningHeaderRect = new RectangleF(leftX, y, rightX - leftX, subHeaderFont.GetHeight(g) + 6);
+            using (LinearGradientBrush warningBgBrush = new LinearGradientBrush(
+                warningHeaderRect, Color.FromArgb(252, 248, 248), Color.FromArgb(252, 242, 242), 0f))
+            {
+                g.FillRectangle(warningBgBrush, warningHeaderRect);
+            }
+
+            // หัวข้อ "กรณีซักผ้าด่วน ส่งก่อน 10.00 น." ด้วยตัวหนา
+            using (Font boldSubHeader = new Font(subHeaderFont.FontFamily, subHeaderFont.Size, FontStyle.Bold))
+            {
+                g.DrawString("กรณีซักผ้าด่วน ส่งก่อน 10.00 น.", boldSubHeader,
+                            new SolidBrush(primaryColor), leftX + 5, y + 3);
+            }
+            y += subHeaderFont.GetHeight(g) + 8;
+
+            // รายการข้อมูลเตือน - จัดชิดซ้ายและมีเครื่องหมายนำข้อความ
+            string[] warnings = {
+                "[  ] รับผ้าภายในเวลา 17.00 น. ในวันเดียวกัน คิดค่าบริการเพิ่ม 100%",
+                "[  ] รับผ้าในวันถัดไปภายใน 17.00 น. คิดค่าบริการเพิ่ม 50%",
+                "[  ] ผ้าอบไอน้ำ เศษของเมตรคิดเป็น 1 เมตร"
+            };
+
+            foreach (var warning in warnings)
+            {
+                g.DrawString(warning, subHeaderFont, Brushes.Black, leftX + 10, y);
                 y += subHeaderFont.GetHeight(g) + 2;
             }
 
-            y += 10;
+            y += 8;
         }
         private void DrawServiceDetails(Graphics g, Font font, float leftX, ref float y, float rightX)
         {
+            // สี
+            Color tableHeaderBgColor = Color.FromArgb(240, 240, 245);
+            Color tableHeaderTextColor = Color.FromArgb(60, 60, 60);
+            Color tableBorderColor = Color.FromArgb(180, 180, 180);
+            Color tableAlternateRowColor = Color.FromArgb(250, 250, 252);
+            Color tableCellTextColor = Color.FromArgb(50, 50, 50);
+
             // ขยายเป็น 4 คอลัมน์: รายการ | จำนวน | ราคา | จำนวนเงิน
             int cols = 4;
             float tableWidth = rightX - leftX;
-            float colWidth = tableWidth / cols;
-            float rowHeight = font.GetHeight(g) + 6; // padding
 
-            // ตำแหน่ง X แต่ละคอลัมน์
+            // กำหนดความกว้างแต่ละคอลัมน์ตามสัดส่วน (รายการ 40%, จำนวน 15%, ราคา 20%, จำนวนเงิน 25%)
+            float[] colWidthPercents = { 0.40f, 0.15f, 0.20f, 0.25f };
+            float[] colWidths = new float[cols];
             float[] xs = new float[cols + 1];
-            for (int i = 0; i <= cols; i++)
-                xs[i] = leftX + colWidth * i;
 
-            // เส้นกรอบ header แถวบนและล่าง
-            g.DrawLine(Pens.Black, leftX, y, rightX, y);
-            g.DrawLine(Pens.Black, leftX, y + rowHeight, rightX, y + rowHeight);
-            // เส้นคั่นคอลัมน์
-            for (int i = 0; i <= cols; i++)
-                g.DrawLine(Pens.Black, xs[i], y, xs[i], y + rowHeight);
-
-            // หัวตารางกึ่งกลางในแต่ละเซลล์
-            string[] headers = { "รายการ", "จำนวน", "ราคา", "จำนวนเงิน" };
+            xs[0] = leftX;
             for (int i = 0; i < cols; i++)
             {
-                var sz = g.MeasureString(headers[i], font);
-                float tx = xs[i] + (colWidth - sz.Width) / 2f;
-                float ty = y + (rowHeight - sz.Height) / 2f;
-                g.DrawString(headers[i], font, Brushes.Black, tx, ty);
+                colWidths[i] = tableWidth * colWidthPercents[i];
+                xs[i + 1] = xs[i] + colWidths[i];
+            }
+
+            float rowHeight = font.GetHeight(g) + 8; // เพิ่มความสูงแถวเล็กน้อย
+
+            // ปากกาสำหรับเส้นตาราง
+            Pen tablePen = new Pen(tableBorderColor, 0.8f);
+
+            // --- ส่วนหัวตาราง ---
+
+            // พื้นหลังหัวตาราง
+            g.FillRectangle(new SolidBrush(tableHeaderBgColor), leftX, y, tableWidth, rowHeight);
+
+            // กรอบหัวตาราง
+            g.DrawRectangle(tablePen, leftX, y, tableWidth, rowHeight);
+
+            // เส้นคั่นคอลัมน์หัวตาราง
+            for (int i = 1; i < cols; i++)
+            {
+                g.DrawLine(tablePen, xs[i], y, xs[i], y + rowHeight);
+            }
+
+            // ข้อความหัวตารางพร้อมเงา
+            using (Font headerFont = new Font(font.FontFamily, font.Size, FontStyle.Bold))
+            {
+                string[] headers = { "รายการ", "จำนวน", "ราคา", "จำนวนเงิน" };
+                for (int i = 0; i < cols; i++)
+                {
+                    float colCenter = xs[i] + colWidths[i] / 2;
+                    var sz = g.MeasureString(headers[i], headerFont);
+
+                    // เงาข้อความ
+                    g.DrawString(headers[i], headerFont, new SolidBrush(Color.FromArgb(30, 0, 0, 0)),
+                                colCenter - sz.Width / 2 + 1, y + (rowHeight - sz.Height) / 2 + 1);
+
+                    // ข้อความหลัก
+                    g.DrawString(headers[i], headerFont, new SolidBrush(tableHeaderTextColor),
+                                colCenter - sz.Width / 2, y + (rowHeight - sz.Height) / 2);
+                }
             }
 
             y += rowHeight;
 
-            // แถวข้อมูล
+            // --- ส่วนข้อมูล ---
+
+            bool isAlternate = false;
             foreach (var item in _items)
             {
-                // เส้นกรอบแต่ละแถว
-                g.DrawLine(Pens.Black, leftX, y, rightX, y);
-                g.DrawLine(Pens.Black, leftX, y + rowHeight, rightX, y + rowHeight);
-                for (int i = 0; i <= cols; i++)
-                    g.DrawLine(Pens.Black, xs[i], y, xs[i], y + rowHeight);
+                // พื้นหลังแถวสลับสี
+                if (isAlternate)
+                {
+                    g.FillRectangle(new SolidBrush(tableAlternateRowColor), leftX, y, tableWidth, rowHeight);
+                }
+                isAlternate = !isAlternate;
 
-                // รายการ (ซ้ายสุด)
-                g.DrawString(item.Name, font, Brushes.Black, xs[0] + 2, y + 2);
+                // กรอบแถว
+                g.DrawRectangle(tablePen, leftX, y, tableWidth, rowHeight);
 
-                // จำนวน (กึ่งกลาง)
-                var qty = item.Quantity.ToString();
-                var szQty = g.MeasureString(qty, font);
-                g.DrawString(qty, font, Brushes.Black,
-                             xs[1] + (colWidth - szQty.Width) / 2f,
-                             y + (rowHeight - szQty.Height) / 2f);
+                // เส้นคั่นคอลัมน์
+                for (int i = 1; i < cols; i++)
+                {
+                    g.DrawLine(tablePen, xs[i], y, xs[i], y + rowHeight);
+                }
 
-                // ราคา (กึ่งกลาง)
-                var price = item.Price.ToString("N2");
-                var szPrice = g.MeasureString(price, font);
-                g.DrawString(price, font, Brushes.Black,
-                             xs[2] + (colWidth - szPrice.Width) / 2f,
-                             y + (rowHeight - szPrice.Height) / 2f);
+                // ข้อมูลแต่ละคอลัมน์
 
-                // จำนวนเงิน = Quantity * Price (กึ่งกลาง)
+                // 1. รายการ (ซ้ายสุด)
+                g.DrawString(item.Name, font, new SolidBrush(tableCellTextColor), xs[0] + 5, y + (rowHeight - font.GetHeight(g)) / 2);
+
+                // 2. จำนวน (กึ่งกลาง)
+                string qty = item.Quantity.ToString();
+                SizeF qtySize = g.MeasureString(qty, font);
+                g.DrawString(qty, font, new SolidBrush(tableCellTextColor),
+                            xs[1] + (colWidths[1] - qtySize.Width) / 2,
+                            y + (rowHeight - qtySize.Height) / 2);
+
+                // 3. ราคา (กึ่งกลาง)
+                string price = item.Price.ToString("N2");
+                SizeF priceSize = g.MeasureString(price, font);
+                g.DrawString(price, font, new SolidBrush(tableCellTextColor),
+                            xs[2] + (colWidths[2] - priceSize.Width) / 2,
+                            y + (rowHeight - priceSize.Height) / 2);
+
+                // 4. จำนวนเงิน (กึ่งกลาง)
                 decimal amount = item.Quantity * item.Price;
-                var amt = amount.ToString("N2");
-                var szAmt = g.MeasureString(amt, font);
-                g.DrawString(amt, font, Brushes.Black,
-                             xs[3] + (colWidth - szAmt.Width) / 2f,
-                             y + (rowHeight - szAmt.Height) / 2f);
+                string amt = amount.ToString("N2");
+                SizeF amtSize = g.MeasureString(amt, font);
+                g.DrawString(amt, font, new SolidBrush(tableCellTextColor),
+                            xs[3] + (colWidths[3] - amtSize.Width) / 2,
+                            y + (rowHeight - amtSize.Height) / 2);
 
                 y += rowHeight;
             }
 
-            // เส้น bottom สุด
-            g.DrawLine(Pens.Black, leftX, y, rightX, y);
-            y += 10;
+            y += 10; // เพิ่มระยะห่างท้ายตาราง
         }
 
         private void DrawChecklistLeft(Graphics g, Font font, float leftX, float y)
         {
             string[] checks = new[]
-            {
-        "[  ] หดรอยเตารีด เหลือง ไหม้                   [  ] สีเปลี่ยนจากเดิมจุดด่าง",
-        "[  ] สีกล้ำ เปื้อนน้ำมัน                         [  ] ขาดแยกปริ",
-        "[  ] เปื้อนสี หมึก เลือด อาหาร                   [  ] เป็นเงามันจากเตารีด",
-        "[  ] ไม่สมประกอบ กระดุมแตก หาย                [  ] เปื้อนชา กาแฟ",
-        "[  ] รอยย่น                                [  ] ขอบยางยืด"
+    {
+        "[  ] หดรอยเตารีด เหลือง ไหม้",
+        "[  ] สีกล้ำ เปื้อนน้ำมัน",
+        "[  ] เปื้อนสี หมึก เลือด อาหาร",
+        "[  ] ไม่สมประกอบ กระดุมแตก หาย",
+        "[  ] รอยย่น",
+        "[  ] สีเปลี่ยนจากเดิมจุดด่าง",
+        "[  ] ขาดแยกปริ",
+        "[  ] เป็นเงามันจากเตารีด",
+        "[  ] เปื้อนชา กาแฟ",
+        "[  ] ขอบยางยืด"
     };
 
             float lineY = y;
+
+            // Draw a border around the checklist area for better visual separation
+            float checklistWidth = 180;
+            float checklistHeight = checks.Length * (font.GetHeight(g) + 1) + 10; // Height based on number of lines
+
+            using (Pen borderPen = new Pen(Color.FromArgb(230, 230, 235), 1))
+            {
+                g.DrawRectangle(borderPen, leftX, y, checklistWidth, checklistHeight);
+            }
+
+            // Add a small padding inside the border
+            lineY += 5;
+            leftX += 5;
+
+            // Draw the checklist items
             foreach (var line in checks)
             {
                 g.DrawString(line, font, Brushes.Black, leftX, lineY);
                 lineY += font.GetHeight(g) + 1;
             }
         }
-        private void DrawSummaryRight(Graphics g, Font font, Rectangle page, float y , float rightX)
+        private void DrawSummaryRight(Graphics g, Font font, Rectangle page, float y, float rightX)
         {
+            // คำนวณยอดรวม
             decimal total = _items.Sum(i => i.Price * i.Quantity);
-            decimal discounted = total * (1 - _customerDiscount);
 
-            string totalLine = $"รวม: {total:N2} บาท";
-            SizeF toL = g.MeasureString(totalLine, font);
-            g.DrawString(totalLine, font, Brushes.Black,
-                         rightX - toL.Width, y);
+            // สี
+            Color summaryBgColor = Color.FromArgb(248, 248, 252);
+            Color summaryBorderColor = Color.FromArgb(230, 230, 235);
+            Color totalTextColor = Color.FromArgb(70, 70, 70);
 
-            if (_customerDiscount > 0m)
+            float leftX = page.Left + 15; // Match the left margin
+
+            // สร้างพื้นที่สรุปยอด
+            float summaryWidth = 180;
+            float summaryHeight = 50; // Reduced height since we don't have VAT/discount sections
+            float summaryX = rightX - summaryWidth;
+
+            // วาดพื้นหลังและกรอบ
+            using (SolidBrush bgBrush = new SolidBrush(summaryBgColor))
             {
-                y += font.GetHeight(g) + 4;
-                string discLine = $"หลังหักส่วนลด: {discounted:N2} บาท";
-                SizeF diL = g.MeasureString(discLine, font);
-                g.DrawString(discLine, font, Brushes.Black,
-                             rightX - diL.Width, y);
+                g.FillRectangle(bgBrush, summaryX, y, summaryWidth, summaryHeight);
             }
+
+            using (Pen borderPen = new Pen(summaryBorderColor, 1))
+            {
+                g.DrawRectangle(borderPen, summaryX, y, summaryWidth, summaryHeight);
+            }
+
+            // คำนวณความสูงของตัวอักษรสำหรับเว้นบรรทัด
+            float lineHeight = font.GetHeight(g);
+            float currentY = y + 8;
+
+            // ยอดรวมสุทธิ
+            string totalLine = $"ยอดรวมสุทธิ : {total:N2} บาท";
+            SizeF totalSize = g.MeasureString(totalLine, font);
+            using (Font totalFont = new Font(font.FontFamily, font.Size, FontStyle.Bold))
+            {
+                g.DrawString(totalLine, totalFont, new SolidBrush(totalTextColor),
+                            rightX - 5 - totalSize.Width - 5, currentY);
+            }
+            DrawSignatureLine(g, font, rightX, y + summaryHeight);
+        }
+        private void DrawFooter(Graphics g, Font font, Rectangle page, float rightX)
+        {
+            float leftX = page.Left + 15; // Match the left margin
+
+            // Calculate the position for footer (at the bottom of the page)
+            float footerY = page.Bottom - 180; // Space for both checklist and summary
+
+            // Draw the checklist on the left side of the footer
+            DrawChecklistLeft(g, font, leftX, footerY);
+
+            // Draw the summary on the right side of the footer - modified version without VAT/discount
+            DrawSummaryRight(g, font, page, footerY, rightX);
+        }
+        private void DrawSignatureLine(Graphics g, Font font, float rightX, float y)
+        {
+            float signatureLineWidth = 150;
+            float signatureX = rightX - signatureLineWidth;
+            float signatureY = y + 35; // เว้นระยะใต้กล่องสรุป
+
+            // วาดขีดเส้น
+            g.DrawLine(Pens.Black, signatureX, signatureY, signatureX + signatureLineWidth, signatureY);
+
+            // วาดข้อความใต้เส้น
+            string signatureLabel = "ลายเซ้นผู้รับผ้า";
+            SizeF labelSize = g.MeasureString(signatureLabel, font);
+            float labelX = signatureX + (signatureLineWidth - labelSize.Width) / 2;
+            g.DrawString(signatureLabel, font, Brushes.Black, labelX, signatureY + 5);
         }
     }
 }

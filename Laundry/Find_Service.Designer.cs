@@ -50,15 +50,20 @@
             this.label6 = new System.Windows.Forms.Label();
             this.txtDiscount = new System.Windows.Forms.TextBox();
             this.label7 = new System.Windows.Forms.Label();
-            this.label8 = new System.Windows.Forms.Label();
+            this.lblTotal = new System.Windows.Forms.Label();
             this.label9 = new System.Windows.Forms.Label();
-            this.label10 = new System.Windows.Forms.Label();
+            this.lblPaymentamount = new System.Windows.Forms.Label();
             this.chkPercent = new System.Windows.Forms.CheckBox();
             this.chkBaht = new System.Windows.Forms.CheckBox();
             this.chkDebit = new System.Windows.Forms.CheckBox();
             this.chkCash = new System.Windows.Forms.CheckBox();
             this.label11 = new System.Windows.Forms.Label();
-            this.label12 = new System.Windows.Forms.Label();
+            this.lblDiscount = new System.Windows.Forms.Label();
+            this.lblVat = new System.Windows.Forms.Label();
+            this.label16 = new System.Windows.Forms.Label();
+            this.label8 = new System.Windows.Forms.Label();
+            this.label10 = new System.Windows.Forms.Label();
+            this.chkQRCode = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.dgvItems)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvOrders)).BeginInit();
             this.SuspendLayout();
@@ -234,7 +239,7 @@
             // 
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(1096, 39);
+            this.label4.Location = new System.Drawing.Point(1161, 35);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(140, 43);
             this.label4.TabIndex = 51;
@@ -244,7 +249,7 @@
             // 
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label5.Location = new System.Drawing.Point(1242, 39);
+            this.label5.Location = new System.Drawing.Point(1307, 35);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(26, 43);
             this.label5.TabIndex = 52;
@@ -272,41 +277,41 @@
             // 
             this.label7.AutoSize = true;
             this.label7.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label7.Location = new System.Drawing.Point(1096, 82);
+            this.label7.Location = new System.Drawing.Point(1161, 78);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(107, 43);
             this.label7.TabIndex = 55;
             this.label7.Text = "ราคารวม :";
             // 
-            // label8
+            // lblTotal
             // 
-            this.label8.AutoSize = true;
-            this.label8.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label8.Location = new System.Drawing.Point(1209, 82);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(26, 43);
-            this.label8.TabIndex = 56;
-            this.label8.Text = "-";
+            this.lblTotal.AutoSize = true;
+            this.lblTotal.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblTotal.Location = new System.Drawing.Point(1329, 78);
+            this.lblTotal.Name = "lblTotal";
+            this.lblTotal.Size = new System.Drawing.Size(26, 43);
+            this.lblTotal.TabIndex = 56;
+            this.lblTotal.Text = "-";
             // 
             // label9
             // 
             this.label9.AutoSize = true;
             this.label9.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label9.Location = new System.Drawing.Point(1096, 168);
+            this.label9.Location = new System.Drawing.Point(1161, 250);
             this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(204, 43);
+            this.label9.Size = new System.Drawing.Size(105, 43);
             this.label9.TabIndex = 57;
-            this.label9.Text = "ราคาหลังหักส่วนลด :";
+            this.label9.Text = "รวมสุทธิ :";
             // 
-            // label10
+            // lblPaymentamount
             // 
-            this.label10.AutoSize = true;
-            this.label10.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label10.Location = new System.Drawing.Point(1306, 168);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(26, 43);
-            this.label10.TabIndex = 58;
-            this.label10.Text = "-";
+            this.lblPaymentamount.AutoSize = true;
+            this.lblPaymentamount.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblPaymentamount.Location = new System.Drawing.Point(1329, 250);
+            this.lblPaymentamount.Name = "lblPaymentamount";
+            this.lblPaymentamount.Size = new System.Drawing.Size(26, 43);
+            this.lblPaymentamount.TabIndex = 58;
+            this.lblPaymentamount.Text = "-";
             // 
             // chkPercent
             // 
@@ -334,7 +339,7 @@
             // 
             this.chkDebit.AutoSize = true;
             this.chkDebit.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkDebit.Location = new System.Drawing.Point(1314, 214);
+            this.chkDebit.Location = new System.Drawing.Point(901, 249);
             this.chkDebit.Name = "chkDebit";
             this.chkDebit.Size = new System.Drawing.Size(197, 47);
             this.chkDebit.TabIndex = 62;
@@ -345,7 +350,7 @@
             // 
             this.chkCash.AutoSize = true;
             this.chkCash.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkCash.Location = new System.Drawing.Point(1104, 214);
+            this.chkCash.Location = new System.Drawing.Point(734, 249);
             this.chkCash.Name = "chkCash";
             this.chkCash.Size = new System.Drawing.Size(161, 47);
             this.chkCash.TabIndex = 61;
@@ -356,36 +361,92 @@
             // 
             this.label11.AutoSize = true;
             this.label11.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label11.Location = new System.Drawing.Point(1096, 125);
+            this.label11.Location = new System.Drawing.Point(1161, 121);
             this.label11.Name = "label11";
-            this.label11.Size = new System.Drawing.Size(96, 43);
+            this.label11.Size = new System.Drawing.Size(37, 43);
             this.label11.TabIndex = 63;
-            this.label11.Text = "ส่วนลด :";
+            this.label11.Text = "- :";
             // 
-            // label12
+            // lblDiscount
             // 
-            this.label12.AutoSize = true;
-            this.label12.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label12.Location = new System.Drawing.Point(1198, 125);
-            this.label12.Name = "label12";
-            this.label12.Size = new System.Drawing.Size(26, 43);
-            this.label12.TabIndex = 64;
-            this.label12.Text = "-";
+            this.lblDiscount.AutoSize = true;
+            this.lblDiscount.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblDiscount.Location = new System.Drawing.Point(1329, 121);
+            this.lblDiscount.Name = "lblDiscount";
+            this.lblDiscount.Size = new System.Drawing.Size(26, 43);
+            this.lblDiscount.TabIndex = 64;
+            this.lblDiscount.Text = "-";
+            // 
+            // lblVat
+            // 
+            this.lblVat.AutoSize = true;
+            this.lblVat.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblVat.Location = new System.Drawing.Point(1329, 207);
+            this.lblVat.Name = "lblVat";
+            this.lblVat.Size = new System.Drawing.Size(26, 43);
+            this.lblVat.TabIndex = 68;
+            this.lblVat.Text = "-";
+            // 
+            // label16
+            // 
+            this.label16.AutoSize = true;
+            this.label16.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label16.Location = new System.Drawing.Point(1161, 207);
+            this.label16.Name = "label16";
+            this.label16.Size = new System.Drawing.Size(73, 43);
+            this.label16.TabIndex = 67;
+            this.label16.Text = "VAT :";
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label8.Location = new System.Drawing.Point(1161, 164);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(162, 43);
+            this.label8.TabIndex = 69;
+            this.label8.Text = "หลังหักส่วนลด :";
+            // 
+            // label10
+            // 
+            this.label10.AutoSize = true;
+            this.label10.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label10.Location = new System.Drawing.Point(1329, 164);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(26, 43);
+            this.label10.TabIndex = 70;
+            this.label10.Text = "-";
+            // 
+            // chkQRCode
+            // 
+            this.chkQRCode.AutoSize = true;
+            this.chkQRCode.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.chkQRCode.Location = new System.Drawing.Point(611, 249);
+            this.chkQRCode.Name = "chkQRCode";
+            this.chkQRCode.Size = new System.Drawing.Size(117, 47);
+            this.chkQRCode.TabIndex = 71;
+            this.chkQRCode.Text = "QR Code";
+            this.chkQRCode.UseVisualStyleBackColor = true;
             // 
             // Find_Service
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
-            this.Controls.Add(this.label12);
+            this.Controls.Add(this.chkQRCode);
+            this.Controls.Add(this.label10);
+            this.Controls.Add(this.label8);
+            this.Controls.Add(this.lblVat);
+            this.Controls.Add(this.label16);
+            this.Controls.Add(this.lblDiscount);
             this.Controls.Add(this.label11);
             this.Controls.Add(this.chkDebit);
             this.Controls.Add(this.chkCash);
             this.Controls.Add(this.chkPercent);
             this.Controls.Add(this.chkBaht);
-            this.Controls.Add(this.label10);
+            this.Controls.Add(this.lblPaymentamount);
             this.Controls.Add(this.label9);
-            this.Controls.Add(this.label8);
+            this.Controls.Add(this.lblTotal);
             this.Controls.Add(this.label7);
             this.Controls.Add(this.txtDiscount);
             this.Controls.Add(this.label6);
@@ -435,14 +496,19 @@
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.TextBox txtDiscount;
         private System.Windows.Forms.Label label7;
-        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label lblTotal;
         private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.Label lblPaymentamount;
         private System.Windows.Forms.CheckBox chkPercent;
         private System.Windows.Forms.CheckBox chkBaht;
         private System.Windows.Forms.CheckBox chkDebit;
         private System.Windows.Forms.CheckBox chkCash;
         private System.Windows.Forms.Label label11;
-        private System.Windows.Forms.Label label12;
+        private System.Windows.Forms.Label lblDiscount;
+        private System.Windows.Forms.Label lblVat;
+        private System.Windows.Forms.Label label16;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.CheckBox chkQRCode;
     }
 }

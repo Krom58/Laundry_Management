@@ -18,6 +18,7 @@ namespace Laundry_Management.Laundry
         private readonly OrderRepository _repo = new OrderRepository();
         private List<OrderItemDto> _currentItems;
         private decimal _totalAmount;
+        private const decimal VAT_RATE = 0.07m;
         public Find_Service()
         {
             InitializeComponent();
@@ -123,6 +124,10 @@ namespace Laundry_Management.Laundry
                 dgvOrders.Columns["OrderID"].Visible = false;
             if (dgvOrders.Columns["CustomReceiptId"] != null)
                 dgvOrders.Columns["CustomReceiptId"].Visible = false;
+            if (dgvOrders.Columns["SubTotal"] != null)
+                dgvOrders.Columns["SubTotal"].Visible = false;
+            if (dgvOrders.Columns["VatAmount"] != null)
+                dgvOrders.Columns["VatAmount"].Visible = false;
         }
         // ปรับปรุงเมธอด LoadOrders ให้รองรับพารามิเตอร์ statusFilter
         private void LoadOrders(
@@ -161,20 +166,18 @@ namespace Laundry_Management.Laundry
             public DateTime OrderDate { get; set; }
             public DateTime PickupDate { get; set; }
             public decimal GrandTotalPrice { get; set; }
+            public decimal SubTotal { get; set; } // Price before VAT
+            public decimal VatAmount { get; set; } // VAT amount
             public decimal DiscountedTotal { get; set; }
             public int? ReceiptId { get; set; }
             public string CustomReceiptId { get; set; }
             public string ReceivedStatus { get; set; }
         }
-        private readonly string _cs =
-                "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
         public class OrderRepository
         {
-            private readonly string _cs =
-                "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             public void CreateReceiptItem(int receiptId, int orderItemId, int quantity, decimal amount)
             {
-                using (var cn = new SqlConnection(_cs))
+                using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 using (var cmd = new SqlCommand(@"
             INSERT INTO ReceiptItem
               (ReceiptID, OrderItemID, Quantity, Amount)
@@ -196,7 +199,7 @@ namespace Laundry_Management.Laundry
                 string statusFilter = null)
             {
                 var list = new List<OrderHeaderDto>();
-                using (var cn = new SqlConnection(_cs))
+                using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 using (var cmd = new SqlCommand())
                 {
                     cmd.Connection = cn;
@@ -258,7 +261,7 @@ namespace Laundry_Management.Laundry
             public List<OrderItemDto> GetOrderItems(int orderId)
             {
                 var list = new List<OrderItemDto>();
-                using (var cn = new SqlConnection(_cs))
+                using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 using (var cmd = new SqlCommand(
                     "SELECT OrderItemID, ItemNumber, ItemName, Quantity, TotalAmount, IsCanceled, CancelReason " +
                     "  FROM OrderItem WHERE OrderID = @id", cn))
@@ -289,7 +292,7 @@ namespace Laundry_Management.Laundry
 
             public void UpdateItemCancelled(int orderItemId, bool isCancelled, string cancelReason)
             {
-                using (var cn = new SqlConnection(_cs))
+                using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 using (var cmd = new SqlCommand(
                     @"UPDATE OrderItem 
              SET IsCanceled   = @c, 
@@ -308,7 +311,7 @@ namespace Laundry_Management.Laundry
 
             public int CreateReceipt(int orderId, string customReceiptId = null)
             {
-                using (var cn = new SqlConnection(_cs))
+                using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 {
                     cn.Open(); // เปิด connection ก่อน
                     using (var tx = cn.BeginTransaction())
@@ -331,7 +334,7 @@ namespace Laundry_Management.Laundry
             public List<OrderItemDto> GetReceiptItems(int receiptId)
             {
                 var list = new List<OrderItemDto>();
-                using (var cn = new SqlConnection(_cs))
+                using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 using (var cmd = new SqlCommand(@"
                 SELECT RI.ReceiptItemID, OI.ItemNumber, OI.ItemName,
                        RI.Quantity, RI.Amount, OI.IsCancelled
@@ -432,7 +435,7 @@ namespace Laundry_Management.Laundry
 
             // กำหนดค่าให้กับ label และ textbox
             label5.Text = customerName;  // ชื่อ-นามสกุล
-            label8.Text = _totalAmount.ToString("N2") + " บาท";  // ราคารวมทั้งหมด
+            lblTotal.Text = _totalAmount.ToString("N2") + " บาท";  // ราคารวมทั้งหมด
 
             // กำหนดค่าเริ่มต้นให้กับ txtDiscount
             txtDiscount.Text = originalDiscount.ToString();
@@ -441,86 +444,92 @@ namespace Laundry_Management.Laundry
             chkPercent.Checked = true;
             chkBaht.Checked = false;
 
-            // อัพเดท label12 ด้วยค่าส่วนลดและหน่วย
-            string unit = chkPercent.Checked ? "%" : "บาท";
-            label12.Text = $"{originalDiscount} {unit}";
-
             // คำนวณราคาหลังหักส่วนลด
             CalculateDiscountedPrice();
         }
         private void CalculateDiscountedPrice()
         {
-            if (string.IsNullOrWhiteSpace(txtDiscount.Text) || _totalAmount <= 0)
+            if (_currentItems == null || !_currentItems.Any(i => !i.IsCanceled))
             {
-                // ถ้าไม่มีส่วนลดหรือราคารวมเป็น 0
-                label10.Text = _totalAmount.ToString("N2") + " บาท";
+                lblTotal.Text = lblDiscount.Text = label10.Text = lblVat.Text = lblPaymentamount.Text = "0.00 บาท";
                 return;
             }
 
-            // แปลงค่าส่วนลดเป็น decimal
-            if (!decimal.TryParse(txtDiscount.Text, out decimal discountValue))
-            {
-                // ถ้าแปลงไม่ได้ ให้ใช้ราคาเดิม
-                label10.Text = _totalAmount.ToString("N2") + " บาท";
-                return;
-            }
+            // 1. lblTotal = ราคารวม
+            decimal totalAmount = _currentItems
+                .Where(i => !i.IsCanceled)
+                .Sum(i => i.TotalAmount);
+            lblTotal.Text = totalAmount.ToString("N2") + " บาท";
 
-            decimal discountedPrice;
+            // 2. ส่วนลด - ตรวจสอบประเภทส่วนลด (บาทหรือ%)
+            decimal discountValue = 0;
+            decimal discountAmount = 0;
 
-            if (chkPercent.Checked)
+            if (decimal.TryParse(txtDiscount.Text, out discountValue) && discountValue > 0)
             {
-                // คำนวณแบบเปอร์เซ็นต์
-                if (discountValue < 0 || discountValue > 100)
+                if (chkPercent.Checked)
                 {
-                    MessageBox.Show("ส่วนลดเปอร์เซ็นต์ต้องอยู่ระหว่าง 0-100", "แจ้งเตือน",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtDiscount.Text = "0";
-                    discountValue = 0;
+                    // กรณีเป็นเปอร์เซ็นต์
+                    // label11 แสดงเป็น "ส่วนลด xx%"
+                    label11.Text = $"ส่วนลด {discountValue}% :";
+
+                    // คำนวณส่วนลดเป็นบาท: totalAmount * discountValue / 100
+                    discountAmount = Math.Round(totalAmount * discountValue / 100m, 2);
                 }
-                discountedPrice = _totalAmount * (100 - discountValue) / 100;
-            }
-            else if (chkBaht.Checked)
-            {
-                // คำนวณแบบบาท
-                if (discountValue < 0)
+                else // chkBaht.Checked
                 {
-                    MessageBox.Show("ส่วนลดต้องไม่ติดลบ", "แจ้งเตือน",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtDiscount.Text = "0";
-                    discountValue = 0;
+                    // กรณีเป็นบาท
+                    // label11 แสดงเป็น "ส่วนลด :"
+                    label11.Text = "ส่วนลด :";
+
+                    // ใช้จำนวนเงินที่กรอกโดยตรง (ไม่เกินยอดรวม)
+                    discountAmount = Math.Min(discountValue, totalAmount);
                 }
-                else if (discountValue > _totalAmount)
-                {
-                    MessageBox.Show("ส่วนลดต้องไม่เกินราคารวม", "แจ้งเตือน",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtDiscount.Text = _totalAmount.ToString();
-                    discountValue = _totalAmount;
-                }
-                discountedPrice = _totalAmount - discountValue;
             }
             else
             {
-                // ถ้าไม่ได้เลือกทั้งสองอย่าง ให้ใช้ราคาเดิม
-                discountedPrice = _totalAmount;
+                // กรณีไม่มีส่วนลด
+                label11.Text = "ส่วนลด :";
             }
 
-            // แสดงผลราคาหลังหักส่วนลด
-            label10.Text = discountedPrice.ToString("N2") + " บาท";
+            // แสดงส่วนลดเป็นบาท
+            lblDiscount.Text = discountAmount.ToString("N2") + " บาท";
+
+            // 3. label10 = ยอดรวมหลังหักส่วนลด (lblTotal - lblDiscount)
+            decimal afterDiscount = Math.Round(totalAmount - discountAmount, 2);
+            label10.Text = afterDiscount.ToString("N2") + " บาท";
+
+            // 4. lblVat = label10 * 7 / 100 (VAT 7% จากยอดหลังหักส่วนลด)
+            decimal vatAmount = Math.Round(afterDiscount * 0.07m, 2);
+            lblVat.Text = vatAmount.ToString("N2") + " บาท";
+
+            // 5. lblPaymentamount = label10 + VAT
+            decimal paymentAmount = afterDiscount;
+            lblPaymentamount.Text = paymentAmount.ToString("N2") + " บาท";
         }
         private void txtDiscount_TextChanged(object sender, EventArgs e)
         {
-            CalculateDiscountedPrice();
-
-            // Update label12 with the discount value and unit
+            // อัพเดทการคำนวณทั้งหมดเมื่อมีการเปลี่ยนแปลงค่าส่วนลด
             if (decimal.TryParse(txtDiscount.Text, out decimal discountValue))
             {
-                string unit = chkPercent.Checked ? "%" : "บาท";
-                label12.Text = $"{discountValue} {unit}";
+                if (chkPercent.Checked)
+                {
+                    // ถ้าเป็นเปอร์เซ็นต์ แสดงเปอร์เซ็นต์ในข้อความ label11
+                    label11.Text = $"ส่วนลด {discountValue}% :";
+                }
+                else
+                {
+                    // ถ้าเป็นบาท แสดงเป็น "ส่วนลด :"
+                    label11.Text = "ส่วนลด :";
+                }
             }
             else
             {
-                label12.Text = "-";
+                label11.Text = "ส่วนลด :";
             }
+
+            // เรียกฟังก์ชั่นคำนวณใหม่ทั้งหมด
+            CalculateDiscountedPrice();
         }
         private void chkDiscount_CheckedChanged(object sender, EventArgs e)
         {
@@ -546,14 +555,22 @@ namespace Laundry_Management.Laundry
                 }
             }
 
-            // Update the unit in label12 based on the selected checkbox
+            // อัพเดทข้อความใน label11 ตามประเภทที่เลือก
             if (decimal.TryParse(txtDiscount.Text, out decimal discountValue))
             {
-                string unit = chkPercent.Checked ? "%" : "บาท";
-                label12.Text = $"{discountValue} {unit}";
+                if (chkPercent.Checked)
+                {
+                    // ถ้าเป็นเปอร์เซ็นต์ แสดงเปอร์เซ็นต์ในข้อความ
+                    label11.Text = $"ส่วนลด {discountValue}% :";
+                }
+                else
+                {
+                    // ถ้าเป็นบาท แสดงเป็น "ส่วนลด :"
+                    label11.Text = "ส่วนลด :";
+                }
             }
 
-            // Calculate the discount with the new checkbox state
+            // คำนวณใหม่ทั้งหมด
             CalculateDiscountedPrice();
         }
 
@@ -577,7 +594,7 @@ namespace Laundry_Management.Laundry
                 return;
             }
 
-            // ใช้ค่าส่วนลดจาก txtDiscount แทน todayDiscount
+            // ใช้ค่าส่วนลดจาก txtDiscount
             if (!decimal.TryParse(txtDiscount.Text, out decimal discountValue))
             {
                 MessageBox.Show("กรุณากรอกส่วนลดให้ถูกต้อง", "แจ้งเตือน",
@@ -585,81 +602,78 @@ namespace Laundry_Management.Laundry
                 return;
             }
 
-            if (!chkCash.Checked && !chkDebit.Checked)
+            if (!chkCash.Checked && !chkDebit.Checked && !chkQRCode.Checked)
             {
                 MessageBox.Show("กรุณาเลือกวิธีชำระเงิน", "แจ้งเตือน",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
+            // คำนวณ SUB TOTAL (ราคาก่อน VAT และก่อนส่วนลด)
+            decimal subTotal = items.Sum(i => i.TotalAmount);
+
+            // VAT = 7% ของยอดรวม
+            decimal vatAmount = Math.Round(subTotal * VAT_RATE, 2);
+
+            // ตัวแปรสำหรับเก็บค่าที่คำนวณ
+            decimal discountAmount = 0;        // จำนวนเงินส่วนลด
+            decimal netTotal;                  // ยอดรวมสุทธิ (subTotal - discountAmount)
+
             // ตรวจสอบส่วนลด
             if (chkPercent.Checked)
             {
-                // ตรวจสอบเปอร์เซ็นต์
                 if (discountValue < 0 || discountValue > 100)
                 {
                     MessageBox.Show("ส่วนลดเปอร์เซ็นต์ต้องอยู่ระหว่าง 0-100", "แจ้งเตือน",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-
-                // กำหนดส่วนลดใน header
+                discountAmount = Math.Round(subTotal * discountValue / 100, 2);
                 header.Discount = discountValue;
-                header.IsTodayDiscountPercent = true; // เป็นเปอร์เซ็นต์
+                header.TodayDiscount = discountValue; // Add this line
+                header.IsTodayDiscountPercent = true;
             }
             else if (chkBaht.Checked)
             {
-                // ตรวจสอบบาท
-                decimal total = items.Sum(i => i.TotalAmount);
                 if (discountValue < 0)
                 {
                     MessageBox.Show("ส่วนลดต้องไม่ติดลบ", "แจ้งเตือน",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-                if (discountValue > total)
+                if (discountValue > subTotal)
                 {
                     MessageBox.Show("ส่วนลดต้องไม่เกินราคารวม", "แจ้งเตือน",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-
-                // แปลงส่วนลดจากบาทเป็นเปอร์เซ็นต์สำหรับเก็บในฐานข้อมูล
+                discountAmount = discountValue;
                 decimal percentDiscount = 0;
-                if (total > 0)
+                if (subTotal > 0)
                 {
-                    percentDiscount = (discountValue / total) * 100;
+                    percentDiscount = (discountValue / subTotal) * 100;
                 }
-
-                // กำหนดส่วนลดใน header
                 header.Discount = percentDiscount;
-                header.IsTodayDiscountPercent = false; // เป็นบาท
+                header.TodayDiscount = discountValue; // Add this line
+                header.IsTodayDiscountPercent = false;
             }
             else
             {
-                // ถ้าไม่ได้เลือกทั้งสองอย่าง
                 header.Discount = 0;
-                header.IsTodayDiscountPercent = true; // ค่าเริ่มต้นเป็นเปอร์เซ็นต์
+                header.TodayDiscount = 0; // Add this line
+                header.IsTodayDiscountPercent = true;
             }
 
-            // คำนวณราคาหลังหักส่วนลด
-            decimal discountedTotal;
-            if (chkPercent.Checked)
-            {
-                // คำนวณแบบเปอร์เซ็นต์
-                discountedTotal = _totalAmount * (100 - discountValue) / 100;
-            }
-            else if (chkBaht.Checked)
-            {
-                // คำนวณแบบบาท
-                discountedTotal = _totalAmount - discountValue;
-            }
-            else
-            {
-                discountedTotal = _totalAmount;
-            }
+            // ยอดรวมสุทธิ = ยอดรวม - ส่วนลด
+            netTotal = Math.Round(subTotal - discountAmount, 2);
 
-            // ดึงเลขที่ใบเสร็จใหม่จาก AppSettingsManager เหมือนกับหน้า Service
+            // อัพเดทข้อมูลใน header
+            header.GrandTotalPrice = subTotal;        // ยอดรวม (รวม VAT)
+            header.SubTotal = subTotal;               // ยอดรวม (ก่อนหักส่วนลด)
+            header.VatAmount = vatAmount;             // VAT
+            header.DiscountedTotal = netTotal;
+
+            // ดึงเลขที่ใบเสร็จใหม่จาก AppSettingsManager
             string customReceiptId = AppSettingsManager.GetNextReceiptId();
 
             int receiptId = -1;
@@ -667,7 +681,6 @@ namespace Laundry_Management.Laundry
             {
                 // 1) สร้าง Receipt พร้อมกับ CustomReceiptId
                 receiptId = CreateReceiptWithCustomId(header.OrderID, customReceiptId);
-
                 foreach (var item in items)
                 {
                     _repo.CreateReceiptItem(
@@ -680,7 +693,6 @@ namespace Laundry_Management.Laundry
 
                 // อัพเดทข้อมูลใน header เพื่อส่งไปให้ Print Form
                 header.CustomReceiptId = customReceiptId;
-                header.DiscountedTotal = discountedTotal; // เพิ่มเพื่อส่งค่าที่คำนวณแล้วไปยัง Print Form
 
                 // 2) เปิดฟอร์ม ReceiptPrintForm พร้อม receiptId และข้อมูลที่ต้องการ
                 using (var rptForm = new ReceiptPrintForm(receiptId, header, items))
@@ -688,7 +700,7 @@ namespace Laundry_Management.Laundry
                     rptForm.ShowDialog(this);
                     if (!rptForm.IsPrinted)
                     {
-                        using (var cn = new SqlConnection(_cs))
+                        using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
                         {
                             cn.Open();
                             using (var tx = cn.BeginTransaction())
@@ -732,34 +744,38 @@ namespace Laundry_Management.Laundry
                     }
                 }
 
-                using (var cn = new SqlConnection(_cs))
+                using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 {
                     cn.Open();
-                    using (var tx = cn.BeginTransaction()) // เพิ่ม transaction เพื่อให้แน่ใจว่าการอัพเดทจะสมบูรณ์
+                    using (var tx = cn.BeginTransaction())
                     {
                         try
                         {
                             using (var cmd = new SqlCommand(
                                 @"UPDATE OrderHeader 
-                 SET Discount = @discount, 
-                     DiscountedTotal = @discountedTotal,
-                     OrderStatus = @status
-                 WHERE OrderID = @id", cn, tx))
+                         SET OrderStatus = @status
+                         WHERE OrderID = @id", cn, tx))
                             {
-                                cmd.Parameters.AddWithValue("@discount", header.Discount);
-                                cmd.Parameters.AddWithValue("@discountedTotal", discountedTotal);
-                                cmd.Parameters.AddWithValue("@status", "ออกใบเสร็จแล้ว"); // กำหนดค่าที่แน่นอน
+                                cmd.Parameters.AddWithValue("@status", "ออกใบเสร็จแล้ว");
                                 cmd.Parameters.AddWithValue("@id", header.OrderID);
                                 cmd.ExecuteNonQuery();
                             }
 
-                            // อัพเดทสถานะของ Receipt เป็น "พิมพ์เรียบร้อยแล้ว"
-                            using (var cmd2 = new SqlCommand(
-                                "UPDATE Receipt SET ReceiptStatus = @status WHERE ReceiptID = @rid", cn, tx))
+                            // Update Receipt with VAT information
+                            using (var cmd = new SqlCommand(
+                                @"UPDATE Receipt 
+                         SET TotalBeforeDiscount = @subTotal,
+                             VAT = @vatAmount,
+                             TotalAfterDiscount = @netTotal,
+                             ReceiptStatus = @status
+                         WHERE ReceiptID = @rid", cn, tx))
                             {
-                                cmd2.Parameters.AddWithValue("@status", "พิมพ์เรียบร้อยแล้ว");
-                                cmd2.Parameters.AddWithValue("@rid", receiptId);
-                                cmd2.ExecuteNonQuery();
+                                cmd.Parameters.AddWithValue("@subTotal", subTotal);
+                                cmd.Parameters.AddWithValue("@vatAmount", vatAmount);
+                                cmd.Parameters.AddWithValue("@netTotal", netTotal);
+                                cmd.Parameters.AddWithValue("@status", "พิมพ์เรียบร้อยแล้ว");
+                                cmd.Parameters.AddWithValue("@rid", receiptId);
+                                cmd.ExecuteNonQuery();
                             }
 
                             tx.Commit();
@@ -819,33 +835,98 @@ namespace Laundry_Management.Laundry
         }
         public int CreateReceiptWithCustomId(int orderId, string customReceiptId)
         {
-            string paymentMethod = chkCash.Checked ? "เงินสด" : "บัตรเครดิต";
+            // 1) สร้างข้อมูลรายการที่ไม่ถูกยกเลิก
+            var items = _currentItems.Where(i => !i.IsCanceled).ToList();
+            if (!items.Any()) throw new InvalidOperationException("ไม่มีรายการสำหรับออกใบเสร็จ");
 
-            using (var cn = new SqlConnection(_cs))
+            // 2) SUB TOTAL = ราคารวมทั้งหมด
+            decimal subTotal = items.Sum(i => i.TotalAmount);
+
+            // 3) VAT = 7% ของยอดรวม
+            decimal vatAmount = Math.Round(subTotal * VAT_RATE, 2);
+
+            // 4) คำนวณส่วนลด
+            decimal discountValue = 0;          // ค่าส่วนลดที่ผู้ใช้ป้อน (เปอร์เซ็นต์หรือบาท)
+            decimal discountAmount = 0;         // จำนวนเงินส่วนลด (เป็นบาทเสมอ)
+            bool isDiscountPercent = chkPercent.Checked;
+
+            // ดึงค่า OrderHeaderDto สำหรับอัพเดทข้อมูล
+            var header = dgvOrders.CurrentRow?.DataBoundItem as OrderHeaderDto;
+
+            // อ่านค่าส่วนลดจาก textbox
+            if (decimal.TryParse(txtDiscount.Text, out discountValue) && discountValue > 0)
+            {
+                if (isDiscountPercent)
+                {
+                    // คิดส่วนลดแบบ % (เปอร์เซ็นต์)
+                    discountAmount = Math.Round(subTotal * discountValue / 100m, 2);
+
+                    // อัพเดทข้อมูลใน header
+                    if (header != null)
+                    {
+                        header.TodayDiscount = discountValue;
+                    }
+                }
+                else
+                {
+                    // คิดส่วนลดแบบบาท (จำนวนเงินโดยตรง)
+                    discountAmount = Math.Min(discountValue, subTotal);
+
+                    // อัพเดทข้อมูลใน header
+                    if (header != null)
+                    {
+                        header.TodayDiscount = discountValue;
+                    }
+                }
+            }
+
+            // 5) ยอดรวมสุทธิ = ยอดรวม - ส่วนลด
+            decimal netTotal = Math.Round(subTotal - discountAmount, 2);
+
+            // 6) กำหนดวิธีการชำระเงิน
+            string paymentMethod = chkCash.Checked ? "เงินสด" :
+                                   chkDebit.Checked ? "บัตรเครดิต" :
+                                   "QR Code";
+
+            // 7) บันทึกลงฐานข้อมูล
+            using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
             {
                 cn.Open();
                 using (var tx = cn.BeginTransaction())
                 using (var cmd = new SqlCommand(@"
-                    INSERT INTO Receipt (OrderID, TotalBeforeDiscount, TotalAfterDiscount, CustomReceiptId, ReceiptStatus, PaymentMethod)
-                    OUTPUT INSERTED.ReceiptID
-                    SELECT @oid, OH.GrandTotalPrice, OH.DiscountedTotal, @customId, @status, @paymentMethod
-                      FROM OrderHeader OH
-                     WHERE OH.OrderID = @oid", cn, tx))
+        INSERT INTO Receipt (
+            OrderID,
+            TotalBeforeDiscount,   -- ยอดรวมก่อนหักส่วนลด
+            TotalAfterDiscount,
+            VAT,                   -- VAT
+            CustomReceiptId,
+            ReceiptStatus,
+            PaymentMethod,
+            Discount              -- เก็บค่าส่วนลด
+        ) OUTPUT INSERTED.ReceiptID
+        VALUES (
+            @oid, @subTotal, @netTotal, @vat, @customId, @status, @payMethod, @discount
+        )", cn, tx))
                 {
                     cmd.Parameters.AddWithValue("@oid", orderId);
+                    cmd.Parameters.AddWithValue("@subTotal", subTotal);
+                    cmd.Parameters.AddWithValue("@netTotal", netTotal);
+                    cmd.Parameters.AddWithValue("@vat", vatAmount);
                     cmd.Parameters.AddWithValue("@customId", customReceiptId);
                     cmd.Parameters.AddWithValue("@status", "ออกใบเสร็จแล้ว");
-                    cmd.Parameters.AddWithValue("@paymentMethod", paymentMethod);
+                    cmd.Parameters.AddWithValue("@payMethod", paymentMethod);
+                    cmd.Parameters.AddWithValue("@discount", discountAmount);
+
                     int receiptId = (int)cmd.ExecuteScalar();
 
-                    // อัพเดทสถานะใน OrderHeader ว่าถูกทำเป็นใบเสร็จแล้ว
-                    using (var updateCmd = new SqlCommand(@"
-                        UPDATE OrderHeader
-                        SET IsReceiptPrinted = 1
-                        WHERE OrderID = @oid", cn, tx))
+                    // อัพเดท OrderHeader
+                    using (var upd = new SqlCommand(@"
+        UPDATE OrderHeader
+        SET IsReceiptPrinted = 1
+        WHERE OrderID = @oid", cn, tx))
                     {
-                        updateCmd.Parameters.AddWithValue("@oid", orderId);
-                        updateCmd.ExecuteNonQuery();
+                        upd.Parameters.AddWithValue("@oid", orderId);
+                        upd.ExecuteNonQuery();
                     }
 
                     tx.Commit();
@@ -853,10 +934,9 @@ namespace Laundry_Management.Laundry
                 }
             }
         }
-
         public void UpdateOrderWithCustomId(int orderId, string customOrderId)
         {
-            using (var cn = new SqlConnection(_cs))
+            using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (var cmd = new SqlCommand(
                 @"UPDATE OrderHeader 
                  SET CustomOrderId = @customId
@@ -881,6 +961,10 @@ namespace Laundry_Management.Laundry
             // ตั้งค่า event handler สำหรับ checkbox วิธีชำระเงิน
             chkCash.CheckedChanged += chkPayment_CheckedChanged;
             chkDebit.CheckedChanged += chkPayment_CheckedChanged;
+            chkQRCode.CheckedChanged += chkPayment_CheckedChanged;
+
+            // ตั้งค่า event handler สำหรับ dtpCreateDate (เพิ่มบรรทัดนี้)
+            dtpCreateDate.ValueChanged += dtpCreateDate_ValueChanged;
 
             // ตั้งค่าเริ่มต้นให้ chkPercent เป็น checked
             chkPercent.Checked = true;
@@ -889,6 +973,7 @@ namespace Laundry_Management.Laundry
             // ตั้งค่าเริ่มต้นให้ chkCash เป็น checked
             chkCash.Checked = true;
             chkDebit.Checked = false;
+            chkQRCode.Checked = false;
         }
         private void chkPayment_CheckedChanged(object sender, EventArgs e)
         {
@@ -897,21 +982,52 @@ namespace Laundry_Management.Laundry
 
             if (chk.Checked)
             {
-                // If this is chkCash and it's now checked, uncheck chkDebit
+                // If this checkbox is now checked, uncheck the others
                 if (chk == chkCash)
+                {
                     chkDebit.Checked = false;
-                // If this is chkDebit and it's now checked, uncheck chkCash
+                    chkQRCode.Checked = false;
+                }
                 else if (chk == chkDebit)
+                {
                     chkCash.Checked = false;
+                    chkQRCode.Checked = false;
+                }
+                else if (chk == chkQRCode)
+                {
+                    chkCash.Checked = false;
+                    chkDebit.Checked = false;
+                }
             }
             else
             {
                 // If we're trying to uncheck this checkbox, make sure at least one is checked
-                if (!chkCash.Checked && !chkDebit.Checked)
+                if (!chkCash.Checked && !chkDebit.Checked && !chkQRCode.Checked)
                 {
                     chk.Checked = true;
                     return;
                 }
+            }
+        }
+        // Add this method to handle the DateTimePicker ValueChanged event
+        private void dtpCreateDate_ValueChanged(object sender, EventArgs e)
+        {
+            // Only trigger search if the DateTimePicker is checked (date is selected)
+            if (dtpCreateDate.Checked)
+            {
+                // Get customer filter text
+                string cust = txtCustomerFilter.Text.Trim();
+
+                // Get order ID filter
+                int? oid = null;
+                if (int.TryParse(txtOrderId.Text.Trim(), out int tmp))
+                    oid = tmp;
+
+                // Use the currently selected date
+                DateTime? createDt = dtpCreateDate.Value.Date;
+
+                // Load orders with the specified filters and status
+                LoadOrders(cust, oid, createDt, "ดำเนินการสำเร็จ");
             }
         }
     }

@@ -49,10 +49,9 @@ namespace Laundry_Management
                 }
             }
 
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string query = "INSERT INTO Customer (FullName, Phone, Discount, Note) VALUES (@FullName, @Phone, @Discount, @Note)";
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 command.Parameters.AddWithValue("@FullName", fullName);
@@ -116,10 +115,9 @@ namespace Laundry_Management
         }
         private void LoadCustomerData()
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string query = "SELECT CustomerID, FullName, Phone, Discount, Note FROM Customer";
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlDataAdapter adapter = new SqlDataAdapter(query, connection))
             {
                 DataTable dt = new DataTable();
@@ -216,10 +214,9 @@ namespace Laundry_Management
 
             if (confirmResult == DialogResult.Yes)
             {
-                string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
                 string query = "DELETE FROM Customer WHERE CustomerID = @CustomerID";
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@CustomerID", customerId);
@@ -235,7 +232,6 @@ namespace Laundry_Management
 
         private void Search_Click(object sender, EventArgs e)
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string fullName = txtFullName.Text.Trim();
             string phone = txtPhone.Text.Trim();
 
@@ -250,7 +246,7 @@ namespace Laundry_Management
                 query += " AND Phone LIKE @Phone";
             }
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 if (!string.IsNullOrEmpty(fullName))

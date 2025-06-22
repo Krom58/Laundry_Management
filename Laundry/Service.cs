@@ -21,7 +21,6 @@ namespace Laundry_Management
 
         private void Search_Click(object sender, EventArgs e)
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string itemName = ItemName.Text.Trim();
             string itemNumber = ItemNumber.Text.Trim();
             string gender = Gender.SelectedItem?.ToString() ?? "";
@@ -38,7 +37,7 @@ namespace Laundry_Management
             if (!string.IsNullOrEmpty(serviceType))
                 query += " AND ServiceType = @serviceType";
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = DBconfig.GetConnection())
             {
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
@@ -100,10 +99,9 @@ namespace Laundry_Management
         }
         private void LoadAllData()
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string query = "SELECT ItemNumber, ItemName, ServiceType, Price, Gender FROM LaundryService WHERE IsCancelled = N'ใช้งาน'";
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = DBconfig.GetConnection())
             {
                 using (SqlDataAdapter adapter = new SqlDataAdapter(query, connection))
                 {
@@ -120,10 +118,9 @@ namespace Laundry_Management
         }
         private void LoadSelectedItems()
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string query = "SELECT ItemNumber, ItemName, Quantity, TotalAmount FROM SelectedItems";
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = DBconfig.GetConnection())
             using (SqlDataAdapter adapter = new SqlDataAdapter(query, connection))
             {
                 DataTable dt = new DataTable();
@@ -160,11 +157,8 @@ namespace Laundry_Management
                 MessageBox.Show("ไม่พบข้อมูลราคา");
                 return;
             }
-
-            // เช็คว่ามี ItemNumber นี้ใน SelectedItems แล้วหรือยัง
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string checkQuery = "SELECT COUNT(*) FROM SelectedItems WHERE ItemNumber = @itemNumber";
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = DBconfig.GetConnection())
             using (SqlCommand command = new SqlCommand(checkQuery, connection))
             {
                 command.Parameters.AddWithValue("@itemNumber", itemNumber);
@@ -215,10 +209,9 @@ namespace Laundry_Management
             var confirmResult = MessageBox.Show("คุณต้องการลบรายการนี้หรือไม่?", "ยืนยันการลบ", MessageBoxButtons.YesNo);
             if (confirmResult == DialogResult.Yes)
             {
-                string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
                 string query = "DELETE FROM SelectedItems WHERE ItemNumber = @itemNumber";
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (SqlConnection connection = DBconfig.GetConnection())
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@itemNumber", itemNumber);
@@ -408,9 +401,8 @@ namespace Laundry_Management
         // เพิ่มเมธอดนี้ในคลาส Service
         private void ClearSelectedItems()
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string query = "DELETE FROM SelectedItems";
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = DBconfig.GetConnection())
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 connection.Open();
@@ -448,16 +440,15 @@ namespace Laundry_Management
             DateTime orderDate, DateTime pickupDate, string customOrderId)
         {
             int orderId = 0;
-            string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            using (SqlConnection conn = new SqlConnection(cs))
+            using (SqlConnection conn = DBconfig.GetConnection()) // Correctly declare 'conn'
             {
-                conn.Open();
+                conn.Open(); // Use the declared 'conn'
                 using (SqlCommand cmd = new SqlCommand(@"
-        INSERT INTO OrderHeader
-          (CustomerName, Phone, Discount, GrandTotalPrice, DiscountedTotal, OrderDate, PickupDate, CustomOrderId, OrderStatus)
-        OUTPUT INSERTED.OrderID
-        VALUES
-          (@cust,@phone,@disc,@grand,@discTot,@odt,@pdt,@customId,@status);", conn))
+                INSERT INTO OrderHeader
+                  (CustomerName, Phone, Discount, GrandTotalPrice, DiscountedTotal, OrderDate, PickupDate, CustomOrderId, OrderStatus)
+                OUTPUT INSERTED.OrderID
+                VALUES
+                  (@cust,@phone,@disc,@grand,@discTot,@odt,@pdt,@customId,@status);", conn))
                 {
                     cmd.Parameters.AddWithValue("@cust", customerName);
                     cmd.Parameters.AddWithValue("@phone", phone);
@@ -467,12 +458,12 @@ namespace Laundry_Management
                     cmd.Parameters.AddWithValue("@odt", orderDate);
                     cmd.Parameters.AddWithValue("@pdt", pickupDate);
                     cmd.Parameters.AddWithValue("@customId", customOrderId);
-                    cmd.Parameters.AddWithValue("@status", "ดำเนินการสำเร็จ"); // สถานะเริ่มต้น
+                    cmd.Parameters.AddWithValue("@status", "ดำเนินการสำเร็จ"); // Default status
 
                     object result = cmd.ExecuteScalar();
                     if (result != null && int.TryParse(result.ToString(), out orderId))
                     {
-                        // got orderId
+                        // Successfully retrieved orderId
                     }
                     else
                     {
@@ -484,8 +475,7 @@ namespace Laundry_Management
         }
         private void SaveItemsToDatabase(int orderId, List<Item> items)
         {
-            string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            using (SqlConnection conn = new SqlConnection(cs))
+            using (SqlConnection conn = DBconfig.GetConnection())
             {
                 conn.Open();
                 foreach (Item i in items)
@@ -510,8 +500,7 @@ VALUES
         // 3) ลบ Header ถ้าพิมพ์ไม่สำเร็จ
         private void DeleteOrderHeader(int orderId)
         {
-            string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            using (SqlConnection conn = new SqlConnection(cs))
+            using (SqlConnection conn = DBconfig.GetConnection())
             {
                 using (SqlCommand cmd = new SqlCommand(
                     "DELETE FROM OrderHeader WHERE OrderID = @id", conn))
@@ -524,8 +513,7 @@ VALUES
         }
         private void UpdateOrderStatus(int orderId, string status)
         {
-            string cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-            using (SqlConnection conn = new SqlConnection(cs))
+            using (SqlConnection conn = DBconfig.GetConnection())
             {
                 using (SqlCommand cmd = new SqlCommand(
                     "UPDATE OrderHeader SET OrderStatus = @status WHERE OrderID = @id", conn))

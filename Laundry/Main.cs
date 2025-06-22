@@ -59,5 +59,11 @@ namespace Laundry_Management
             var Setting_IdForm = new Setting_Id();
             Setting_IdForm.ShowDialog();
         }
+
+        private void Report_Click(object sender, EventArgs e)
+        {
+            var ReportForm = new Report();
+            ReportForm.ShowDialog();
+        }
     }
 }

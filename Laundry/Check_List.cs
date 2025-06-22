@@ -13,8 +13,6 @@ namespace Laundry_Management.Laundry
 {
     public partial class Check_List : Form
     {
-        private readonly string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-
         public Check_List()
         {
             InitializeComponent();
@@ -22,6 +20,9 @@ namespace Laundry_Management.Laundry
             // Wire up checkbox event handlers
             chkCompleted.CheckedChanged += chkCompleted_CheckedChanged;
             chkPending.CheckedChanged += chkPending_CheckedChanged;
+
+            // Add this line to wire up the DateTimePicker ValueChanged event
+            dtpCreateDate.ValueChanged += dtpCreateDate_ValueChanged;
 
             // Set default checkbox state
             chkPending.Checked = true;
@@ -73,25 +74,26 @@ namespace Laundry_Management.Laundry
         private void LoadOrders(string customId = null, string customerName = null, DateTime? createDate = null)
         {
             string query = @"
-                        SELECT 
-                            o.OrderID, 
-                            r.CustomReceiptId as 'หมายเลขใบเสร็จ',
-                            o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                            o.CustomerName as 'ชื่อลูกค้า', 
-                            o.Phone as 'เบอร์โทรศัพท์',
-                            r.TotalBeforeDiscount as 'ราคารวม',
-                            r.TotalAfterDiscount as 'ราคารวมหลังหักส่วนลด',
-                            o.OrderDate as 'วันที่ออกใบรับผ้า',
-                            o.PickupDate as 'วันที่ต้องมารับผ้า',
-                            r.ReceiptID, 
-                            r.ReceiptStatus as 'สถานะใบเสร็จ',
-                            r.PaymentMethod as 'วิธีการชำระเงิน',
-                            r.IsPickedUp as 'สถานะ', 
-                            r.CustomerPickupDate as 'วันที่ลูกค้ามารับ'
-                        FROM OrderHeader o
-                        INNER JOIN Receipt r ON o.OrderID = r.OrderID
-                        WHERE o.OrderStatus = N'ออกใบเสร็จแล้ว'
-                    ";
+                            SELECT 
+                                o.OrderID, 
+                                r.CustomReceiptId as 'หมายเลขใบเสร็จ',
+                                o.CustomOrderId as 'หมายเลขใบรับผ้า', 
+                                o.CustomerName as 'ชื่อลูกค้า', 
+                                o.Phone as 'เบอร์โทรศัพท์',
+                                r.TotalBeforeDiscount as 'ราคารวม',
+                                r.Discount as 'ส่วนลด',
+                                r.TotalAfterDiscount as 'ราคารวมหลังหักส่วนลด',
+                                o.OrderDate as 'วันที่ออกใบรับผ้า',
+                                o.PickupDate as 'วันที่ต้องมารับผ้า',
+                                r.ReceiptID, 
+                                r.ReceiptStatus as 'สถานะใบเสร็จ',
+                                r.PaymentMethod as 'วิธีการชำระเงิน',
+                                r.IsPickedUp as 'สถานะ', 
+                                r.CustomerPickupDate as 'วันที่ลูกค้ามารับ'
+                            FROM OrderHeader o
+                            INNER JOIN Receipt r ON o.OrderID = r.OrderID
+                            WHERE o.OrderStatus = N'ออกใบเสร็จแล้ว'
+                        ";
 
             var filters = new List<string>();
             var parameters = new List<SqlParameter>();
@@ -129,7 +131,7 @@ namespace Laundry_Management.Laundry
                 query += " AND " + string.Join(" AND ", filters);
             }
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            using (SqlConnection conn = DBconfig.GetConnection())
             using (SqlCommand cmd = new SqlCommand(query, conn))
             {
                 cmd.Parameters.AddRange(parameters.ToArray());
@@ -201,6 +203,16 @@ namespace Laundry_Management.Laundry
 
             // ดำเนินการค้นหาอีกครั้ง
             btnSearch_Click(sender, e);
+        }
+        // Add this method to handle the DateTimePicker ValueChanged event
+        private void dtpCreateDate_ValueChanged(object sender, EventArgs e)
+        {
+            // Only trigger search if the DateTimePicker is checked (date is selected)
+            if (dtpCreateDate.Checked)
+            {
+                // Call the existing search functionality
+                btnSearch_Click(sender, e);
+            }
         }
     }
 }

@@ -13,7 +13,8 @@ namespace Laundry_Management.Laundry
 {
     public partial class Setting_Id : Form
     {
-        private readonly string _cs = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
+        // ลบตัวแปร _cs ออก
+
         public Setting_Id()
         {
             InitializeComponent();
@@ -23,7 +24,7 @@ namespace Laundry_Management.Laundry
         {
             try
             {
-                using (var conn = new SqlConnection(_cs))
+                using (var conn = DBconfig.GetConnection())
                 {
                     conn.Open();
 
@@ -40,9 +41,9 @@ namespace Laundry_Management.Laundry
                     {
                         using (var cmd = new SqlCommand(
                             @"CREATE TABLE AppSettings (
-                                SettingKey NVARCHAR(50) PRIMARY KEY,
-                                SettingValue NVARCHAR(255) NULL
-                            )", conn))
+                                    SettingKey NVARCHAR(50) PRIMARY KEY,
+                                    SettingValue NVARCHAR(255) NULL
+                                )", conn))
                         {
                             cmd.ExecuteNonQuery();
                         }
@@ -124,7 +125,7 @@ namespace Laundry_Management.Laundry
                 }
 
                 // Save settings
-                using (var conn = new SqlConnection(_cs))
+                using (var conn = DBconfig.GetConnection())
                 {
                     conn.Open();
                     using (var transaction = conn.BeginTransaction())
@@ -134,9 +135,9 @@ namespace Laundry_Management.Laundry
                             // Update or insert NextOrderId
                             using (var cmd = new SqlCommand(
                                 @"IF EXISTS (SELECT 1 FROM AppSettings WHERE SettingKey = 'NextOrderId')
-                                    UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextOrderId'
-                                  ELSE
-                                    INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextOrderId', @value)",
+                                        UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextOrderId'
+                                      ELSE
+                                        INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextOrderId', @value)",
                                 conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@value", txtNextOrderId.Text.Trim());
@@ -146,9 +147,9 @@ namespace Laundry_Management.Laundry
                             // Update or insert NextReceiptId
                             using (var cmd = new SqlCommand(
                                 @"IF EXISTS (SELECT 1 FROM AppSettings WHERE SettingKey = 'NextReceiptId')
-                                    UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextReceiptId'
-                                  ELSE
-                                    INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextReceiptId', @value)",
+                                        UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextReceiptId'
+                                      ELSE
+                                        INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextReceiptId', @value)",
                                 conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@value", txtNextReceiptId.Text.Trim());

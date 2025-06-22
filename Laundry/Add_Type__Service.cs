@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Data.SqlClient;
+using Laundry_Management.Laundry;
 
 namespace Laundry_Management
 {
@@ -31,11 +32,8 @@ namespace Laundry_Management
                 return;
             }
 
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
-
-            // ตรวจสอบความซ้ำของ ItemNumber หรือ ItemName
             string checkQuery = "SELECT COUNT(*) FROM LaundryService WHERE ItemNumber = @ItemNumber";
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = DBconfig.GetConnection())
             {
                 using (SqlCommand checkCmd = new SqlCommand(checkQuery, connection))
                 {
@@ -53,7 +51,7 @@ namespace Laundry_Management
 
             // ถ้าไม่ซ้ำ ให้บันทึกข้อมูล
             string query = "INSERT INTO LaundryService (ServiceType, ItemNumber, ItemName, Price, Gender) VALUES (@ServiceType, @ItemNumber, @ItemName, @Price, @Gender)";
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = DBconfig.GetConnection())
             {
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
@@ -66,8 +64,8 @@ namespace Laundry_Management
                     connection.Open();
                     command.ExecuteNonQuery();
                     MessageBox.Show("บันทึกข้อมูลสำเร็จ");
-                    LoadData(); // รีเฟรชข้อมูลหลังบันทึก
-                    ClearForm(); // ล้างข้อมูลในฟอร์มหลังบันทึก
+                    LoadData();
+                    ClearForm();
                 }
             }
         }
@@ -76,13 +74,10 @@ namespace Laundry_Management
         {
             if (dataGridView1.SelectedRows.Count > 0)
             {
-                // ดึงค่า ServiceID จากแถวที่เลือก
                 int serviceID = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["ServiceID"].Value);
 
-                string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
                 string query = "DELETE FROM LaundryService WHERE ServiceID = @ServiceID";
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (SqlConnection connection = DBconfig.GetConnection())
                 {
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
@@ -93,8 +88,8 @@ namespace Laundry_Management
                         if (rowsAffected > 0)
                         {
                             MessageBox.Show("ลบข้อมูลสำเร็จ");
-                            LoadData(); // โหลดข้อมูลใหม่ใน DataGridView
-                            ClearForm(); // ล้างข้อมูลในฟอร์มหลังลบ
+                            LoadData();
+                            ClearForm();
                         }
                         else
                         {
@@ -110,10 +105,8 @@ namespace Laundry_Management
         }
         private void LoadData()
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string query = "SELECT ServiceID, ItemNumber, ServiceType, ItemName, Price, Gender, CreatedAt, IsCancelled, CancelledDate FROM LaundryService";
-
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = DBconfig.GetConnection())
             {
                 using (SqlDataAdapter adapter = new SqlDataAdapter(query, connection))
                 {
@@ -230,14 +223,12 @@ namespace Laundry_Management
 
         private void Search_Click(object sender, EventArgs e)
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
             string itemName = ItemName.Text.Trim();
             string itemNumber = ItemNumber.Text.Trim();
             string gender = Gender.SelectedItem?.ToString() ?? "";
             string price = Price.Text.ToString();
             string serviceType = ServiceType.SelectedItem?.ToString() ?? "";
 
-            // สร้าง query โดยใช้ parameter เพื่อป้องกัน SQL Injection
             string query = "SELECT ServiceID, ItemNumber, ServiceType, ItemName, Price, Gender, CreatedAt, IsCancelled, CancelledDate FROM LaundryService WHERE 1=1";
             if (!string.IsNullOrEmpty(itemName))
                 query += " AND ItemName LIKE @itemName";
@@ -254,7 +245,7 @@ namespace Laundry_Management
             else if (!chkUsing.Checked && chkNotUse.Checked)
                 query += " AND IsCancelled = N'ไม่ใช้งาน'";
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = DBconfig.GetConnection())
             {
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {

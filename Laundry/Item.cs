@@ -49,13 +49,12 @@ namespace Laundry_Management
 
             Quantity = quantity;
             decimal totalAmount = unitPrice * quantity;
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
 
             if (IsEditMode)
             {
                 // UPDATE เฉพาะแถวเดิม
                 string updateQuery = "UPDATE SelectedItems SET ItemName = @itemName, Quantity = @quantity, TotalAmount = @totalAmount WHERE ItemNumber = @itemNumber";
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
                 using (SqlCommand command = new SqlCommand(updateQuery, connection))
                 {
                     command.Parameters.AddWithValue("@itemNumber", itemNumber);
@@ -70,7 +69,7 @@ namespace Laundry_Management
             {
                 // INSERT เฉพาะกรณีเพิ่มใหม่
                 string insertQuery = "INSERT INTO SelectedItems (ItemNumber, ItemName, Quantity, TotalAmount) VALUES (@itemNumber, @itemName, @quantity, @totalamount)";
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
                 using (SqlCommand command = new SqlCommand(insertQuery, connection))
                 {
                     command.Parameters.AddWithValue("@itemNumber", itemNumber);
