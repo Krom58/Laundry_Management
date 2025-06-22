@@ -42,7 +42,7 @@
             // 
             this.btnAdd_Type_Service.AutoSize = true;
             this.btnAdd_Type_Service.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnAdd_Type_Service.Location = new System.Drawing.Point(12, 505);
+            this.btnAdd_Type_Service.Location = new System.Drawing.Point(28, 12);
             this.btnAdd_Type_Service.Name = "btnAdd_Type_Service";
             this.btnAdd_Type_Service.Size = new System.Drawing.Size(282, 109);
             this.btnAdd_Type_Service.TabIndex = 36;
@@ -54,9 +54,9 @@
             // 
             this.btnService.AutoSize = true;
             this.btnService.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnService.Location = new System.Drawing.Point(1632, 505);
+            this.btnService.Location = new System.Drawing.Point(28, 192);
             this.btnService.Name = "btnService";
-            this.btnService.Size = new System.Drawing.Size(260, 109);
+            this.btnService.Size = new System.Drawing.Size(276, 109);
             this.btnService.TabIndex = 37;
             this.btnService.Text = "สร้างใบรับผ้า";
             this.btnService.UseVisualStyleBackColor = true;
@@ -66,7 +66,7 @@
             // 
             this.btnCustomer.AutoSize = true;
             this.btnCustomer.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnCustomer.Location = new System.Drawing.Point(404, 505);
+            this.btnCustomer.Location = new System.Drawing.Point(420, 12);
             this.btnCustomer.Name = "btnCustomer";
             this.btnCustomer.Size = new System.Drawing.Size(282, 109);
             this.btnCustomer.TabIndex = 38;
@@ -78,7 +78,7 @@
             // 
             this.btnFind_Service.AutoSize = true;
             this.btnFind_Service.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnFind_Service.Location = new System.Drawing.Point(12, 680);
+            this.btnFind_Service.Location = new System.Drawing.Point(420, 192);
             this.btnFind_Service.Name = "btnFind_Service";
             this.btnFind_Service.Size = new System.Drawing.Size(282, 109);
             this.btnFind_Service.TabIndex = 39;
@@ -90,11 +90,11 @@
             // 
             this.Check_List.AutoSize = true;
             this.Check_List.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Check_List.Location = new System.Drawing.Point(404, 680);
+            this.Check_List.Location = new System.Drawing.Point(28, 425);
             this.Check_List.Name = "Check_List";
             this.Check_List.Size = new System.Drawing.Size(282, 109);
             this.Check_List.TabIndex = 40;
-            this.Check_List.Text = "รายงานการขาย";
+            this.Check_List.Text = "รายงานใบรับผ้า";
             this.Check_List.UseVisualStyleBackColor = true;
             this.Check_List.Click += new System.EventHandler(this.Check_List_Click);
             // 
@@ -102,7 +102,7 @@
             // 
             this.Pickup_List.AutoSize = true;
             this.Pickup_List.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Pickup_List.Location = new System.Drawing.Point(807, 680);
+            this.Pickup_List.Location = new System.Drawing.Point(823, 192);
             this.Pickup_List.Name = "Pickup_List";
             this.Pickup_List.Size = new System.Drawing.Size(282, 109);
             this.Pickup_List.TabIndex = 41;
@@ -114,7 +114,7 @@
             // 
             this.btnSetting.AutoSize = true;
             this.btnSetting.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSetting.Location = new System.Drawing.Point(807, 505);
+            this.btnSetting.Location = new System.Drawing.Point(823, 12);
             this.btnSetting.Name = "btnSetting";
             this.btnSetting.Size = new System.Drawing.Size(282, 109);
             this.btnSetting.TabIndex = 42;
@@ -126,7 +126,7 @@
             // 
             this.Report.AutoSize = true;
             this.Report.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Report.Location = new System.Drawing.Point(1188, 680);
+            this.Report.Location = new System.Drawing.Point(420, 425);
             this.Report.Name = "Report";
             this.Report.Size = new System.Drawing.Size(282, 109);
             this.Report.TabIndex = 43;

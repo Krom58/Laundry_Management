@@ -11,7 +11,7 @@ namespace Laundry_Management.Laundry
     {
         public static SqlConnection GetConnection()
         {
-            string connectionString = "Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;";
+            string connectionString = "Server=10.10.0.42\\SQLSET;Database=Laundry_Management;User Id=sa;Password=Wutt@1976;Trusted_Connection=False;";
             return new SqlConnection(connectionString);
             //"Server=KROM\\SQLEXPRESS;Database=Laundry_Management;Integrated Security=True;"
             //"Server=10.10.0.42\\SQLSET;Database=Laundry_Management;User Id=sa;Password=Wutt@1976;Trusted_Connection=False;"

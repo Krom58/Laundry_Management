@@ -211,7 +211,7 @@ namespace Laundry_Management.Laundry
                     g.DrawRectangle(boxPen, receiptBoxX, boxY, receiptBoxWidth, receiptBoxHeight);
 
                     // For receipt number
-                    string receiptLabel = "เลขที่ / No. ";
+                    string receiptLabel = "เลขที่ ";
                     string receiptValue = _header.CustomReceiptId;
                     string fullReceiptText = receiptLabel + receiptValue;
 
@@ -230,7 +230,7 @@ namespace Laundry_Management.Laundry
                     g.DrawString(fullReceiptText, subF, Brushes.Black, receiptTextRect, centerFormat);
 
                     // For date - using the same centering approach
-                    string dateLabel = "วันที่ / Date ";
+                    string dateLabel = "วันที่ ";
                     string dateValue = $"{_header.OrderDate.Day:00} / {_header.OrderDate.Month:00} / {_header.OrderDate.Year + 543}";
                     string fullDateText = dateLabel + dateValue;
 

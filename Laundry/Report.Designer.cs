@@ -28,12 +28,11 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle4 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             this.dgvReport = new System.Windows.Forms.DataGridView();
-            this.label3 = new System.Windows.Forms.Label();
             this.Back = new System.Windows.Forms.Button();
-            this.dtpCreateDate = new System.Windows.Forms.DateTimePicker();
+            this.dtpCreateDateFirst = new System.Windows.Forms.DateTimePicker();
             this.label1 = new System.Windows.Forms.Label();
             this.lblDiscount = new System.Windows.Forms.Label();
             this.label11 = new System.Windows.Forms.Label();
@@ -41,44 +40,39 @@
             this.label7 = new System.Windows.Forms.Label();
             this.lblTotalAfterDiscount = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
+            this.dtpCreateDateLast = new System.Windows.Forms.DateTimePicker();
+            this.label2 = new System.Windows.Forms.Label();
+            this.label5 = new System.Windows.Forms.Label();
+            this.btnPrint = new System.Windows.Forms.Button();
+            this.btnExcel = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dgvReport)).BeginInit();
             this.SuspendLayout();
             // 
             // dgvReport
             // 
-            dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle3.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dgvReport.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dgvReport.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             this.dgvReport.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle4.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle4.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle4.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle4.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dgvReport.DefaultCellStyle = dataGridViewCellStyle4;
+            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle2.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dgvReport.DefaultCellStyle = dataGridViewCellStyle2;
             this.dgvReport.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.dgvReport.Location = new System.Drawing.Point(0, 195);
             this.dgvReport.Name = "dgvReport";
             this.dgvReport.ReadOnly = true;
             this.dgvReport.Size = new System.Drawing.Size(1904, 846);
             this.dgvReport.TabIndex = 71;
-            // 
-            // label3
-            // 
-            this.label3.AutoSize = true;
-            this.label3.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(791, 11);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(169, 43);
-            this.label3.TabIndex = 69;
-            this.label3.Text = "วันที่ออกใบรับผ้า";
             // 
             // Back
             // 
@@ -93,19 +87,19 @@
             this.Back.UseVisualStyleBackColor = true;
             this.Back.Click += new System.EventHandler(this.Back_Click);
             // 
-            // dtpCreateDate
+            // dtpCreateDateFirst
             // 
-            this.dtpCreateDate.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.dtpCreateDate.Location = new System.Drawing.Point(1018, 5);
-            this.dtpCreateDate.Name = "dtpCreateDate";
-            this.dtpCreateDate.Size = new System.Drawing.Size(245, 51);
-            this.dtpCreateDate.TabIndex = 67;
+            this.dtpCreateDateFirst.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.dtpCreateDateFirst.Location = new System.Drawing.Point(298, 29);
+            this.dtpCreateDateFirst.Name = "dtpCreateDateFirst";
+            this.dtpCreateDateFirst.Size = new System.Drawing.Size(245, 51);
+            this.dtpCreateDateFirst.TabIndex = 67;
             // 
             // label1
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(592, 11);
+            this.label1.Location = new System.Drawing.Point(12, 35);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(150, 43);
             this.label1.TabIndex = 72;
@@ -115,7 +109,7 @@
             // 
             this.lblDiscount.AutoSize = true;
             this.lblDiscount.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblDiscount.Location = new System.Drawing.Point(966, 112);
+            this.lblDiscount.Location = new System.Drawing.Point(593, 126);
             this.lblDiscount.Name = "lblDiscount";
             this.lblDiscount.Size = new System.Drawing.Size(26, 43);
             this.lblDiscount.TabIndex = 76;
@@ -125,7 +119,7 @@
             // 
             this.label11.AutoSize = true;
             this.label11.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label11.Location = new System.Drawing.Point(734, 112);
+            this.label11.Location = new System.Drawing.Point(361, 126);
             this.label11.Name = "label11";
             this.label11.Size = new System.Drawing.Size(226, 43);
             this.label11.TabIndex = 75;
@@ -135,7 +129,7 @@
             // 
             this.lblTotal.AutoSize = true;
             this.lblTotal.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblTotal.Location = new System.Drawing.Point(563, 112);
+            this.lblTotal.Location = new System.Drawing.Point(190, 126);
             this.lblTotal.Name = "lblTotal";
             this.lblTotal.Size = new System.Drawing.Size(26, 43);
             this.lblTotal.TabIndex = 74;
@@ -145,7 +139,7 @@
             // 
             this.label7.AutoSize = true;
             this.label7.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label7.Location = new System.Drawing.Point(385, 112);
+            this.label7.Location = new System.Drawing.Point(12, 126);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(172, 43);
             this.label7.TabIndex = 73;
@@ -155,7 +149,7 @@
             // 
             this.lblTotalAfterDiscount.AutoSize = true;
             this.lblTotalAfterDiscount.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblTotalAfterDiscount.Location = new System.Drawing.Point(1436, 112);
+            this.lblTotalAfterDiscount.Location = new System.Drawing.Point(1063, 126);
             this.lblTotalAfterDiscount.Name = "lblTotalAfterDiscount";
             this.lblTotalAfterDiscount.Size = new System.Drawing.Size(26, 43);
             this.lblTotalAfterDiscount.TabIndex = 78;
@@ -165,17 +159,74 @@
             // 
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(1128, 112);
+            this.label4.Location = new System.Drawing.Point(755, 126);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(302, 43);
             this.label4.TabIndex = 77;
             this.label4.Text = "ราคาหลังจากหักส่วนลดทั้งหมด :";
+            // 
+            // dtpCreateDateLast
+            // 
+            this.dtpCreateDateLast.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.dtpCreateDateLast.Location = new System.Drawing.Point(637, 29);
+            this.dtpCreateDateLast.Name = "dtpCreateDateLast";
+            this.dtpCreateDateLast.Size = new System.Drawing.Size(245, 51);
+            this.dtpCreateDateLast.TabIndex = 79;
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label2.Location = new System.Drawing.Point(549, 35);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(82, 43);
+            this.label2.TabIndex = 80;
+            this.label2.Text = "ถึงวันที่";
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label5.Location = new System.Drawing.Point(233, 35);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(59, 43);
+            this.label5.TabIndex = 81;
+            this.label5.Text = "วันที่";
+            // 
+            // btnPrint
+            // 
+            this.btnPrint.AutoSize = true;
+            this.btnPrint.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnPrint.Location = new System.Drawing.Point(1566, 136);
+            this.btnPrint.Name = "btnPrint";
+            this.btnPrint.Size = new System.Drawing.Size(144, 53);
+            this.btnPrint.TabIndex = 83;
+            this.btnPrint.Text = "พิมพ์";
+            this.btnPrint.UseVisualStyleBackColor = true;
+            this.btnPrint.Click += new System.EventHandler(this.btnPrint_Click);
+            // 
+            // btnExcel
+            // 
+            this.btnExcel.AutoSize = true;
+            this.btnExcel.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnExcel.Location = new System.Drawing.Point(1748, 136);
+            this.btnExcel.Name = "btnExcel";
+            this.btnExcel.Size = new System.Drawing.Size(144, 53);
+            this.btnExcel.TabIndex = 82;
+            this.btnExcel.Text = "Excel";
+            this.btnExcel.UseVisualStyleBackColor = true;
+            this.btnExcel.Click += new System.EventHandler(this.btnExcel_Click);
             // 
             // Report
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.btnPrint);
+            this.Controls.Add(this.btnExcel);
+            this.Controls.Add(this.label5);
+            this.Controls.Add(this.label2);
+            this.Controls.Add(this.dtpCreateDateLast);
             this.Controls.Add(this.lblTotalAfterDiscount);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.lblDiscount);
@@ -184,12 +235,11 @@
             this.Controls.Add(this.label7);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.dgvReport);
-            this.Controls.Add(this.label3);
             this.Controls.Add(this.Back);
-            this.Controls.Add(this.dtpCreateDate);
+            this.Controls.Add(this.dtpCreateDateFirst);
             this.Name = "Report";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Report";
+            this.Text = "รายงานการขาย";
             ((System.ComponentModel.ISupportInitialize)(this.dgvReport)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -199,9 +249,8 @@
         #endregion
 
         private System.Windows.Forms.DataGridView dgvReport;
-        private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Button Back;
-        private System.Windows.Forms.DateTimePicker dtpCreateDate;
+        private System.Windows.Forms.DateTimePicker dtpCreateDateFirst;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label lblDiscount;
         private System.Windows.Forms.Label label11;
@@ -209,5 +258,10 @@
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Label lblTotalAfterDiscount;
         private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.DateTimePicker dtpCreateDateLast;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.Button btnPrint;
+        private System.Windows.Forms.Button btnExcel;
     }
 }

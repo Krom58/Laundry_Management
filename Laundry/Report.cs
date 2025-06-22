@@ -9,12 +9,12 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Data.SqlClient;
 using System.Globalization;
+using System.Drawing.Printing;
 
 namespace Laundry_Management.Laundry
 {
     public partial class Report : Form
     {
-
         public Report()
         {
             InitializeComponent();
@@ -24,17 +24,19 @@ namespace Laundry_Management.Laundry
             dgvReport.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dgvReport.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
 
-            // กำหนดค่าเริ่มต้นของ DateTimePicker และเปลี่ยนรูปแบบให้แสดงเฉพาะเดือนและปี
-            dtpCreateDate.Value = DateTime.Today;
-            dtpCreateDate.Format = DateTimePickerFormat.Custom;
-            dtpCreateDate.CustomFormat = "MMMM yyyy";
-            dtpCreateDate.ShowUpDown = true; // เปลี่ยนเป็นแบบเลื่อนขึ้นลงแทนปฏิทิน
+            // กำหนดค่าเริ่มต้นของ DateTimePicker
+            dtpCreateDateFirst.Value = DateTime.Today;
+            dtpCreateDateLast.Value = DateTime.Today;
 
-            // เปลี่ยนข้อความคำอธิบาย
-            label3.Text = "เดือนที่ต้องการดูรายงาน";
+            // เปลี่ยนรูปแบบให้แสดงวันที่แบบเต็ม
+            dtpCreateDateFirst.Format = DateTimePickerFormat.Custom;
+            dtpCreateDateFirst.CustomFormat = "dd/MM/yyyy";
+            dtpCreateDateLast.Format = DateTimePickerFormat.Custom;
+            dtpCreateDateLast.CustomFormat = "dd/MM/yyyy";
 
             // เพิ่ม Event Handler
-            dtpCreateDate.ValueChanged += DtpCreateDate_ValueChanged;
+            dtpCreateDateFirst.ValueChanged += DtpCreateDate_ValueChanged;
+            dtpCreateDateLast.ValueChanged += DtpCreateDate_ValueChanged;
             this.Load += Report_Load;
             dgvReport.DataBindingComplete += DgvReport_DataBindingComplete;
         }
@@ -42,13 +44,13 @@ namespace Laundry_Management.Laundry
         private void Report_Load(object sender, EventArgs e)
         {
             // โหลดข้อมูลเมื่อเปิดฟอร์ม
-            LoadReceiptDataByMonth(dtpCreateDate.Value);
+            LoadReceiptDataByDateRange(dtpCreateDateFirst.Value, dtpCreateDateLast.Value);
         }
 
         private void DtpCreateDate_ValueChanged(object sender, EventArgs e)
         {
-            // โหลดข้อมูลใหม่เมื่อมีการเปลี่ยนเดือน
-            LoadReceiptDataByMonth(dtpCreateDate.Value);
+            // โหลดข้อมูลใหม่เมื่อมีการเปลี่ยนวัน
+            LoadReceiptDataByDateRange(dtpCreateDateFirst.Value, dtpCreateDateLast.Value);
         }
 
         private void DgvReport_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
@@ -82,46 +84,51 @@ namespace Laundry_Management.Laundry
             }
         }
 
-        private void LoadReceiptDataByMonth(DateTime date)
+        private void LoadReceiptDataByDateRange(DateTime startDate, DateTime endDate)
         {
             try
             {
                 // สร้าง DTO สำหรับเก็บข้อมูลรายงาน
                 var reportData = new List<ReceiptReportDto>();
 
-                // ดึงเดือนและปีจากวันที่ที่เลือก
-                int month = date.Month;
-                int year = date.Year;
+                // ตรวจสอบว่าวันที่เริ่มต้นไม่มากกว่าวันที่สิ้นสุด
+                if (startDate > endDate)
+                {
+                    MessageBox.Show("วันที่เริ่มต้นต้องไม่มากกว่าวันที่สิ้นสุด", "ข้อผิดพลาด",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    dtpCreateDateFirst.Value = endDate;
+                    return;
+                }
 
-                // สร้างวันที่เริ่มต้นและสิ้นสุดของเดือน
-                DateTime firstDayOfMonth = new DateTime(year, month, 1);
-                DateTime lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
+                // กำหนดเวลาให้ครอบคลุมทั้งวัน
+                DateTime startDateTime = startDate.Date; // เริ่มต้นที่ 00:00:00
+                DateTime endDateTime = endDate.Date.AddDays(1).AddSeconds(-1); // สิ้นสุดที่ 23:59:59
 
-                // อัพเดทชื่อฟอร์มเพื่อแสดงเดือนและปีที่กำลังดูรายงาน
-                this.Text = $"รายงานการขายประจำเดือน {CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month)} {year}";
+                // อัพเดทชื่อฟอร์มเพื่อแสดงวันที่กำลังดูรายงาน
+                this.Text = $"{startDate.ToString("dd/MM/yyyy")} ถึง {endDate.ToString("dd/MM/yyyy")}";
 
                 using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
                 using (var cmd = new SqlCommand())
                 {
                     cmd.Connection = cn;
 
-                    // สร้าง SQL query ที่กรองตามเดือนและปี
+                    // สร้าง SQL query ที่กรองตามช่วงวันที่
                     var sql = @"
-                                SELECT 
-                                    R.ReceiptDate, 
-                                    R.CustomReceiptId, 
-                                    OH.CustomOrderId, 
-                                    R.TotalBeforeDiscount, 
-                                    R.Discount, 
-                                    R.TotalAfterDiscount
-                                FROM Receipt R
-                                INNER JOIN OrderHeader OH ON R.OrderID = OH.OrderID
-                                WHERE R.ReceiptDate >= @startDate AND R.ReceiptDate <= @endDate
-                                ORDER BY R.ReceiptDate ASC"; // เปลี่ยนจาก DESC เป็น ASC เพื่อให้วันที่เก่าขึ้นก่อน
+                                    SELECT 
+                                        R.ReceiptDate, 
+                                        R.CustomReceiptId, 
+                                        OH.CustomOrderId, 
+                                        R.TotalBeforeDiscount, 
+                                        R.Discount, 
+                                        R.TotalAfterDiscount
+                                    FROM Receipt R
+                                    INNER JOIN OrderHeader OH ON R.OrderID = OH.OrderID
+                                    WHERE R.ReceiptDate >= @startDate AND R.ReceiptDate <= @endDate
+                                    ORDER BY R.ReceiptDate ASC"; // เรียงตามวันที่จากเก่าไปใหม่
 
                     cmd.CommandText = sql;
-                    cmd.Parameters.AddWithValue("@startDate", firstDayOfMonth);
-                    cmd.Parameters.AddWithValue("@endDate", lastDayOfMonth.AddDays(1).AddSeconds(-1)); // ถึงเวลา 23:59:59 ของวันสุดท้าย
+                    cmd.Parameters.AddWithValue("@startDate", startDateTime);
+                    cmd.Parameters.AddWithValue("@endDate", endDateTime); // ถึงเวลา 23:59:59 ของวันสุดท้าย
 
                     cn.Open();
                     using (var reader = cmd.ExecuteReader())
@@ -191,6 +198,544 @@ namespace Laundry_Management.Laundry
             public decimal TotalBeforeDiscount { get; set; }
             public decimal Discount { get; set; }
             public decimal TotalAfterDiscount { get; set; }
+        }
+
+        private bool _isPrintSuccessful = false;
+        private string _printErrorMessage = "";
+        private int _currentPage = 0;
+        private void btnPrint_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (dgvReport.Rows.Count == 0)
+                {
+                    MessageBox.Show("ไม่มีข้อมูลที่จะพิมพ์", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Check for valid data before printing
+                bool hasValidRows = false;
+                foreach (DataGridViewRow row in dgvReport.Rows)
+                {
+                    if (row.Cells["CustomReceiptId"].Value != null)
+                    {
+                        hasValidRows = true;
+                        break;
+                    }
+                }
+
+                if (!hasValidRows)
+                {
+                    MessageBox.Show("ไม่พบข้อมูลที่พร้อมพิมพ์ กรุณาตรวจสอบข้อมูล", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Create a PrintDocument object
+                PrintDocument printDoc = new PrintDocument();
+                printDoc.DocumentName = "รายงานการขาย";
+
+                // กำหนดขนาดกระดาษเป็น A4
+                bool foundA4 = false;
+                foreach (PaperSize ps in printDoc.PrinterSettings.PaperSizes)
+                {
+                    if (ps.Kind == PaperKind.A4)
+                    {
+                        printDoc.DefaultPageSettings.PaperSize = ps;
+                        foundA4 = true;
+                        break;
+                    }
+                }
+
+                // If A4 is not found, create a custom A4 paper size (210mm x 297mm)
+                if (!foundA4)
+                {
+                    // A4 in hundredths of an inch (8.27" x 11.69")
+                    PaperSize a4Size = new PaperSize("A4", 827, 1169);
+                    printDoc.DefaultPageSettings.PaperSize = a4Size;
+                }
+
+                // Set landscape orientation for better fit of the table
+                printDoc.DefaultPageSettings.Landscape = true;
+
+                // Set reasonable margins (10mm = ~40 hundredths of an inch)
+                printDoc.DefaultPageSettings.Margins = new Margins(40, 40, 40, 40);
+
+                // Add handlers for print events
+                printDoc.PrintPage += PrintPage;
+                printDoc.EndPrint += PrintDoc_EndPrint;
+
+                // Flag to track print status
+                _isPrintSuccessful = true;
+                _printErrorMessage = "";
+
+                // Create a PrintDialog
+                using (PrintDialog printDialog = new PrintDialog())
+                {
+                    printDialog.Document = printDoc;
+                    printDialog.UseEXDialog = true;
+
+                    // Show the print dialog
+                    if (printDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        try
+                        {
+                            // Show print status
+                            Cursor = Cursors.WaitCursor;
+
+                            // Reset pagination variables before printing
+                            _currentPage = 0;
+                            printDoc.Print();
+                        }
+                        catch (Exception ex)
+                        {
+                            _isPrintSuccessful = false;
+                            _printErrorMessage = ex.Message;
+                            MessageBox.Show($"เกิดข้อผิดพลาดในการพิมพ์: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                        finally
+                        {
+                            Cursor = Cursors.Default;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"เกิดข้อผิดพลาดในการเตรียมพิมพ์: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        private void PrintDoc_EndPrint(object sender, PrintEventArgs e)
+        {
+            if (_isPrintSuccessful)
+            {
+                MessageBox.Show("พิมพ์รายงานการขายเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else if (!string.IsNullOrEmpty(_printErrorMessage))
+            {
+                MessageBox.Show($"การพิมพ์ไม่สำเร็จ: {_printErrorMessage}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void PrintPage(object sender, PrintPageEventArgs e)
+        {
+            try
+            {
+                e.PageSettings.Landscape = true;
+                // Page settings
+                float leftMargin = e.MarginBounds.Left;
+                float topMargin = e.MarginBounds.Top;
+                float rightMargin = e.MarginBounds.Right;
+                float bottomMargin = e.MarginBounds.Bottom;
+                float availableWidth = rightMargin - leftMargin;
+                float availableHeight = bottomMargin - topMargin;
+
+                // ปรับขนาดฟอนต์ให้เล็กลง
+                using (Font titleFont = new Font("Angsana New", 16, FontStyle.Bold))
+                using (Font headerFont = new Font("Angsana New", 12, FontStyle.Bold))
+                using (Font normalFont = new Font("Angsana New", 12))
+                using (Font smallFont = new Font("Angsana New", 10))
+                {
+                    // Draw the page header
+                    float yPosition = topMargin;
+
+                    // Title centered at the top
+                    string title = "รายงานการขาย";
+                    float titleX = leftMargin + (availableWidth / 2) - (e.Graphics.MeasureString(title, titleFont).Width / 2);
+                    e.Graphics.DrawString(title, titleFont, Brushes.Black, titleX, yPosition);
+                    yPosition += titleFont.GetHeight();
+
+                    // Draw underline below title
+                    e.Graphics.DrawLine(new Pen(Color.Black, 1.5f), leftMargin, yPosition, leftMargin + availableWidth, yPosition);
+                    yPosition += 10;
+
+                    // Date range information
+                    string dateRangeInfo = $"ช่วงวันที่: {dtpCreateDateFirst.Value.ToString("dd/MM/yyyy")} ถึง {dtpCreateDateLast.Value.ToString("dd/MM/yyyy")}";
+                    float dateRangeX = leftMargin + (availableWidth / 2) - (e.Graphics.MeasureString(dateRangeInfo, normalFont).Width / 2);
+                    e.Graphics.DrawString(dateRangeInfo, normalFont, Brushes.Black, dateRangeX, yPosition);
+                    yPosition += normalFont.GetHeight() * 1.5f;
+
+                    // Print date and time info
+                    DateTime today = DateTime.Now;
+                    string dateTimeInfo = $"พิมพ์เมื่อ: {today.ToString("dd/MM/yyyy HH:mm:ss")}";
+                    e.Graphics.DrawString(dateTimeInfo, normalFont, Brushes.Black, leftMargin, yPosition);
+                    yPosition += normalFont.GetHeight() * 1.5f;
+
+                    // Display summary totals at the top of the report
+                    string totalInfo = $"ยอดรวมก่อนหักส่วนลด: {lblTotal.Text}   ส่วนลดทั้งหมด: {lblDiscount.Text}   ยอดรวมหลังหักส่วนลด: {lblTotalAfterDiscount.Text}";
+                    float totalInfoX = leftMargin + (availableWidth / 2) - (e.Graphics.MeasureString(totalInfo, headerFont).Width / 2);
+                    e.Graphics.DrawString(totalInfo, headerFont, Brushes.Black, totalInfoX, yPosition);
+                    yPosition += headerFont.GetHeight() * 1.5f;
+
+                    // Define columns to print
+                    string[] columnNames = new string[] {
+                "วันที่ออกใบเสร็จ",
+                "เลขที่ใบเสร็จ",
+                "เลขที่รายการ",
+                "ยอดรวมก่อนหักส่วนลด",
+                "ส่วนลด",
+                "ยอดรวมหลังหักส่วนลด"
+            };
+
+                    string[] columnDataProperties = new string[] {
+                "ReceiptDate",
+                "CustomReceiptId",
+                "CustomOrderId",
+                "TotalBeforeDiscount",
+                "Discount",
+                "TotalAfterDiscount"
+            };
+
+                    // Column width percentages - adjust as needed
+                    float[] columnWidthPercentages = new float[] {
+                0.18f, // วันที่ออกใบเสร็จ
+                0.18f, // เลขที่ใบเสร็จ
+                0.18f, // เลขที่รายการ
+                0.16f, // ยอดรวมก่อนหักส่วนลด
+                0.14f, // ส่วนลด
+                0.16f  // ยอดรวมหลังหักส่วนลด
+            };
+
+                    // Calculate column widths
+                    float[] columnWidths = new float[columnWidthPercentages.Length];
+                    for (int i = 0; i < columnWidthPercentages.Length; i++)
+                    {
+                        columnWidths[i] = availableWidth * columnWidthPercentages[i];
+                    }
+
+                    // Draw table header
+                    float headerHeight = headerFont.GetHeight() * 1.5f;
+                    float currentX = leftMargin;
+
+                    for (int i = 0; i < columnNames.Length; i++)
+                    {
+                        RectangleF headerRect = new RectangleF(currentX, yPosition, columnWidths[i], headerHeight);
+
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            e.Graphics.FillRectangle(Brushes.LightGray, headerRect);
+                            e.Graphics.DrawRectangle(Pens.Black, headerRect.X, headerRect.Y, headerRect.Width, headerRect.Height);
+                            e.Graphics.DrawString(columnNames[i], headerFont, Brushes.Black, headerRect, sf);
+                        }
+
+                        currentX += columnWidths[i];
+                    }
+                    yPosition += headerHeight;
+
+                    // Calculate how many rows can fit on a page
+                    float rowHeight = normalFont.GetHeight() * 1.2f;
+                    int rowsPerPage = (int)((availableHeight - (yPosition - topMargin) - 40) / rowHeight);
+
+                    // Calculate the range of rows to print for the current page
+                    int startRow = _currentPage * rowsPerPage;
+                    int endRow = Math.Min(startRow + rowsPerPage, dgvReport.Rows.Count);
+
+                    // Print data rows
+                    int validRowsPrinted = 0;
+                    for (int i = startRow; i < endRow; i++)
+                    {
+                        DataGridViewRow row = dgvReport.Rows[i];
+
+                        // Skip rows with no data
+                        if (row.Cells["CustomReceiptId"].Value == null)
+                        {
+                            continue;
+                        }
+
+                        currentX = leftMargin;
+
+                        for (int j = 0; j < columnDataProperties.Length; j++)
+                        {
+                            string cellValue = "";
+                            try
+                            {
+                                if (row.Cells[columnDataProperties[j]].Value != null &&
+                                    row.Cells[columnDataProperties[j]].Value != DBNull.Value)
+                                {
+                                    // Format value based on column type
+                                    if (columnDataProperties[j] == "TotalBeforeDiscount" ||
+                                        columnDataProperties[j] == "Discount" ||
+                                        columnDataProperties[j] == "TotalAfterDiscount")
+                                    {
+                                        decimal amount = Convert.ToDecimal(row.Cells[columnDataProperties[j]].Value);
+                                        cellValue = amount.ToString("N2");
+                                    }
+                                    else if (columnDataProperties[j] == "ReceiptDate")
+                                    {
+                                        DateTime date = Convert.ToDateTime(row.Cells[columnDataProperties[j]].Value);
+                                        cellValue = date.ToString("dd/MM/yyyy HH:mm");
+                                    }
+                                    else
+                                    {
+                                        cellValue = row.Cells[columnDataProperties[j]].Value.ToString();
+                                    }
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                cellValue = "-";
+                            }
+
+                            RectangleF cellRect = new RectangleF(currentX, yPosition, columnWidths[j], rowHeight);
+
+                            using (StringFormat sf = new StringFormat())
+                            {
+                                sf.Alignment = StringAlignment.Center;
+                                sf.LineAlignment = StringAlignment.Center;
+                                sf.Trimming = StringTrimming.EllipsisCharacter;
+
+                                // Apply different formatting for financial columns
+                                if (columnDataProperties[j] == "Discount" && !string.IsNullOrEmpty(cellValue) &&
+                                     cellValue != "-" && Convert.ToDecimal(row.Cells[columnDataProperties[j]].Value) > 0)
+                                {
+                                    using (SolidBrush discountBrush = new SolidBrush(Color.Red))
+                                    {
+                                        e.Graphics.DrawString(cellValue, normalFont, discountBrush, cellRect, sf);
+                                    }
+                                }
+                                else if (columnDataProperties[j] == "TotalBeforeDiscount" ||
+                                        columnDataProperties[j] == "TotalAfterDiscount")
+                                {
+                                    // Right-align money values
+                                    sf.Alignment = StringAlignment.Far;
+                                    e.Graphics.DrawString(cellValue, normalFont, Brushes.Black, cellRect, sf);
+                                }
+                                else
+                                {
+                                    e.Graphics.DrawString(cellValue, normalFont, Brushes.Black, cellRect, sf);
+                                }
+
+                                e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
+                            }
+
+                            currentX += columnWidths[j];
+                        }
+
+                        yPosition += rowHeight;
+                        validRowsPrinted++;
+                    }
+
+                    // Add summary at the bottom if this is the last page
+                    bool isLastPage = endRow >= dgvReport.Rows.Count;
+
+                    if (isLastPage)
+                    {
+                        yPosition += 15;
+
+                        // Count valid rows
+                        int validRowCount = dgvReport.Rows.Cast<DataGridViewRow>().Count(r =>
+                            r.Cells["CustomReceiptId"].Value != null);
+
+                        string summaryText = $"จำนวนรายการขายทั้งหมด {validRowCount} รายการ";
+                        e.Graphics.DrawString(summaryText, normalFont, Brushes.Black, leftMargin, yPosition);
+                    }
+
+                    // Add page number at the bottom right
+                    int totalValidRows = dgvReport.Rows.Cast<DataGridViewRow>().Count(r =>
+                        r.Cells["CustomReceiptId"].Value != null);
+
+                    int totalPages = (int)Math.Ceiling((double)totalValidRows / rowsPerPage);
+                    if (totalPages == 0) totalPages = 1; // Ensure at least one page
+
+                    string pageText = $"หน้า {_currentPage + 1} จาก {totalPages}";
+
+                    e.Graphics.DrawString(pageText, smallFont, Brushes.Black,
+                        rightMargin - e.Graphics.MeasureString(pageText, smallFont).Width,
+                        bottomMargin + 10);
+
+                    // Check if more pages are needed
+                    if (endRow < dgvReport.Rows.Count)
+                    {
+                        _currentPage++;
+                        e.HasMorePages = true;
+                    }
+                    else
+                    {
+                        _currentPage = 0;
+                        e.HasMorePages = false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Mark print as failed and store error message
+                _isPrintSuccessful = false;
+                _printErrorMessage = ex.Message;
+
+                // Show error report on the page
+                using (Font errorFont = new Font("Angsana New", 14, FontStyle.Bold))
+                {
+                    string errorMsg = $"เกิดข้อผิดพลาดในการพิมพ์: {ex.Message}";
+                    e.Graphics.DrawString(errorMsg, errorFont, Brushes.Red, e.MarginBounds.Left, e.MarginBounds.Top + 100);
+                }
+
+                // No more pages after error
+                e.HasMorePages = false;
+            }
+        }
+
+        private void btnExcel_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (dgvReport.Rows.Count == 0)
+                {
+                    MessageBox.Show("ไม่มีข้อมูลที่จะส่งออก", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Check for valid data before exporting
+                bool hasValidRows = false;
+                foreach (DataGridViewRow row in dgvReport.Rows)
+                {
+                    if (row.Cells["CustomReceiptId"].Value != null)
+                    {
+                        hasValidRows = true;
+                        break;
+                    }
+                }
+
+                if (!hasValidRows)
+                {
+                    MessageBox.Show("ไม่พบข้อมูลที่พร้อมส่งออก กรุณาตรวจสอบข้อมูล", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Create SaveFileDialog
+                using (SaveFileDialog sfd = new SaveFileDialog())
+                {
+                    sfd.Filter = "CSV Files|*.csv|Excel Files|*.xls";
+                    sfd.Title = "บันทึกไฟล์รายงานการขาย";
+
+                    // Get date range string for default filename
+                    string dateRangeStr = $"{dtpCreateDateFirst.Value.ToString("yyyy-MM-dd")}_ถึง_{dtpCreateDateLast.Value.ToString("yyyy-MM-dd")}";
+                    sfd.FileName = $"รายงานการขาย_{dateRangeStr}";
+
+                    if (sfd.ShowDialog() == DialogResult.OK)
+                    {
+                        // Show waiting cursor
+                        Cursor = Cursors.WaitCursor;
+
+                        // Define columns to export
+                        var columnNames = new List<string> {
+                    "วันที่ออกใบเสร็จ", "เลขที่ใบเสร็จ", "เลขที่รายการ",
+                    "ยอดรวมก่อนหักส่วนลด", "ส่วนลด", "ยอดรวมหลังหักส่วนลด"
+                };
+
+                        var columnProperties = new List<string> {
+                    "ReceiptDate", "CustomReceiptId", "CustomOrderId",
+                    "TotalBeforeDiscount", "Discount", "TotalAfterDiscount"
+                };
+
+                        // Create a StringBuilder to build CSV content
+                        StringBuilder csv = new StringBuilder();
+
+                        // Add UTF-8 BOM for Thai character support
+                        csv.Append("\uFEFF");
+
+                        // Add CSV header row with column names
+                        csv.AppendLine(string.Join(",", columnNames.Select(name => $"\"{name}\"")));
+
+                        // Add data rows
+                        decimal totalBeforeDiscount = 0;
+                        decimal totalDiscount = 0;
+                        decimal totalAfterDiscount = 0;
+                        int validRowCount = 0;
+
+                        foreach (DataGridViewRow row in dgvReport.Rows)
+                        {
+                            // Skip rows with no data
+                            if (row.Cells["CustomReceiptId"].Value == null)
+                            {
+                                continue;
+                            }
+
+                            validRowCount++;
+                            var rowValues = new List<string>();
+
+                            for (int i = 0; i < columnProperties.Count; i++)
+                            {
+                                string cellValue = "";
+                                var cell = row.Cells[columnProperties[i]];
+
+                                if (cell.Value != null && cell.Value != DBNull.Value)
+                                {
+                                    // Format based on column type
+                                    if (columnProperties[i] == "ReceiptDate" && cell.Value is DateTime date)
+                                    {
+                                        cellValue = date.ToString("dd/MM/yyyy HH:mm");
+                                    }
+                                    else if (columnProperties[i] == "TotalBeforeDiscount")
+                                    {
+                                        if (decimal.TryParse(cell.Value.ToString(), out decimal amount))
+                                        {
+                                            totalBeforeDiscount += amount;
+                                            cellValue = amount.ToString("0.00");
+                                        }
+                                    }
+                                    else if (columnProperties[i] == "Discount")
+                                    {
+                                        if (decimal.TryParse(cell.Value.ToString(), out decimal amount))
+                                        {
+                                            totalDiscount += amount;
+                                            cellValue = amount.ToString("0.00");
+                                        }
+                                    }
+                                    else if (columnProperties[i] == "TotalAfterDiscount")
+                                    {
+                                        if (decimal.TryParse(cell.Value.ToString(), out decimal amount))
+                                        {
+                                            totalAfterDiscount += amount;
+                                            cellValue = amount.ToString("0.00");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        cellValue = cell.Value.ToString();
+                                    }
+
+                                    // สำหรับคอลัมน์ที่อาจเป็นตัวเลขแต่ต้องการเก็บ 0 นำหน้า
+                                    if (columnProperties[i] == "CustomReceiptId" || columnProperties[i] == "CustomOrderId")
+                                    {
+                                        // บังคับให้ Excel ตีความเป็นข้อความ
+                                        cellValue = $"=\"{cellValue}\"";
+                                    }
+
+                                    // Escape quotes for CSV
+                                    cellValue = cellValue.Replace("\"", "\"\"");
+                                }
+
+                                // Add quoted value
+                                rowValues.Add($"\"{cellValue}\"");
+                            }
+
+                            csv.AppendLine(string.Join(",", rowValues));
+                        }
+
+                        // Add summary information
+                        csv.AppendLine();
+                        csv.AppendLine($"\"สรุปรายงานการขาย\"");
+                        csv.AppendLine($"\"ช่วงวันที่: {dtpCreateDateFirst.Value.ToString("dd/MM/yyyy")} ถึง {dtpCreateDateLast.Value.ToString("dd/MM/yyyy")}\"");
+                        csv.AppendLine($"\"จำนวนรายการขายทั้งหมด: {validRowCount} รายการ\"");
+                        csv.AppendLine($"\"ยอดรวมก่อนหักส่วนลด: {totalBeforeDiscount.ToString("0.00")} บาท\"");
+                        csv.AppendLine($"\"ส่วนลดทั้งหมด: {totalDiscount.ToString("0.00")} บาท\"");
+                        csv.AppendLine($"\"ยอดรวมหลังหักส่วนลด: {totalAfterDiscount.ToString("0.00")} บาท\"");
+                        csv.AppendLine($"\"พิมพ์เมื่อ: {DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")}\"");
+
+                        // Save to file
+                        System.IO.File.WriteAllText(sfd.FileName, csv.ToString());
+
+                        Cursor = Cursors.Default;
+                        MessageBox.Show("ส่งออกข้อมูลเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Cursor = Cursors.Default;
+                MessageBox.Show($"เกิดข้อผิดพลาดในการส่งออกข้อมูล: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
