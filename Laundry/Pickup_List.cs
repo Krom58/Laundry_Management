@@ -41,7 +41,8 @@ namespace Laundry_Management.Laundry
                             o.Phone as 'เบอร์โทรศัพท์',
                             r.ReceiptID,
                             r.CustomReceiptId as 'หมายเลขใบเสร็จ',
-                            r.ReceiptDate as 'วันที่รับผ้า', 
+                            o.OrderDate as 'วันที่ส่งผ้า',
+                            o.PickupDate as 'วันที่ครบกำหนด',
                             r.IsPickedUp as 'สถานะ', 
                             r.CustomerPickupDate as 'วันที่มารับ'
                         FROM OrderHeader o
@@ -89,7 +90,8 @@ namespace Laundry_Management.Laundry
                             o.Phone as 'เบอร์โทรศัพท์', 
                             r.ReceiptID,
                             r.CustomReceiptId as 'หมายเลขใบเสร็จ',
-                            r.ReceiptDate as 'วันที่รับผ้า', 
+                            o.OrderDate as 'วันที่ส่งผ้า',
+                            o.PickupDate as 'วันที่ครบกำหนด',
                             r.IsPickedUp as 'สถานะ', 
                             r.CustomerPickupDate as 'วันที่มารับ'
                         FROM OrderHeader o
@@ -307,22 +309,6 @@ namespace Laundry_Management.Laundry
 
                             // เปลี่ยน checkbox เป็น "มารับแล้ว"
                             chkPickedup.Checked = true;
-
-                            // ดึงวันที่จากข้อมูลใบเสร็จที่กำลังบันทึก
-                            var receiptDateObj = dgvOrders.CurrentRow.Cells["วันที่รับผ้า"].Value;
-                            if (receiptDateObj != null && receiptDateObj != DBNull.Value)
-                            {
-                                DateTime receiptDate = Convert.ToDateTime(receiptDateObj).Date;
-                                dtpCreateDate.Checked = true;
-                                dtpCreateDate.Value = receiptDate;
-                            }
-                            else
-                            {
-                                // ถ้าไม่มีวันที่ใบเสร็จ ให้ใช้วันที่ปัจจุบัน
-                                dtpCreateDate.Checked = true;
-                                dtpCreateDate.Value = DateTime.Today;
-                            }
-
                             // รีเฟรชข้อมูล
                             btnSearch_Click(sender, e);
                         }
@@ -439,17 +425,6 @@ namespace Laundry_Management.Laundry
 
                             // เปลี่ยน checkbox เป็น "ยังไม่มารับ"
                             chkNotPickup.Checked = true;
-
-                            // ดึงวันที่จากข้อมูลใบเสร็จที่กำลังยกเลิก
-                            var receiptDateObj = dgvOrders.CurrentRow.Cells["วันที่รับผ้า"].Value;
-                            if (receiptDateObj != null && receiptDateObj != DBNull.Value)
-                            {
-                                DateTime receiptDate = Convert.ToDateTime(receiptDateObj).Date;
-                                dtpCreateDate.Checked = true;
-                                dtpCreateDate.Value = receiptDate;
-                            }
-
-                            // รีเฟรชข้อมูล (จะแสดงรายการที่ยังไม่มารับในวันที่ของใบเสร็จ)
                             btnSearch_Click(sender, e);
                         }
                         else

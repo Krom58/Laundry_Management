@@ -88,7 +88,7 @@ namespace Laundry_Management.Laundry
                                 r.Discount as 'ส่วนลด',
                                 r.TotalAfterDiscount as 'ราคารวมหลังหักส่วนลด',
                                 o.OrderDate as 'วันที่ออกใบรับผ้า',
-                                o.PickupDate as 'วันที่ต้องมารับผ้า',
+                                o.PickupDate as 'วันที่ครบกำหนด',
                                 r.ReceiptID, 
                                 r.ReceiptStatus as 'สถานะใบเสร็จ',
                                 r.PaymentMethod as 'วิธีการชำระเงิน',
@@ -208,6 +208,7 @@ namespace Laundry_Management.Laundry
         private void btnReprintOrder_Click(object sender, EventArgs e)
         {
             // Check if a row is selected
+            // Check if a row is selected
             if (dgvOrders.CurrentRow == null)
             {
                 MessageBox.Show("กรุณาเลือกรายการที่ต้องการพิมพ์ใหม่", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -221,6 +222,16 @@ namespace Laundry_Management.Laundry
                 string customOrderId = dgvOrders.CurrentRow.Cells["หมายเลขใบรับผ้า"].Value?.ToString();
                 string customerName = dgvOrders.CurrentRow.Cells["ชื่อลูกค้า"].Value?.ToString();
                 string phone = dgvOrders.CurrentRow.Cells["เบอร์โทรศัพท์"].Value?.ToString();
+
+                // ตรวจสอบสถานะใบเสร็จว่าเป็น "ยกเลิกการพิมพ์" หรือไม่
+                var receiptStatusObj = dgvOrders.CurrentRow.Cells["สถานะใบเสร็จ"].Value;
+                if (receiptStatusObj != null && receiptStatusObj != DBNull.Value &&
+                    receiptStatusObj.ToString() == "ยกเลิกการพิมพ์")
+                {
+                    MessageBox.Show("ไม่สามารถพิมพ์ใบรับผ้าที่มีใบเสร็จถูกยกเลิกการพิมพ์ได้", "แจ้งเตือน",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
 
                 // Check if required data is available
                 if (string.IsNullOrEmpty(customOrderId) || string.IsNullOrEmpty(customerName))
@@ -380,6 +391,15 @@ namespace Laundry_Management.Laundry
                 int receiptId = Convert.ToInt32(receiptIdObj);
                 int orderId = Convert.ToInt32(dgvOrders.CurrentRow.Cells["OrderID"].Value);
 
+                // ตรวจสอบสถานะใบเสร็จว่าเป็น "ยกเลิกการพิมพ์" หรือไม่
+                var receiptStatusObj = dgvOrders.CurrentRow.Cells["สถานะใบเสร็จ"].Value;
+                if (receiptStatusObj != null && receiptStatusObj != DBNull.Value &&
+                    receiptStatusObj.ToString() == "ยกเลิกการพิมพ์")
+                {
+                    MessageBox.Show("ไม่สามารถพิมพ์ใบเสร็จที่ถูกยกเลิกการพิมพ์ได้", "แจ้งเตือน",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 // Create OrderHeaderDto object with required data
                 var header = new Find_Service.OrderHeaderDto
                 {

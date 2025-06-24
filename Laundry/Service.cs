@@ -258,7 +258,7 @@ namespace Laundry_Management
             {
                 MessageBox.Show("จำนวนไม่ถูกต้อง");
                 return;
-            }
+           }
 
             decimal unitPrice = totalAmount / quantity;
 
@@ -277,6 +277,7 @@ namespace Laundry_Management
         private void Back_Click(object sender, EventArgs e)
         {
             this.Close();
+            ClearSelectedItems();
         }
 
         private void btnEnd_Click(object sender, EventArgs e)

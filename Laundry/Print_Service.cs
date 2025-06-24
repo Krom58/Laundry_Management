@@ -42,6 +42,9 @@ namespace Laundry_Management.Laundry
         private decimal _customerDiscount;
         private List<ServiceItem> _items = new List<ServiceItem>();
         private PrintPreviewDialog _previewDialog;
+        private int _currentPage = 0;
+        private int _totalPages = 1;
+        private List<ServiceItem> _remainingItems;
         public Print_Service()
         {
             InitializeComponent();
@@ -147,21 +150,76 @@ namespace Laundry_Management.Laundry
             float rightX = e.MarginBounds.Right;
             float y = topY;
 
+            // Initialize remaining items on first page
+            if (_currentPage == 0)
+            {
+                _remainingItems = new List<ServiceItem>(_items);
+
+                // Calculate total pages based on how many items we can fit per page
+                int itemsPerFirstPage = CalculateItemsPerPage(e.Graphics, e.MarginBounds.Height - 400); // First page has header
+                int itemsPerSubsequentPage = CalculateItemsPerPage(e.Graphics, e.MarginBounds.Height - 200); // Subsequent pages have less header
+
+                if (_items.Count <= itemsPerFirstPage)
+                {
+                    _totalPages = 1;
+                }
+                else
+                {
+                    int remainingItems = _items.Count - itemsPerFirstPage;
+                    _totalPages = 1 + (int)Math.Ceiling((double)remainingItems / itemsPerSubsequentPage);
+                }
+            }
+
             // Use slightly nicer fonts for A5 paper
             using (Font headerF = new Font("Tahoma", 9.5f, FontStyle.Bold))
             using (Font subF = new Font("Tahoma", 7.5f))
             using (Font bodyF = new Font("Tahoma", 7.5f))
             {
-                DrawHeader(g, headerF, subF, leftX, ref y, rightX);
-                y += 3; // Reduced spacing
-                DrawServiceDetails(g, bodyF, leftX, ref y, rightX);
+                // Draw page header - only on first page or simplified on subsequent pages
+                if (_currentPage == 0)
+                {
+                    DrawHeader(g, headerF, subF, leftX, ref y, rightX);
+                }
+                else
+                {
+                    // Draw a simplified continuation header
+                    DrawContinuationHeader(g, headerF, subF, leftX, ref y, rightX);
+                }
+
                 y += 3; // Reduced spacing
 
-                // Replace the old approach with the new footer
-                DrawFooter(g, bodyF, e.PageBounds, rightX);
+                // Draw the service items table with pagination
+                bool hasMoreItems = DrawServiceDetailsWithPagination(g, bodyF, leftX, ref y, rightX);
+
+                // Only draw footer on the last page
+                if (!hasMoreItems)
+                {
+                    y += 3; // Reduced spacing
+                    DrawFooter(g, bodyF, e.PageBounds, rightX);
+                }
+
+                // Add page number
+                using (Font pageFont = new Font("Tahoma", 6f))
+                {
+                    string pageText = $"หน้า {_currentPage + 1}/{_totalPages}";
+                    SizeF textSize = g.MeasureString(pageText, pageFont);
+                    g.DrawString(pageText, pageFont, Brushes.Black,
+                        rightX - textSize.Width, e.PageBounds.Bottom - 30);
+                }
+
+                // Set HasMorePages based on whether we have more items to print
+                if (hasMoreItems)
+                {
+                    _currentPage++;
+                    e.HasMorePages = true;
+                }
+                else
+                {
+                    // Reset for next print job
+                    _currentPage = 0;
+                    e.HasMorePages = false;
+                }
             }
-
-            e.HasMorePages = false;
         }
         private DateTime _orderDate; // Add this field to the class
         private DateTime _PickupDate;
@@ -554,6 +612,171 @@ namespace Laundry_Management.Laundry
             SizeF labelSize = g.MeasureString(signatureLabel, font);
             float labelX = signatureX + (signatureLineWidth - labelSize.Width) / 2;
             g.DrawString(signatureLabel, font, Brushes.Black, labelX, signatureY + 5);
+        }
+        private void DrawContinuationHeader(Graphics g, Font headerFont, Font subHeaderFont, float leftX, ref float y, float rightX)
+        {
+            // Define colors
+            Color primaryColor = Color.FromArgb(192, 0, 0);
+            Color accentColor = Color.FromArgb(60, 60, 60);
+
+            // Draw simplified header with store name and order ID
+            string storeName = "เอเชียซักแห้ง";
+            g.DrawString(storeName, headerFont, new SolidBrush(accentColor), leftX, y);
+
+            // Draw order ID on the right
+            string idLine = $"หมายเลขใบรับผ้า : {_orderId} (ต่อ)";
+            SizeF idSz = g.MeasureString(idLine, headerFont);
+            g.DrawString(idLine, headerFont, new SolidBrush(accentColor), rightX - idSz.Width, y);
+
+            // Draw customer name
+            y += headerFont.GetHeight(g) * 1.5f;
+            g.DrawString($"ลูกค้า: {_customerName}", subHeaderFont, new SolidBrush(accentColor), leftX, y);
+
+            // Add a separator line
+            y += subHeaderFont.GetHeight(g) * 1.5f;
+            g.DrawLine(Pens.LightGray, leftX, y, rightX, y);
+
+            y += 5; // Add a bit more space after the line
+        }
+
+        // New method to calculate how many items can fit on a page
+        private int CalculateItemsPerPage(Graphics g, float availableHeight)
+        {
+            using (Font font = new Font("Tahoma", 7.5f))
+            {
+                float rowHeight = font.GetHeight(g) + 8; // Same as in DrawServiceDetails
+
+                // Calculate max number of rows that can fit
+                int maxRows = (int)Math.Floor(availableHeight / rowHeight);
+
+                // Return at least 1 item per page
+                return Math.Max(1, maxRows);
+            }
+        }
+
+        // New method for drawing the service details table with pagination support
+        private bool DrawServiceDetailsWithPagination(Graphics g, Font font, float leftX, ref float y, float rightX)
+        {
+            // Colors same as the original method
+            Color tableHeaderBgColor = Color.FromArgb(240, 240, 245);
+            Color tableHeaderTextColor = Color.FromArgb(60, 60, 60);
+            Color tableBorderColor = Color.FromArgb(180, 180, 180);
+            Color tableAlternateRowColor = Color.FromArgb(250, 250, 252);
+            Color tableCellTextColor = Color.FromArgb(50, 50, 50);
+
+            // Define columns same as the original method
+            int cols = 4;
+            float tableWidth = rightX - leftX;
+            float[] colWidthPercents = { 0.40f, 0.15f, 0.20f, 0.25f };
+            float[] colWidths = new float[cols];
+            float[] xs = new float[cols + 1];
+
+            xs[0] = leftX;
+            for (int i = 0; i < cols; i++)
+            {
+                colWidths[i] = tableWidth * colWidthPercents[i];
+                xs[i + 1] = xs[i] + colWidths[i];
+            }
+
+            float rowHeight = font.GetHeight(g) + 8;
+            Pen tablePen = new Pen(tableBorderColor, 0.8f);
+
+            // Calculate how many items can fit on this page
+            float availableHeight = 650 - y - 100; // Reserve space for footer on last page
+            int maxItemsThisPage = (int)Math.Floor(availableHeight / rowHeight);
+
+            // Get items for this page
+            List<ServiceItem> itemsForThisPage = _remainingItems.Take(maxItemsThisPage).ToList();
+
+            // --- Draw table header ---
+            g.FillRectangle(new SolidBrush(tableHeaderBgColor), leftX, y, tableWidth, rowHeight);
+            g.DrawRectangle(tablePen, leftX, y, tableWidth, rowHeight);
+
+            // Draw column dividers for header
+            for (int i = 1; i < cols; i++)
+            {
+                g.DrawLine(tablePen, xs[i], y, xs[i], y + rowHeight);
+            }
+
+            // Draw header text with shadow
+            using (Font headerFont = new Font(font.FontFamily, font.Size, FontStyle.Bold))
+            {
+                string[] headers = { "รายการ", "จำนวน", "ราคา", "จำนวนเงิน" };
+                for (int i = 0; i < cols; i++)
+                {
+                    float colCenter = xs[i] + colWidths[i] / 2;
+                    var sz = g.MeasureString(headers[i], headerFont);
+
+                    // Shadow
+                    g.DrawString(headers[i], headerFont, new SolidBrush(Color.FromArgb(30, 0, 0, 0)),
+                                colCenter - sz.Width / 2 + 1, y + (rowHeight - sz.Height) / 2 + 1);
+
+                    // Main text
+                    g.DrawString(headers[i], headerFont, new SolidBrush(tableHeaderTextColor),
+                                colCenter - sz.Width / 2, y + (rowHeight - sz.Height) / 2);
+                }
+            }
+
+            y += rowHeight;
+
+            // --- Draw data rows ---
+            bool isAlternate = false;
+            int startItemNumber = _currentPage * maxItemsThisPage;
+
+            foreach (var item in itemsForThisPage)
+            {
+                // Alternate row background
+                if (isAlternate)
+                {
+                    g.FillRectangle(new SolidBrush(tableAlternateRowColor), leftX, y, tableWidth, rowHeight);
+                }
+                isAlternate = !isAlternate;
+
+                // Draw row border
+                g.DrawRectangle(tablePen, leftX, y, tableWidth, rowHeight);
+
+                // Draw column dividers
+                for (int i = 1; i < cols; i++)
+                {
+                    g.DrawLine(tablePen, xs[i], y, xs[i], y + rowHeight);
+                }
+
+                // Draw data in each column
+
+                // 1. Item name (left aligned)
+                g.DrawString(item.Name, font, new SolidBrush(tableCellTextColor),
+                            xs[0] + 5, y + (rowHeight - font.GetHeight(g)) / 2);
+
+                // 2. Quantity (centered)
+                string qty = item.Quantity.ToString();
+                SizeF qtySize = g.MeasureString(qty, font);
+                g.DrawString(qty, font, new SolidBrush(tableCellTextColor),
+                            xs[1] + (colWidths[1] - qtySize.Width) / 2,
+                            y + (rowHeight - qtySize.Height) / 2);
+
+                // 3. Price (centered)
+                string price = item.Price.ToString("N2");
+                SizeF priceSize = g.MeasureString(price, font);
+                g.DrawString(price, font, new SolidBrush(tableCellTextColor),
+                            xs[2] + (colWidths[2] - priceSize.Width) / 2,
+                            y + (rowHeight - priceSize.Height) / 2);
+
+                // 4. Total amount (centered)
+                decimal amount = item.Quantity * item.Price;
+                string amt = amount.ToString("N2");
+                SizeF amtSize = g.MeasureString(amt, font);
+                g.DrawString(amt, font, new SolidBrush(tableCellTextColor),
+                            xs[3] + (colWidths[3] - amtSize.Width) / 2,
+                            y + (rowHeight - amtSize.Height) / 2);
+
+                y += rowHeight;
+            }
+
+            // Remove printed items from the remaining items
+            _remainingItems.RemoveRange(0, itemsForThisPage.Count);
+
+            // Return true if there are more items to print
+            return _remainingItems.Count > 0;
         }
     }
 }

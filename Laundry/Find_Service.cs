@@ -54,7 +54,36 @@ namespace Laundry_Management.Laundry
                 dgvOrders_SelectionChanged(sender, EventArgs.Empty);
             }
         }
+        private void SelectFirstRow()
+        {
+            // Check if there are any rows in the DataGridView
+            if (dgvOrders.Rows.Count > 0)
+            {
+                // Select the first row
+                dgvOrders.ClearSelection();
+                dgvOrders.Rows[0].Selected = true;
 
+                // Find the first visible cell in the first row
+                DataGridViewCell visibleCell = null;
+                foreach (DataGridViewCell cell in dgvOrders.Rows[0].Cells)
+                {
+                    if (cell.Visible)
+                    {
+                        visibleCell = cell;
+                        break;
+                    }
+                }
+
+                // Set the first row's visible cell as the current cell to trigger selection events
+                if (visibleCell != null && (dgvOrders.CurrentCell == null || dgvOrders.CurrentCell.RowIndex != 0))
+                {
+                    dgvOrders.CurrentCell = visibleCell;
+                }
+
+                // Force refresh the selection (helpful for some UI scenarios)
+                dgvOrders.Refresh();
+            }
+        }
         // เพิ่ม event handler เมื่อคลิกที่ cell ใน dgvItems
         private void DgvItems_CellClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -128,6 +157,8 @@ namespace Laundry_Management.Laundry
                 dgvOrders.Columns["SubTotal"].Visible = false;
             if (dgvOrders.Columns["VatAmount"] != null)
                 dgvOrders.Columns["VatAmount"].Visible = false;
+            if (dgvOrders.Columns["PaymentMethod"] != null)
+                dgvOrders.Columns["PaymentMethod"].Visible = false;
         }
         // ปรับปรุงเมธอด LoadOrders ให้รองรับพารามิเตอร์ statusFilter
         private void LoadOrders(
@@ -142,6 +173,7 @@ namespace Laundry_Management.Laundry
             dgvItems.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
             dgvOrders.DataSource = _repo.GetOrders(customerFilter, orderIdFilter, createDateFilter, statusFilter);
             dgvItems.DataSource = null;
+            SelectFirstRow();
         }
         public class OrderItemDto
         {
@@ -172,6 +204,8 @@ namespace Laundry_Management.Laundry
             public int? ReceiptId { get; set; }
             public string CustomReceiptId { get; set; }
             public string ReceivedStatus { get; set; }
+            public string PaymentMethod { get; set; }
+
         }
         public class OrderRepository
         {
@@ -500,7 +534,7 @@ namespace Laundry_Management.Laundry
             label10.Text = afterDiscount.ToString("N2") + " บาท";
 
             // 4. lblVat = label10 * 7 / 100 (VAT 7% จากยอดหลังหักส่วนลด)
-            decimal vatAmount = Math.Round(afterDiscount * 0.07m, 2);
+            decimal vatAmount = Math.Round(afterDiscount / 1.07m * 0.07m, 2);
             lblVat.Text = vatAmount.ToString("N2") + " บาท";
 
             // 5. lblPaymentamount = label10 + VAT
@@ -821,6 +855,7 @@ namespace Laundry_Management.Laundry
 
             // เพิ่มพารามิเตอร์ statusFilter เป็น "ดำเนินการสำเร็จ" เพื่อค้นหาเฉพาะรายการที่มีสถานะนี้
             LoadOrders(cust, oid, createDt, "ดำเนินการสำเร็จ");
+            SelectFirstRow();
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -974,6 +1009,7 @@ namespace Laundry_Management.Laundry
             chkCash.Checked = true;
             chkDebit.Checked = false;
             chkQRCode.Checked = false;
+            SelectFirstRow();
         }
         private void chkPayment_CheckedChanged(object sender, EventArgs e)
         {
@@ -1028,6 +1064,7 @@ namespace Laundry_Management.Laundry
 
                 // Load orders with the specified filters and status
                 LoadOrders(cust, oid, createDt, "ดำเนินการสำเร็จ");
+                SelectFirstRow();
             }
         }
     }
