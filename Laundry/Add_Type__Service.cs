@@ -151,11 +151,9 @@ namespace Laundry_Management
             Gender.DropDownStyle = ComboBoxStyle.DropDownList;
 
             // เพิ่มข้อมูลใน ComboBox ServiceType
-            ServiceType.Items.Add("");
             ServiceType.Items.Add("ซักแห้ง (Dry Cleaning Service)");
             ServiceType.Items.Add("ซักน้ำ (Laundry Service)");
 
-            Gender.Items.Add("");
             Gender.Items.Add("สุภาพบุรุษ (Gentleman)");
             Gender.Items.Add("สุภาพสตรี (Ladies)");
 

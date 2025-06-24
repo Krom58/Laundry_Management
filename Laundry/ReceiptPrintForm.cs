@@ -332,16 +332,16 @@ namespace Laundry_Management.Laundry
                         // เพิ่มเงื่อนไขให้ครอบคลุมคำที่อาจจะแตกต่างกัน
                         if (upperPaymentMethod.Contains("เงินสด") || upperPaymentMethod.Contains("CASH"))
                         {
-                            paymentMethod += "☑ เงินสด   ☐ บัตรเครดิต   ☐ QR Code";
+                            paymentMethod += "เงินสด";
                         }
                         else if (upperPaymentMethod.Contains("บัตรเครดิต") || upperPaymentMethod.Contains("CREDIT") ||
                                  upperPaymentMethod.Contains("CARD"))
                         {
-                            paymentMethod += "☐ เงินสด   ☑ บัตรเครดิต   ☐ QR Code";
+                            paymentMethod += "บัตรเครดิต";
                         }
                         else if (upperPaymentMethod.Contains("QR") || upperPaymentMethod.Contains("คิวอาร์"))
                         {
-                            paymentMethod += "☐ เงินสด   ☐ บัตรเครดิต   ☑ QR Code";
+                            paymentMethod += "QR Code";
                         }
                         else
                         {
@@ -352,7 +352,7 @@ namespace Laundry_Management.Laundry
                     else
                     {
                         // ถ้าไม่มีข้อมูลวิธีการชำระเงิน
-                        paymentMethod += "☐ เงินสด   ☐ บัตรเครดิต   ☐ QR Code";
+                        paymentMethod += _header.PaymentMethod;
                     }
                     g.DrawString(paymentMethod, bodyF, Brushes.Black, leftX + 5, paymentMethodY);
                 }
