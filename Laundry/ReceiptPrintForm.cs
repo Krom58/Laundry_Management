@@ -98,7 +98,29 @@ namespace Laundry_Management.Laundry
                 _logoImage = CreateDummyLogo();
             }
         }
-
+        private void RefreshPaymentMethodBeforePrinting()
+        {
+            if (_receiptId > 0)
+            {
+                using (SqlConnection conn = DBconfig.GetConnection())
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(
+                        @"SELECT r.PaymentMethod 
+                  FROM Receipt r
+                  WHERE r.ReceiptID = @rid", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@rid", _receiptId);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            // อัพเดตข้อมูลวิธีการชำระเงินให้เป็นปัจจุบัน
+                            _header.PaymentMethod = result.ToString();
+                        }
+                    }
+                }
+            }
+        }
         private Bitmap CreateDummyLogo()
         {
             // สร้างรูปเปล่าที่มีข้อความ "LOGO" ไว้ใช้แทนในกรณีที่หารูปไม่เจอ
@@ -300,14 +322,37 @@ namespace Laundry_Management.Laundry
 
                     // Draw payment method info
                     float paymentMethodY = endTableY + 35; // Position below the signature line
-                    string paymentMethod = "ชำระโดย: ";
+                    string paymentMethod = "ชำระด้วย: ";
 
                     // Determine the payment method and highlight it
                     if (!string.IsNullOrEmpty(_header.PaymentMethod))
                     {
-                            // สำหรับวิธีการชำระเงินอื่นๆ ที่ไม่อยู่ในเงื่อนไขด้านบน แสดงทั้งข้อความดั้งเดิม
-                            paymentMethod += $"{_header.PaymentMethod}";
-                        
+                        string upperPaymentMethod = _header.PaymentMethod.ToUpper().Trim();
+
+                        // เพิ่มเงื่อนไขให้ครอบคลุมคำที่อาจจะแตกต่างกัน
+                        if (upperPaymentMethod.Contains("เงินสด") || upperPaymentMethod.Contains("CASH"))
+                        {
+                            paymentMethod += "☑ เงินสด   ☐ บัตรเครดิต   ☐ QR Code";
+                        }
+                        else if (upperPaymentMethod.Contains("บัตรเครดิต") || upperPaymentMethod.Contains("CREDIT") ||
+                                 upperPaymentMethod.Contains("CARD"))
+                        {
+                            paymentMethod += "☐ เงินสด   ☑ บัตรเครดิต   ☐ QR Code";
+                        }
+                        else if (upperPaymentMethod.Contains("QR") || upperPaymentMethod.Contains("คิวอาร์"))
+                        {
+                            paymentMethod += "☐ เงินสด   ☐ บัตรเครดิต   ☑ QR Code";
+                        }
+                        else
+                        {
+                            // สำหรับวิธีการชำระเงินอื่นๆ ที่ไม่อยู่ในเงื่อนไขด้านบน
+                            paymentMethod += _header.PaymentMethod;
+                        }
+                    }
+                    else
+                    {
+                        // ถ้าไม่มีข้อมูลวิธีการชำระเงิน
+                        paymentMethod += "☐ เงินสด   ☐ บัตรเครดิต   ☐ QR Code";
                     }
                     g.DrawString(paymentMethod, bodyF, Brushes.Black, leftX + 5, paymentMethodY);
                 }
@@ -442,6 +487,7 @@ namespace Laundry_Management.Laundry
 
         private void PrintDoc_Click(object sender, EventArgs e)
         {
+            RefreshPaymentMethodBeforePrinting();
             // Existing implementation
             using (var dlg = new PrintDialog { Document = _printDocument })
             {
