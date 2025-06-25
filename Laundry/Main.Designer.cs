@@ -58,7 +58,7 @@
             this.btnService.Name = "btnService";
             this.btnService.Size = new System.Drawing.Size(276, 109);
             this.btnService.TabIndex = 37;
-            this.btnService.Text = "สร้างใบรับผ้า";
+            this.btnService.Text = "สร้างใบรับผ้า (1)";
             this.btnService.UseVisualStyleBackColor = true;
             this.btnService.Click += new System.EventHandler(this.btnService_Click);
             // 
@@ -82,7 +82,7 @@
             this.btnFind_Service.Name = "btnFind_Service";
             this.btnFind_Service.Size = new System.Drawing.Size(282, 109);
             this.btnFind_Service.TabIndex = 39;
-            this.btnFind_Service.Text = "ออกใบเสร็จ";
+            this.btnFind_Service.Text = "ออกใบเสร็จ (2)";
             this.btnFind_Service.UseVisualStyleBackColor = true;
             this.btnFind_Service.Click += new System.EventHandler(this.btnFind_Service_Click);
             // 
@@ -92,9 +92,9 @@
             this.Check_List.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Check_List.Location = new System.Drawing.Point(28, 425);
             this.Check_List.Name = "Check_List";
-            this.Check_List.Size = new System.Drawing.Size(282, 109);
+            this.Check_List.Size = new System.Drawing.Size(289, 109);
             this.Check_List.TabIndex = 40;
-            this.Check_List.Text = "รายงานใบรับผ้า";
+            this.Check_List.Text = "รายงานใบรับผ้า (4)";
             this.Check_List.UseVisualStyleBackColor = true;
             this.Check_List.Click += new System.EventHandler(this.Check_List_Click);
             // 
@@ -104,9 +104,9 @@
             this.Pickup_List.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Pickup_List.Location = new System.Drawing.Point(823, 192);
             this.Pickup_List.Name = "Pickup_List";
-            this.Pickup_List.Size = new System.Drawing.Size(282, 109);
+            this.Pickup_List.Size = new System.Drawing.Size(284, 109);
             this.Pickup_List.TabIndex = 41;
-            this.Pickup_List.Text = "เช็คการมารับผ้า";
+            this.Pickup_List.Text = "เช็คการมารับผ้า (3)";
             this.Pickup_List.UseVisualStyleBackColor = true;
             this.Pickup_List.Click += new System.EventHandler(this.Pickup_List_Click);
             // 
@@ -130,7 +130,7 @@
             this.Report.Name = "Report";
             this.Report.Size = new System.Drawing.Size(282, 109);
             this.Report.TabIndex = 43;
-            this.Report.Text = "รายงานการขาย";
+            this.Report.Text = "รายงานการขาย (5)";
             this.Report.UseVisualStyleBackColor = true;
             this.Report.Click += new System.EventHandler(this.Report_Click);
             // 

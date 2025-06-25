@@ -342,7 +342,7 @@ namespace Laundry_Management
                     using (var printForm = new Print_Service(
                         customerName,
                         phone,
-                        discount / 100m,
+                        discount / 100,
                         customOrderId, // ใช้ OrderId ที่ผู้ใช้ตั้งค่าไว้แทน
                         serviceItems))
                     {

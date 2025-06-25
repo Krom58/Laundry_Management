@@ -69,12 +69,21 @@ namespace Laundry_Management.Laundry
             if (dgvReport.Columns["TotalAfterDiscount"] != null)
                 dgvReport.Columns["TotalAfterDiscount"].HeaderText = "ยอดรวมหลังหักส่วนลด";
             if (dgvReport.Columns["PaymentMethod"] != null)
-                dgvReport.Columns["PaymentMethod"].Visible = false;
+                dgvReport.Columns["PaymentMethod"].HeaderText = "วิธีการชำระเงิน";
+
+            // เพิ่มหัวตารางสำหรับคอลัมน์ประเภทการชำระเงิน
+            if (dgvReport.Columns["CashAmount"] != null)
+                dgvReport.Columns["CashAmount"].HeaderText = "ชำระด้วยเงินสด";
+            if (dgvReport.Columns["QRAmount"] != null)
+                dgvReport.Columns["QRAmount"].HeaderText = "ชำระด้วย QR";
+            if (dgvReport.Columns["CreditAmount"] != null)
+                dgvReport.Columns["CreditAmount"].HeaderText = "ชำระด้วยบัตรเครดิต";
 
             // จัดรูปแบบคอลัมน์เงิน
             foreach (DataGridViewColumn col in dgvReport.Columns)
             {
-                if (col.Name == "TotalBeforeDiscount" || col.Name == "Discount" || col.Name == "TotalAfterDiscount")
+                if (col.Name == "TotalBeforeDiscount" || col.Name == "Discount" || col.Name == "TotalAfterDiscount" ||
+                    col.Name == "CashAmount" || col.Name == "QRAmount" || col.Name == "CreditAmount")
                 {
                     col.DefaultCellStyle.Format = "N2";
                     col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
@@ -116,20 +125,20 @@ namespace Laundry_Management.Laundry
 
                     // สร้าง SQL query ที่กรองตามช่วงวันที่ และเพิ่มเงื่อนไขตรวจสอบว่าใบเสร็จถูกพิมพ์เรียบร้อยแล้ว
                     var sql = @"
-                                    SELECT 
-                                        R.ReceiptDate, 
-                                        R.CustomReceiptId, 
-                                        OH.CustomOrderId, 
-                                        R.TotalBeforeDiscount, 
-                                        R.Discount, 
-                                        R.TotalAfterDiscount,
-                                        R.PaymentMethod
-                                    FROM Receipt R
-                                    INNER JOIN OrderHeader OH ON R.OrderID = OH.OrderID
-                                    WHERE R.ReceiptDate >= @startDate 
-                                      AND R.ReceiptDate <= @endDate
-                                      AND R.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
-                                    ORDER BY R.ReceiptDate ASC"; // เรียงตามวันที่จากเก่าไปใหม่
+                            SELECT 
+                                R.ReceiptDate, 
+                                R.CustomReceiptId, 
+                                OH.CustomOrderId, 
+                                R.TotalBeforeDiscount, 
+                                R.Discount, 
+                                R.TotalAfterDiscount,
+                                R.PaymentMethod
+                            FROM Receipt R
+                            INNER JOIN OrderHeader OH ON R.OrderID = OH.OrderID
+                            WHERE R.ReceiptDate >= @startDate 
+                              AND R.ReceiptDate <= @endDate
+                              AND R.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
+                            ORDER BY R.ReceiptDate ASC"; // เรียงตามวันที่จากเก่าไปใหม่
 
                     cmd.CommandText = sql;
                     cmd.Parameters.AddWithValue("@startDate", startDateTime);
@@ -140,6 +149,29 @@ namespace Laundry_Management.Laundry
                     {
                         while (reader.Read())
                         {
+                            var paymentMethod = reader["PaymentMethod"] != DBNull.Value ? reader["PaymentMethod"].ToString() : "";
+                            var totalAfterDiscount = reader["TotalAfterDiscount"] != DBNull.Value ? Convert.ToDecimal(reader["TotalAfterDiscount"]) : 0;
+
+                            // Initialize all payment type amounts to 0
+                            decimal cashAmount = 0;
+                            decimal qrAmount = 0;
+                            decimal creditAmount = 0;
+
+                            // Set the amount to the appropriate payment method column
+                            if (paymentMethod.Trim().ToUpper().Contains("CASH") || paymentMethod.Trim().ToUpper().Contains("เงินสด"))
+                            {
+                                cashAmount = totalAfterDiscount;
+                            }
+                            else if (paymentMethod.Trim().ToUpper().Contains("QR") || paymentMethod.Trim().ToUpper().Contains("คิวอาร์"))
+                            {
+                                qrAmount = totalAfterDiscount;
+                            }
+                            else if (paymentMethod.Trim().ToUpper().Contains("CREDIT") || paymentMethod.Trim().ToUpper().Contains("เครดิต") ||
+                                     paymentMethod.Trim().ToUpper().Contains("บัตร"))
+                            {
+                                creditAmount = totalAfterDiscount;
+                            }
+
                             reportData.Add(new ReceiptReportDto
                             {
                                 ReceiptDate = reader["ReceiptDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReceiptDate"]) : DateTime.MinValue,
@@ -147,8 +179,11 @@ namespace Laundry_Management.Laundry
                                 CustomOrderId = reader["CustomOrderId"] != DBNull.Value ? reader["CustomOrderId"].ToString() : "",
                                 TotalBeforeDiscount = reader["TotalBeforeDiscount"] != DBNull.Value ? Convert.ToDecimal(reader["TotalBeforeDiscount"]) : 0,
                                 Discount = reader["Discount"] != DBNull.Value ? Convert.ToDecimal(reader["Discount"]) : 0,
-                                TotalAfterDiscount = reader["TotalAfterDiscount"] != DBNull.Value ? Convert.ToDecimal(reader["TotalAfterDiscount"]) : 0,
-                                PaymentMethod = reader["PaymentMethod"] != DBNull.Value ? reader["PaymentMethod"].ToString() : ""
+                                TotalAfterDiscount = totalAfterDiscount,
+                                PaymentMethod = paymentMethod,
+                                CashAmount = cashAmount,
+                                QRAmount = qrAmount,
+                                CreditAmount = creditAmount
                             });
                         }
                     }
@@ -166,7 +201,6 @@ namespace Laundry_Management.Laundry
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void CalculateTotals(List<ReceiptReportDto> data)
         {
             if (data == null || !data.Any())
@@ -242,6 +276,9 @@ namespace Laundry_Management.Laundry
             public decimal Discount { get; set; }
             public decimal TotalAfterDiscount { get; set; }
             public string PaymentMethod { get; set; }
+            public decimal CashAmount { get; set; }
+            public decimal QRAmount { get; set; }
+            public decimal CreditAmount { get; set; }
         }
 
         private bool _isPrintSuccessful = false;
@@ -416,34 +453,43 @@ namespace Laundry_Management.Laundry
                     e.Graphics.DrawString(paymentInfo, headerFont, Brushes.Black, paymentInfoX, yPosition);
                     yPosition += headerFont.GetHeight() * 1.5f;
 
-                    // Define columns to print
+                    // Define columns to print with multi-line headers - ใช้ \n เพื่อแบ่งบรรทัด
                     string[] columnNames = new string[] {
-                            "วันที่ออกใบเสร็จ",
-                            "เลขที่ใบเสร็จ",
-                            "เลขที่รายการ",
-                            "ยอดรวมก่อนหักส่วนลด",
-                            "ส่วนลด",
-                            "ยอดรวมหลังหักส่วนลด"
-                        };
+                "วันที่\nออกใบเสร็จ",
+                "เลขที่\nใบเสร็จ",
+                "เลขที่\nรายการ",
+                "ยอดรวมก่อน\nหักส่วนลด",
+                "ส่วนลด",
+                "ยอดรวมหลัง\nหักส่วนลด",
+                "ชำระด้วย\nเงินสด",
+                "ชำระด้วย\nQR",
+                "ชำระด้วย\nบัตรเครดิต"
+            };
 
                     string[] columnDataProperties = new string[] {
-                            "ReceiptDate",
-                            "CustomReceiptId",
-                            "CustomOrderId",
-                            "TotalBeforeDiscount",
-                            "Discount",
-                            "TotalAfterDiscount"
-                        };
+                "ReceiptDate",
+                "CustomReceiptId",
+                "CustomOrderId",
+                "TotalBeforeDiscount",
+                "Discount",
+                "TotalAfterDiscount",
+                "CashAmount",
+                "QRAmount",
+                "CreditAmount"
+            };
 
-                    // Column width percentages - adjust as needed
+                    // Column width percentages - ปรับความกว้างคอลัมน์ให้พอดีกับจำนวนคอลัมน์ที่เพิ่มขึ้น
                     float[] columnWidthPercentages = new float[] {
-                            0.16f, // วันที่ออกใบเสร็จ
-                            0.15f, // เลขที่ใบเสร็จ
-                            0.15f, // เลขที่รายการ
-                            0.18f, // ยอดรวมก่อนหักส่วนลด
-                            0.12f, // ส่วนลด
-                            0.18f, // ยอดรวมหลังหักส่วนลด
-                        };
+                0.12f, // วันที่ออกใบเสร็จ
+                0.10f, // เลขที่ใบเสร็จ
+                0.10f, // เลขที่รายการ
+                0.12f, // ยอดรวมก่อนหักส่วนลด
+                0.09f, // ส่วนลด
+                0.12f, // ยอดรวมหลังหักส่วนลด
+                0.11f, // ชำระด้วยเงินสด
+                0.11f, // ชำระด้วย QR
+                0.13f  // ชำระด้วยบัตรเครดิต
+            };
 
                     // Calculate column widths
                     float[] columnWidths = new float[columnWidthPercentages.Length];
@@ -452,8 +498,9 @@ namespace Laundry_Management.Laundry
                         columnWidths[i] = availableWidth * columnWidthPercentages[i];
                     }
 
-                    // Draw table header
-                    float headerHeight = headerFont.GetHeight() * 1.5f;
+                    // Draw table header with multi-line support
+                    // เพิ่มความสูงให้เพียงพอสำหรับข้อความสองบรรทัด
+                    float headerHeight = headerFont.GetHeight() * 2.5f; // เพิ่มความสูงให้มากขึ้นเพื่อรองรับสองบรรทัด
                     float currentX = leftMargin;
 
                     for (int i = 0; i < columnNames.Length; i++)
@@ -464,6 +511,9 @@ namespace Laundry_Management.Laundry
                         {
                             sf.Alignment = StringAlignment.Center;
                             sf.LineAlignment = StringAlignment.Center;
+                            // เพิ่ม flag ที่สำคัญเพื่อรองรับการแสดงผลหลายบรรทัด
+                            sf.FormatFlags = StringFormatFlags.LineLimit | StringFormatFlags.NoClip;
+
                             e.Graphics.FillRectangle(Brushes.LightGray, headerRect);
                             e.Graphics.DrawRectangle(Pens.Black, headerRect.X, headerRect.Y, headerRect.Width, headerRect.Height);
                             e.Graphics.DrawString(columnNames[i], headerFont, Brushes.Black, headerRect, sf);
@@ -506,7 +556,10 @@ namespace Laundry_Management.Laundry
                                     // Format value based on column type
                                     if (columnDataProperties[j] == "TotalBeforeDiscount" ||
                                         columnDataProperties[j] == "Discount" ||
-                                        columnDataProperties[j] == "TotalAfterDiscount")
+                                        columnDataProperties[j] == "TotalAfterDiscount" ||
+                                        columnDataProperties[j] == "CashAmount" ||
+                                        columnDataProperties[j] == "QRAmount" ||
+                                        columnDataProperties[j] == "CreditAmount")
                                     {
                                         decimal amount = Convert.ToDecimal(row.Cells[columnDataProperties[j]].Value);
                                         cellValue = amount.ToString("N2");
@@ -545,7 +598,10 @@ namespace Laundry_Management.Laundry
                                     }
                                 }
                                 else if (columnDataProperties[j] == "TotalBeforeDiscount" ||
-                                        columnDataProperties[j] == "TotalAfterDiscount")
+                                        columnDataProperties[j] == "TotalAfterDiscount" ||
+                                        columnDataProperties[j] == "CashAmount" ||
+                                        columnDataProperties[j] == "QRAmount" ||
+                                        columnDataProperties[j] == "CreditAmount")
                                 {
                                     // Right-align money values
                                     sf.Alignment = StringAlignment.Far;
@@ -667,16 +723,18 @@ namespace Laundry_Management.Laundry
                         // Show waiting cursor
                         Cursor = Cursors.WaitCursor;
 
-                        // Define columns to export (เพิ่ม วิธีการชำระเงิน)
+                        // Define columns to export (เพิ่มคอลัมน์วิธีการชำระเงิน)
                         var columnNames = new List<string> {
-                                "วันที่ออกใบเสร็จ", "เลขที่ใบเสร็จ", "เลขที่รายการ",
-                                "ยอดรวมก่อนหักส่วนลด", "ส่วนลด", "ยอดรวมหลังหักส่วนลด"
-                            };
+                        "วันที่ออกใบเสร็จ", "เลขที่ใบเสร็จ", "เลขที่รายการ",
+                        "ยอดรวมก่อนหักส่วนลด", "ส่วนลด", "ยอดรวมหลังหักส่วนลด",
+                        "ชำระด้วยเงินสด", "ชำระด้วย QR", "ชำระด้วยบัตรเครดิต"
+                    };
 
                         var columnProperties = new List<string> {
-                                "ReceiptDate", "CustomReceiptId", "CustomOrderId",
-                                "TotalBeforeDiscount", "Discount", "TotalAfterDiscount"
-                            };
+                        "ReceiptDate", "CustomReceiptId", "CustomOrderId",
+                        "TotalBeforeDiscount", "Discount", "TotalAfterDiscount",
+                        "CashAmount", "QRAmount", "CreditAmount"
+                    };
 
                         // Create a StringBuilder to build CSV content
                         StringBuilder csv = new StringBuilder();
@@ -691,6 +749,9 @@ namespace Laundry_Management.Laundry
                         decimal totalBeforeDiscount = 0;
                         decimal totalDiscount = 0;
                         decimal totalAfterDiscount = 0;
+                        decimal totalCash = 0;
+                        decimal totalQR = 0;
+                        decimal totalCredit = 0;
                         int validRowCount = 0;
 
                         foreach (DataGridViewRow row in dgvReport.Rows)
@@ -740,6 +801,30 @@ namespace Laundry_Management.Laundry
                                             cellValue = amount.ToString("0.00");
                                         }
                                     }
+                                    else if (columnProperties[i] == "CashAmount")
+                                    {
+                                        if (decimal.TryParse(cell.Value.ToString(), out decimal amount))
+                                        {
+                                            totalCash += amount;
+                                            cellValue = amount.ToString("0.00");
+                                        }
+                                    }
+                                    else if (columnProperties[i] == "QRAmount")
+                                    {
+                                        if (decimal.TryParse(cell.Value.ToString(), out decimal amount))
+                                        {
+                                            totalQR += amount;
+                                            cellValue = amount.ToString("0.00");
+                                        }
+                                    }
+                                    else if (columnProperties[i] == "CreditAmount")
+                                    {
+                                        if (decimal.TryParse(cell.Value.ToString(), out decimal amount))
+                                        {
+                                            totalCredit += amount;
+                                            cellValue = amount.ToString("0.00");
+                                        }
+                                    }
                                     else
                                     {
                                         cellValue = cell.Value.ToString();
@@ -764,7 +849,6 @@ namespace Laundry_Management.Laundry
                         }
 
                         // Add summary information
-                        // Add summary information
                         csv.AppendLine();
                         csv.AppendLine($"\"สรุปรายงานการขาย\"");
                         csv.AppendLine($"\"ช่วงวันที่: {dtpCreateDateFirst.Value.ToString("dd/MM/yyyy")} ถึง {dtpCreateDateLast.Value.ToString("dd/MM/yyyy")}\"");
@@ -773,10 +857,9 @@ namespace Laundry_Management.Laundry
                         csv.AppendLine($"\"ส่วนลดทั้งหมด: {totalDiscount.ToString("0.00")} บาท\"");
                         csv.AppendLine($"\"ยอดรวมหลังหักส่วนลด: {totalAfterDiscount.ToString("0.00")} บาท\"");
                         csv.AppendLine($"\"สรุปตามประเภทการชำระเงิน\"");
-                        csv.AppendLine($"\"ชำระด้วยเงินสด: {lblCash.Text}\"");
-                        csv.AppendLine($"\"ชำระด้วยบัตรเครดิต: {lblCredit.Text}\"");
-                        csv.AppendLine($"\"ชำระด้วย QR: {lblQR.Text}\"");
-
+                        csv.AppendLine($"\"ชำระด้วยเงินสด: {totalCash.ToString("0.00")} บาท\"");
+                        csv.AppendLine($"\"ชำระด้วย QR: {totalQR.ToString("0.00")} บาท\"");
+                        csv.AppendLine($"\"ชำระด้วยบัตรเครดิต: {totalCredit.ToString("0.00")} บาท\"");
                         csv.AppendLine($"\"พิมพ์เมื่อ: {DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")}\"");
 
                         // Save to file

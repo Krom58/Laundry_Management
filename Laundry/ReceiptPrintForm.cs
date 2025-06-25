@@ -70,11 +70,44 @@ namespace Laundry_Management.Laundry
 
             // Adjust margins to be smaller for A5
             _printDocument.DefaultPageSettings.Margins = new Margins(15, 40, 15, 15);
-
+            SetA5PaperSize();
             // โหลดโลโก้
             LoadLogoImage();
         }
+        private void SetA5PaperSize()
+        {
+            // A5 dimensions: 148 × 210 mm = 5.83 × 8.27 inches
+            // In hundredths of an inch (as required by .NET): 583 × 827
 
+            // First try to find the predefined A5 size
+            bool foundA5 = false;
+
+            foreach (PaperSize ps in _printDocument.PrinterSettings.PaperSizes)
+            {
+                if (ps.Kind == PaperKind.A5 || ps.PaperName.ToLower().Contains("a5"))
+                {
+                    _printDocument.DefaultPageSettings.PaperSize = ps;
+                    foundA5 = true;
+                    break;
+                }
+            }
+
+            // If A5 is not found, create a custom size
+            if (!foundA5)
+            {
+                PaperSize customA5 = new PaperSize("A5", 583, 827); // 148mm × 210mm
+                _printDocument.DefaultPageSettings.PaperSize = customA5;
+            }
+
+            // Set portrait orientation
+            _printDocument.DefaultPageSettings.Landscape = false;
+
+            // Adjust margins for A5
+            _printDocument.DefaultPageSettings.Margins = new Margins(15, 40, 15, 15);
+
+            // Set in printer settings as well
+            _printDocument.PrinterSettings.DefaultPageSettings.PaperSize = _printDocument.DefaultPageSettings.PaperSize;
+        }
         private void LoadLogoImage()
         {
             try
@@ -206,7 +239,7 @@ namespace Laundry_Management.Laundry
                     g.DrawString("โทร 02-2170808 ต่อ 5340", subF, Brushes.Black, leftX, y);
                     y += infoLineHeight;
 
-                    g.DrawString("เปิดบริการ 7.00 -19.00 น.", subF, Brushes.Black, leftX, y);
+                    g.DrawString("เปิดบริการ 9.30 - 18.00 น.", subF, Brushes.Black, leftX, y);
                     y += infoLineHeight;
 
                     // 2. Title box (top right) - smaller text, positioned after the logo
@@ -249,7 +282,7 @@ namespace Laundry_Management.Laundry
                         g.DrawString("ลูกค้า / Customers: " + _header.CustomerName, subF, Brushes.Black, bx, by);
                         by += infoLineHeight;
 
-                        g.DrawString("หมายเลขรับผ้า: " + _header.CustomOrderId, subF, Brushes.Black, bx, by);
+                        g.DrawString("หมายเลขรับผ้า: OR." + _header.CustomOrderId, subF, Brushes.Black, bx, by);
                         by += infoLineHeight;
 
                         g.DrawString("ที่อยู่ / Address:", subF, Brushes.Black, bx, by);
@@ -264,7 +297,7 @@ namespace Laundry_Management.Laundry
                         g.DrawRectangle(boxPen, receiptBoxX, boxY, receiptBoxWidth, receiptBoxHeight);
 
                         // For receipt number
-                        string receiptLabel = "เลขที่ ";
+                        string receiptLabel = "เลขที่ : REC.";
                         string receiptValue = _header.CustomReceiptId;
                         string fullReceiptText = receiptLabel + receiptValue;
 
@@ -283,8 +316,8 @@ namespace Laundry_Management.Laundry
                         g.DrawString(fullReceiptText, subF, Brushes.Black, receiptTextRect, centerFormat);
 
                         // For date - using the same centering approach
-                        string dateLabel = "วันที่ ";
-                        string dateValue = $"{_header.OrderDate.Day:00} / {_header.OrderDate.Month:00} / {_header.OrderDate.Year + 543}";
+                        string dateLabel = "วันที่ : ";
+                        string dateValue = $"{_header.OrderDate.Day:00}/{_header.OrderDate.Month:00}/{_header.OrderDate.Year + 543}";
                         string fullDateText = dateLabel + dateValue;
 
                         // Calculate vertical spacing with proper positioning
@@ -488,13 +521,18 @@ namespace Laundry_Management.Laundry
         private void PrintDoc_Click(object sender, EventArgs e)
         {
             RefreshPaymentMethodBeforePrinting();
-            // Existing implementation
             using (var dlg = new PrintDialog { Document = _printDocument })
             {
+                // Make sure A5 is set before showing dialog
+                SetA5PaperSize();
+
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     try
                     {
+                        // Ensure A5 paper size is still set
+                        EnsureA5PaperSize();
+
                         _printDocument.Print();
                         IsPrinted = true;
                         UpdateReceiptPrintStatus(_receiptId, _header.OrderID);
@@ -516,7 +554,24 @@ namespace Laundry_Management.Laundry
             }
             this.Close();
         }
+        private void EnsureA5PaperSize()
+        {
+            // Get the current paper size
+            PaperSize currentSize = _printDocument.DefaultPageSettings.PaperSize;
 
+            // Check if dimensions roughly match A5 (allow small tolerance)
+            bool isA5Size = (Math.Abs(currentSize.Width - 583) < 10 && Math.Abs(currentSize.Height - 827) < 10) ||
+                            (Math.Abs(currentSize.Height - 583) < 10 && Math.Abs(currentSize.Width - 827) < 10);
+
+            if (!isA5Size)
+            {
+                // Force A5 size if current size doesn't match
+                _printDocument.DefaultPageSettings.PaperSize = new PaperSize("A5", 583, 827);
+            }
+
+            // Ensure orientation is portrait
+            _printDocument.DefaultPageSettings.Landscape = false;
+        }
         private void UpdateReceiptPrintStatus(int receiptId, int orderId)
         {
             using (var connection = Laundry_Management.Laundry.DBconfig.GetConnection())
@@ -869,6 +924,7 @@ namespace Laundry_Management.Laundry
         // Method for drawing signature line with increased space
         private void DrawSignatureLine(Graphics g, Font font, float rightX, float y)
         {
+            g.ResetClip();
             // Draw signature line with increased space from the table
             float signatureLineWidth = 170;
             float signatureX = rightX - 170;
@@ -887,6 +943,7 @@ namespace Laundry_Management.Laundry
         }
         private bool DrawModifiedServiceTableWithPagination(Graphics g, Font font, float leftX, ref float y, float rightX, ref List<OrderItemDto> itemsForCurrentPage)
         {
+            g.ResetClip();
             // Colors matching the printed output
             Color tableHeaderBgColor = Color.FromArgb(200, 210, 245);
             Color tableBorderColor = Color.FromArgb(100, 100, 200);
@@ -1111,14 +1168,18 @@ namespace Laundry_Management.Laundry
                            rightX - 5 - g.MeasureString(subtotalValue, font).Width, verticalCenter);
 
                 // 2. Discount row (if applicable)
+                // Always display the discount row, regardless of discount amount
+                // In the DrawModifiedServiceTableWithPagination method, update the summary section code:
+
+                // Always display the discount row, regardless of discount amount
+                y += summaryRowHeight;
+                verticalCenter = y + (summaryRowHeight - font.GetHeight(g)) / 2;
+
+                string discountLabel = "ส่วนลด";
+                string discountValue;
+
                 if (_header.TodayDiscount > 0)
                 {
-                    y += summaryRowHeight;
-                    verticalCenter = y + (summaryRowHeight - font.GetHeight(g)) / 2;
-
-                    string discountLabel = "ส่วนลด";
-                    string discountValue;
-
                     if (_header.IsTodayDiscountPercent)
                     {
                         // Calculate the actual discount amount if it's stored as a percentage
@@ -1130,12 +1191,22 @@ namespace Laundry_Management.Laundry
                         // For fixed amount discount, use the value directly
                         discountValue = $"- {_header.TodayDiscount:N2}";
                     }
-
-                    g.DrawString(discountLabel, font, Brushes.Red,
-                                xs[3] + 5, verticalCenter);
-                    g.DrawString(discountValue, font, Brushes.Red,
-                               rightX - 5 - g.MeasureString(discountValue, font).Width, verticalCenter);
                 }
+                else
+                {
+                    // When there's no discount, display "0.00"
+                    discountValue = "0.00";
+                }
+
+                // Determine text color based on discount amount
+                Brush textColor = (_header.TodayDiscount > 0) ? Brushes.Red : Brushes.Black;
+
+                g.DrawString(discountLabel, font, textColor, xs[3] + 5, verticalCenter);
+                g.DrawString(discountValue, font, textColor,
+                           rightX - 5 - g.MeasureString(discountValue, font).Width, verticalCenter);
+
+                // IMPORTANT: Always draw the horizontal divider after the discount row
+                g.DrawLine(tablePen, xs[3], y + summaryRowHeight, rightX, y + summaryRowHeight);
 
                 // 3. Total row with bold text - Bottom right section
                 y += summaryRowHeight;
@@ -1186,7 +1257,7 @@ namespace Laundry_Management.Laundry
 
             // Update the end table Y position
             endTableY = y;
-
+            g.ResetClip();
             // Return true if there are more items to print
             return _remainingItems.Count > 0;
         }

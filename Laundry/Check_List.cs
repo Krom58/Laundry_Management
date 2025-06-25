@@ -84,7 +84,8 @@ namespace Laundry_Management.Laundry
                                 o.CustomOrderId as 'หมายเลขใบรับผ้า', 
                                 o.CustomerName as 'ชื่อลูกค้า', 
                                 o.Phone as 'เบอร์โทรศัพท์',
-                                r.TotalBeforeDiscount as 'ราคารวม',
+                                o.GrandTotalPrice as 'ราคารวมใบรับผ้า',
+                                r.TotalBeforeDiscount as 'ราคารวมใบเสร็จ',
                                 r.Discount as 'ส่วนลด',
                                 r.TotalAfterDiscount as 'ราคารวมหลังหักส่วนลด',
                                 o.OrderDate as 'วันที่ออกใบรับผ้า',
@@ -592,7 +593,69 @@ namespace Laundry_Management.Laundry
                     "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        // Define A4 dimensions as constants
+        private const int A4_WIDTH_HUNDREDTHS = 827;  // 8.27 inches in hundredths
+        private const int A4_HEIGHT_HUNDREDTHS = 1169; // 11.69 inches in hundredths
 
+        private void SetA4PaperSize(PrintDocument printDoc)
+        {
+            // First try to find the predefined A4 size
+            bool foundA4 = false;
+
+            foreach (PaperSize ps in printDoc.PrinterSettings.PaperSizes)
+            {
+                if (ps.Kind == PaperKind.A4 ||
+                    ps.PaperName.ToLower().Contains("a4") ||
+                    (Math.Abs(ps.Width - A4_WIDTH_HUNDREDTHS) < 10 && Math.Abs(ps.Height - A4_HEIGHT_HUNDREDTHS) < 10))
+                {
+                    printDoc.DefaultPageSettings.PaperSize = ps;
+                    foundA4 = true;
+                    break;
+                }
+            }
+
+            // If A4 is not found, create a custom size
+            if (!foundA4)
+            {
+                PaperSize customA4 = new PaperSize("A4", A4_WIDTH_HUNDREDTHS, A4_HEIGHT_HUNDREDTHS);
+                printDoc.DefaultPageSettings.PaperSize = customA4;
+            }
+
+            // Set portrait orientation instead of landscape
+            printDoc.DefaultPageSettings.Landscape = false;
+
+            // Set reasonable margins
+            printDoc.DefaultPageSettings.Margins = new Margins(40, 40, 40, 40);
+
+            // Set in printer settings as well
+            printDoc.PrinterSettings.DefaultPageSettings.PaperSize = printDoc.DefaultPageSettings.PaperSize;
+            printDoc.PrinterSettings.DefaultPageSettings.Landscape = false;
+        }
+
+        private void EnsureA4PaperSize(PrintDocument printDoc)
+        {
+            // Get the current paper size
+            PaperSize currentSize = printDoc.DefaultPageSettings.PaperSize;
+
+            // Check if dimensions roughly match A4 (allow small tolerance)
+            bool isA4Size = (Math.Abs(currentSize.Width - A4_WIDTH_HUNDREDTHS) < 10 &&
+                             Math.Abs(currentSize.Height - A4_HEIGHT_HUNDREDTHS) < 10) ||
+                            (Math.Abs(currentSize.Height - A4_WIDTH_HUNDREDTHS) < 10 &&
+                             Math.Abs(currentSize.Width - A4_HEIGHT_HUNDREDTHS) < 10);
+
+            if (!isA4Size)
+            {
+                // Force A4 size if current size doesn't match
+                printDoc.DefaultPageSettings.PaperSize = new PaperSize("A4", A4_WIDTH_HUNDREDTHS, A4_HEIGHT_HUNDREDTHS);
+            }
+
+            // Ensure orientation is portrait
+            printDoc.DefaultPageSettings.Landscape = false;
+
+            // Update printer settings too
+            printDoc.PrinterSettings.DefaultPageSettings.PaperSize = printDoc.DefaultPageSettings.PaperSize;
+            printDoc.PrinterSettings.DefaultPageSettings.Landscape = false;
+        }
         private void btnPrint_Click(object sender, EventArgs e)
         {
             try
@@ -624,35 +687,13 @@ namespace Laundry_Management.Laundry
                 PrintDocument printDoc = new PrintDocument();
                 printDoc.DocumentName = "รายงานข้อมูล";
 
-                // กำหนดขนาดกระดาษเป็น A4
-                bool foundA4 = false;
-                foreach (PaperSize ps in printDoc.PrinterSettings.PaperSizes)
-                {
-                    if (ps.Kind == PaperKind.A4)
-                    {
-                        printDoc.DefaultPageSettings.PaperSize = ps;
-                        foundA4 = true;
-                        break;
-                    }
-                }
-
-                // If A4 is not found, create a custom A4 paper size (210mm x 297mm)
-                if (!foundA4)
-                {
-                    // A4 in hundredths of an inch (8.27" x 11.69")
-                    PaperSize a4Size = new PaperSize("A4", 827, 1169);
-                    printDoc.DefaultPageSettings.PaperSize = a4Size;
-                }
-
-                // Set landscape orientation for better fit of the table
-                printDoc.DefaultPageSettings.Landscape = true;
-
-                // Set reasonable margins (10mm = ~40 hundredths of an inch)
-                printDoc.DefaultPageSettings.Margins = new Margins(40, 40, 40, 40);
+                // Set A4 paper size using our custom method (similar to Print_Service)
+                SetA4PaperSize(printDoc);
 
                 // Add handlers for print events
                 printDoc.PrintPage += PrintPage;
                 printDoc.EndPrint += PrintDoc_EndPrint;
+                printDoc.BeginPrint += (s, args) => { _currentPage = 0; _isPrintSuccessful = true; _printErrorMessage = ""; };
 
                 // Flag to track print status
                 _isPrintSuccessful = true;
@@ -663,6 +704,7 @@ namespace Laundry_Management.Laundry
                 {
                     printDialog.Document = printDoc;
                     printDialog.UseEXDialog = true;
+                    printDialog.AllowSomePages = false;
 
                     // Show the print dialog
                     if (printDialog.ShowDialog() == DialogResult.OK)
@@ -671,6 +713,9 @@ namespace Laundry_Management.Laundry
                         {
                             // Show print status
                             Cursor = Cursors.WaitCursor;
+
+                            // Double-check paper size is still A4 before printing
+                            EnsureA4PaperSize(printDoc);
 
                             // Reset pagination variables before printing
                             _currentPage = 0;
@@ -708,156 +753,207 @@ namespace Laundry_Management.Laundry
                 MessageBox.Show($"การพิมพ์ไม่สำเร็จ: {_printErrorMessage}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        private void DrawTableHeader(Graphics g, Font headerFont, float leftX, float yPosition, float rightX,
+    string[] columnNames, out float[] columnWidths, out float headerHeight)
+        {
+            float availableWidth = rightX - leftX;
 
+            // Optimized column width percentages for better spacing
+            float[] columnWidthPercentages = new float[] {
+        0.08f, // หมายเลขใบรับผ้า
+        0.08f, // หมายเลขใบเสร็จ
+        0.12f, // ชื่อลูกค้า
+        0.08f, // เบอร์โทรศัพท์
+        0.07f, // ราคารวมใบรับผ้า
+        0.07f, // ราคารวมใบเสร็จ
+        0.06f, // ส่วนลด
+        0.09f, // ราคารวมหลังหักส่วนลด
+        0.09f, // วันที่ออกใบรับผ้า
+        0.09f, // วันที่ต้องมารับผ้า
+        0.08f, // สถานะ
+        0.09f  // วันที่ลูกค้ามารับ
+    };
+
+            // Calculate column widths
+            columnWidths = new float[columnWidthPercentages.Length];
+            for (int i = 0; i < columnWidthPercentages.Length; i++)
+            {
+                columnWidths[i] = availableWidth * columnWidthPercentages[i];
+            }
+
+            // Slightly increased header height for better text fitting
+            headerHeight = headerFont.GetHeight() * 2.7f;
+            float currentX = leftX;
+
+            for (int i = 0; i < columnNames.Length; i++)
+            {
+                RectangleF headerRect = new RectangleF(currentX, yPosition, columnWidths[i], headerHeight);
+
+                using (StringFormat sf = new StringFormat())
+                {
+                    sf.Alignment = StringAlignment.Center;
+                    sf.LineAlignment = StringAlignment.Center;
+                    sf.FormatFlags = StringFormatFlags.LineLimit | StringFormatFlags.NoClip; // Support multi-line and no clipping
+                    g.FillRectangle(Brushes.LightGray, headerRect);
+                    g.DrawRectangle(Pens.Black, headerRect.X, headerRect.Y, headerRect.Width, headerRect.Height);
+                    g.DrawString(columnNames[i], headerFont, Brushes.Black, headerRect, sf);
+                }
+
+                currentX += columnWidths[i];
+            }
+        }
         private void PrintPage(object sender, PrintPageEventArgs e)
         {
             try
             {
-                e.PageSettings.Landscape = true;
-                // Set page orientation to landscape
-                // Note: This should ideally be set before printing, but we'll ensure the layout works well in landscape
+                // Change to portrait orientation
+                e.PageSettings.Landscape = false;
 
-                // Page settings
-                float leftMargin = e.MarginBounds.Left;
+                // Adjust margins to better fit in portrait mode
+                float leftMargin = e.MarginBounds.Left - 30;
                 float topMargin = e.MarginBounds.Top;
-                float rightMargin = e.MarginBounds.Right;
-                float bottomMargin = e.MarginBounds.Bottom;
+                float rightMargin = e.MarginBounds.Right - 20;
                 float availableWidth = rightMargin - leftMargin;
-                float availableHeight = bottomMargin - topMargin;
+                float availableHeight = e.MarginBounds.Bottom - topMargin;
 
-                // ปรับขนาดฟอนต์ให้เล็กลง
-                using (Font titleFont = new Font("Angsana New", 14, FontStyle.Bold))
+                // Calculate total valid rows once at the beginning to avoid duplicate calculation
+                int totalValidRows = dgvOrders.Rows.Cast<DataGridViewRow>().Count(r =>
+                    r.Cells["หมายเลขใบรับผ้า"].Value != null || r.Cells["ชื่อลูกค้า"].Value != null);
+
+                // Use smaller fonts to fit better in portrait mode
+                using (Font titleFont = new Font("Angsana New", 12, FontStyle.Bold))
                 using (Font headerFont = new Font("Angsana New", 10, FontStyle.Bold))
                 using (Font normalFont = new Font("Angsana New", 10))
-                using (Font smallFont = new Font("Angsana New", 9))
+                using (Font smallFont = new Font("Angsana New", 8))
                 {
-                    // Draw the page header
                     float yPosition = topMargin;
 
-                    // Title centered at the top
+                    // Center the title based on the new margins
                     string title = "รายงานข้อมูลการรับผ้า";
                     float titleX = leftMargin + (availableWidth / 2) - (e.Graphics.MeasureString(title, titleFont).Width / 2);
                     e.Graphics.DrawString(title, titleFont, Brushes.Black, titleX, yPosition);
                     yPosition += titleFont.GetHeight();
 
-                    // Draw underline below title
+                    // Draw line across the full width with the new margins
                     e.Graphics.DrawLine(new Pen(Color.Black, 1.5f), leftMargin, yPosition, leftMargin + availableWidth, yPosition);
                     yPosition += 10;
 
-                    // Date and filters information line
+                    // Left-aligned date/time info using the new left margin
                     DateTime today = DateTime.Now;
                     string dateTimeInfo = $"พิมพ์เมื่อ: {today.Day}/{today.Month}/{today.Year} {today.ToString("HH:mm:ss")}";
-
-                    // Get current search criteria for the header
                     string filterInfo = dtpCreateDate.Checked ? $"วันที่: {dtpCreateDate.Value.ToString("dd/MM/yyyy")}" : "ทุกวันที่";
                     filterInfo += chkPending.Checked ? ", สถานะ: ยังไม่มารับ" :
                                   chkCompleted.Checked ? ", สถานะ: มารับแล้ว" : ", ทุกสถานะ";
 
-                    // Print date info on left and filter info on right
                     e.Graphics.DrawString(dateTimeInfo, normalFont, Brushes.Black, leftMargin, yPosition);
 
+                    // Right-aligned filter info based on the new right margin
                     string filterText = $"กรอง: {filterInfo}";
                     float filterX = rightMargin - e.Graphics.MeasureString(filterText, normalFont).Width;
                     e.Graphics.DrawString(filterText, normalFont, Brushes.Black, filterX, yPosition);
 
                     yPosition += normalFont.GetHeight() * 1.5f;
 
-                    // Define only the essential columns we want to display based on the image
+                    // Adjust row height and spacing for portrait mode
+                    float rowHeight = normalFont.GetHeight() * 1.2f;
+                    float headerSpace = titleFont.GetHeight() + 10 + normalFont.GetHeight() * 1.5f;
+                    float tableHeaderHeight = headerFont.GetHeight() * 2.5f;
+
+                    // Space needed for the title, filter info and table header
+                    float fixedHeaderSpace = headerSpace + tableHeaderHeight;
+
+                    // Calculate how many rows can fit on each page
+                    int rowsPerFirstPage = (int)((availableHeight - fixedHeaderSpace) / rowHeight);
+                    int rowsPerSubsequentPage = (int)((availableHeight - fixedHeaderSpace) / rowHeight);
+
+                    // Calculate total pages based on row count
+                    int totalPages = 1;
+                    if (rowsPerFirstPage < totalValidRows)
+                    {
+                        totalPages = 1 + (int)Math.Ceiling((double)(totalValidRows - rowsPerFirstPage) / rowsPerSubsequentPage);
+                    }
+
+                    // Show continuation marker for pages after the first
+                    if (_currentPage > 0)
+                    {
+                        string continuationText = $"(ต่อ) - หน้า {_currentPage + 1} จาก {totalPages}";
+                        float textWidth = e.Graphics.MeasureString(continuationText, headerFont).Width;
+                        e.Graphics.DrawString(continuationText, headerFont, Brushes.Black,
+                            rightMargin - textWidth, yPosition - normalFont.GetHeight());
+                    }
+
+                    // Define column names for the table header - shorter text for portrait mode
                     string[] columnNames = new string[] {
-    "หมายเลข\nใบรับผ้า",
-    "หมายเลข\nใบเสร็จ",
-    "ชื่อลูกค้า",
-    "เบอร์โทรศัพท์",
-    "ราคารวม",
-    "ส่วนลด",
-    "ราคารวม\nหลังหักส่วนลด",
-    "วันที่ออก\nใบรับผ้า",
-    "วันที่ต้อง\nมารับผ้า",
-    "สถานะ",
-    "วันที่ลูกค้า\nมารับ"
-};
+                "เลขใบรับผ้า",
+                "เลขใบเสร็จ",
+                "ชื่อลูกค้า",
+                "เบอร์โทร",
+                "ราคาใบรับผ้า",
+                "ราคาใบเสร็จ",
+                "ส่วนลด",
+                "ราคาสุทธิ",
+                "วันออกใบรับผ้า",
+                "วันครบกำหนด",
+                "สถานะ",
+                "วันที่มารับ"
+            };
 
                     string[] columnDataProperties = new string[] {
                 "หมายเลขใบรับผ้า",
                 "หมายเลขใบเสร็จ",
                 "ชื่อลูกค้า",
                 "เบอร์โทรศัพท์",
-                "ราคารวม",
+                "ราคารวมใบรับผ้า",
+                "ราคารวมใบเสร็จ",
                 "ส่วนลด",
                 "ราคารวมหลังหักส่วนลด",
                 "วันที่ออกใบรับผ้า",
-                "วันที่ต้องมารับผ้า",
+                "วันที่ครบกำหนด",
                 "สถานะ",
                 "วันที่ลูกค้ามารับ"
             };
 
-                    // Column width percentages - adjust these to match the desired widths
-                    float[] columnWidthPercentages = new float[] {
-                0.09f, // หมายเลขใบรับผ้า
-                0.09f, // หมายเลขใบเสร็จ
-                0.13f, // ชื่อลูกค้า
-                0.09f, // เบอร์โทรศัพท์
-                0.08f, // ราคารวม
-                0.08f, // ส่วนลด
-                0.10f, // ราคารวมหลังหักส่วนลด
-                0.09f, // วันที่ออกใบรับผ้า
-                0.09f, // วันที่ต้องมารับผ้า
-                0.08f, // สถานะ
-                0.08f  // วันที่ลูกค้ามารับ
-            };
-
-                    // Calculate column widths
-                    float[] columnWidths = new float[columnWidthPercentages.Length];
-                    for (int i = 0; i < columnWidthPercentages.Length; i++)
-                    {
-                        columnWidths[i] = availableWidth * columnWidthPercentages[i];
-                    }
-
-                    // Draw table header
-                    float headerHeight = headerFont.GetHeight() * 2.5f;
-                    float currentX = leftMargin;
-
-                    for (int i = 0; i < columnNames.Length; i++)
-                    {
-                        RectangleF headerRect = new RectangleF(currentX, yPosition, columnWidths[i], headerHeight);
-
-                        using (StringFormat sf = new StringFormat())
-                        {
-                            sf.Alignment = StringAlignment.Center;
-                            sf.LineAlignment = StringAlignment.Center;
-                            sf.FormatFlags = StringFormatFlags.LineLimit; // รองรับหลายบรรทัด
-                            e.Graphics.FillRectangle(Brushes.LightGray, headerRect);
-                            e.Graphics.DrawRectangle(Pens.Black, headerRect.X, headerRect.Y, headerRect.Width, headerRect.Height);
-                            e.Graphics.DrawString(columnNames[i], headerFont, Brushes.Black, headerRect, sf);
-                        }
-
-                        currentX += columnWidths[i];
-                    }
+                    // Draw the table header on every page
+                    float[] columnWidths;
+                    float headerHeight;
+                    DrawTableHeader(e.Graphics, headerFont, leftMargin, yPosition, rightMargin, columnNames, out columnWidths, out headerHeight);
                     yPosition += headerHeight;
 
-                    // Calculate how many rows can fit on a page
-                    float rowHeight = normalFont.GetHeight() * 1.2f;
-                    int rowsPerPage = (int)((availableHeight - (yPosition - topMargin) - 40) / rowHeight);
+                    // Calculate start and end row for current page
+                    int startRow;
+                    int endRow;
 
-                    // Calculate the range of rows to print for the current page
-                    int startRow = _currentPage * rowsPerPage;
-                    int endRow = Math.Min(startRow + rowsPerPage, dgvOrders.Rows.Count);
+                    if (_currentPage == 0)
+                    {
+                        startRow = 0;
+                        endRow = Math.Min(rowsPerFirstPage, dgvOrders.Rows.Count);
+                    }
+                    else
+                    {
+                        startRow = rowsPerFirstPage + (_currentPage - 1) * rowsPerSubsequentPage;
+                        endRow = Math.Min(startRow + rowsPerSubsequentPage, dgvOrders.Rows.Count);
+                    }
 
-                    // Print data rows
+                    // Draw data rows for this page
                     int validRowsPrinted = 0;
                     for (int i = startRow; i < endRow; i++)
                     {
+                        // Skip if we've reached the end of rows
+                        if (i >= dgvOrders.Rows.Count)
+                            break;
+
                         DataGridViewRow row = dgvOrders.Rows[i];
 
-                        // Skip rows with no data
+                        // Skip rows with no valid data
                         if (row.Cells["หมายเลขใบรับผ้า"].Value == null &&
                             row.Cells["ชื่อลูกค้า"].Value == null)
                         {
                             continue;
                         }
 
-                        currentX = leftMargin;
+                        float currentX = leftMargin;
 
+                        // Print each cell in the row
                         for (int j = 0; j < columnDataProperties.Length; j++)
                         {
                             string cellValue = "";
@@ -866,22 +962,23 @@ namespace Laundry_Management.Laundry
                                 if (row.Cells[columnDataProperties[j]].Value != null &&
                                     row.Cells[columnDataProperties[j]].Value != DBNull.Value)
                                 {
-                                    // Format value based on column type
-                                    if (columnDataProperties[j] == "ราคารวม" ||
+                                    // Format values based on column type
+                                    if (columnDataProperties[j] == "ราคารวมใบรับผ้า" ||
+                                        columnDataProperties[j] == "ราคารวมใบเสร็จ" ||
                                         columnDataProperties[j] == "ส่วนลด" ||
                                         columnDataProperties[j] == "ราคารวมหลังหักส่วนลด")
                                     {
                                         decimal amount = Convert.ToDecimal(row.Cells[columnDataProperties[j]].Value);
-                                        cellValue = amount.ToString("N2");
+                                        cellValue = amount.ToString("N2"); // Simplified to save space
                                     }
                                     else if (columnDataProperties[j] == "วันที่ออกใบรับผ้า" ||
-                                             columnDataProperties[j] == "วันที่ต้องมารับผ้า" ||
+                                             columnDataProperties[j] == "วันที่ครบกำหนด" ||
                                              columnDataProperties[j] == "วันที่ลูกค้ามารับ")
                                     {
                                         if (row.Cells[columnDataProperties[j]].Value != DBNull.Value)
                                         {
                                             DateTime date = Convert.ToDateTime(row.Cells[columnDataProperties[j]].Value);
-                                            cellValue = date.ToString("dd/MM/yyyy");
+                                            cellValue = date.ToString("dd/MM/yy"); // Shorter date format
                                         }
                                     }
                                     else
@@ -892,7 +989,6 @@ namespace Laundry_Management.Laundry
                             }
                             catch (InvalidCastException)
                             {
-                                // Handle the case where DBNull can't be cast to other types
                                 cellValue = "-";
                                 _printErrorMessage = "มีข้อมูลบางรายการที่ไม่สามารถแสดงได้";
                             }
@@ -901,6 +997,7 @@ namespace Laundry_Management.Laundry
                                 cellValue = "?";
                             }
 
+                            // Draw the cell
                             RectangleF cellRect = new RectangleF(currentX, yPosition, columnWidths[j], rowHeight);
 
                             using (StringFormat sf = new StringFormat())
@@ -909,7 +1006,7 @@ namespace Laundry_Management.Laundry
                                 sf.LineAlignment = StringAlignment.Center;
                                 sf.Trimming = StringTrimming.EllipsisCharacter;
 
-                                // Apply special formatting for status
+                                // Apply special formatting for status and discount
                                 if (columnDataProperties[j] == "สถานะ" && !string.IsNullOrEmpty(cellValue))
                                 {
                                     using (SolidBrush statusBrush = new SolidBrush(cellValue == "มารับแล้ว" ? Color.Green : Color.Blue))
@@ -918,7 +1015,9 @@ namespace Laundry_Management.Laundry
                                     }
                                 }
                                 else if (columnDataProperties[j] == "ส่วนลด" && !string.IsNullOrEmpty(cellValue) &&
-                                         cellValue != "-" && cellValue != "?" && Convert.ToDecimal(row.Cells[columnDataProperties[j]].Value) > 0)
+                                         cellValue != "-" && cellValue != "?" &&
+                                         row.Cells[columnDataProperties[j]].Value != null &&
+                                         Convert.ToDecimal(row.Cells[columnDataProperties[j]].Value) > 0)
                                 {
                                     using (SolidBrush discountBrush = new SolidBrush(Color.Red))
                                     {
@@ -940,40 +1039,90 @@ namespace Laundry_Management.Laundry
                         validRowsPrinted++;
                     }
 
-                    // Add summary at the bottom if this is the last page
-                    bool isLastPage = endRow >= dgvOrders.Rows.Count ||
-                                      endRow >= dgvOrders.Rows.Cast<DataGridViewRow>().Count(r =>
-                                        r.Cells["หมายเลขใบรับผ้า"].Value != null || r.Cells["ชื่อลูกค้า"].Value != null);
+                    // Determine if this is the last page
+                    bool isLastPage = endRow >= dgvOrders.Rows.Count || startRow + validRowsPrinted >= totalValidRows;
 
+                    // Add summary at the bottom if this is the last page
                     if (isLastPage)
                     {
                         yPosition += 15;
 
-                        // Count valid rows
-                        int validRowCount = dgvOrders.Rows.Cast<DataGridViewRow>().Count(r =>
-                            r.Cells["หมายเลขใบรับผ้า"].Value != null || r.Cells["ชื่อลูกค้า"].Value != null);
+                        // Calculate totals for all valid rows
+                        decimal totalOrderAmount = 0m;
+                        decimal totalReceiptAmount = 0m;
+                        decimal totalDiscount = 0m;
+                        decimal totalAfterDiscount = 0m;
 
-                        string summaryText = $"จำนวนรายการทั้งหมด {validRowCount} รายการ";
+                        foreach (DataGridViewRow row in dgvOrders.Rows)
+                        {
+                            if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
+                            {
+                                if (row.Cells["ราคารวมใบรับผ้า"].Value != null && row.Cells["ราคารวมใบรับผ้า"].Value != DBNull.Value)
+                                {
+                                    decimal amount;
+                                    if (decimal.TryParse(row.Cells["ราคารวมใบรับผ้า"].Value.ToString(), out amount))
+                                    {
+                                        totalOrderAmount += amount;
+                                    }
+                                }
+
+                                if (row.Cells["ราคารวมใบเสร็จ"].Value != null && row.Cells["ราคารวมใบเสร็จ"].Value != DBNull.Value)
+                                {
+                                    decimal amount;
+                                    if (decimal.TryParse(row.Cells["ราคารวมใบเสร็จ"].Value.ToString(), out amount))
+                                    {
+                                        totalReceiptAmount += amount;
+                                    }
+                                }
+
+                                if (row.Cells["ส่วนลด"].Value != null && row.Cells["ส่วนลด"].Value != DBNull.Value)
+                                {
+                                    decimal discount;
+                                    if (decimal.TryParse(row.Cells["ส่วนลด"].Value.ToString(), out discount))
+                                    {
+                                        totalDiscount += discount;
+                                    }
+                                }
+
+                                if (row.Cells["ราคารวมหลังหักส่วนลด"].Value != null && row.Cells["ราคารวมหลังหักส่วนลด"].Value != DBNull.Value)
+                                {
+                                    decimal netAmount;
+                                    if (decimal.TryParse(row.Cells["ราคารวมหลังหักส่วนลด"].Value.ToString(), out netAmount))
+                                    {
+                                        totalAfterDiscount += netAmount;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Print summary information
+                        string summaryText = $"จำนวนรายการทั้งหมด {totalValidRows} รายการ";
                         e.Graphics.DrawString(summaryText, normalFont, Brushes.Black, leftMargin, yPosition);
+                        yPosition += normalFont.GetHeight() * 1.5f;
+
+                        string totalOrderText = $"ยอดรวมใบรับผ้า: {totalOrderAmount:N2} บาท";
+                        e.Graphics.DrawString(totalOrderText, headerFont, Brushes.Black, leftMargin, yPosition);
+                        yPosition += normalFont.GetHeight() * 1.2f;
+
+                        string totalReceiptText = $"ยอดรวมใบเสร็จ: {totalReceiptAmount:N2} บาท";
+                        e.Graphics.DrawString(totalReceiptText, headerFont, Brushes.Black, leftMargin, yPosition);
+                        yPosition += normalFont.GetHeight() * 1.2f;
+
+                        e.Graphics.DrawString($"ส่วนลดรวม: {totalDiscount:N2} บาท", headerFont, Brushes.Red, leftMargin, yPosition);
+                        yPosition += normalFont.GetHeight() * 1.2f;
+
+                        e.Graphics.DrawString($"ยอดรวมสุทธิ: {totalAfterDiscount:N2} บาท", headerFont, Brushes.Black, leftMargin, yPosition);
                     }
 
-                    // Add page number at the bottom right
-                    int totalValidRows = dgvOrders.Rows.Cast<DataGridViewRow>().Count(r =>
-                        r.Cells["หมายเลขใบรับผ้า"].Value != null || r.Cells["ชื่อลูกค้า"].Value != null);
-
-                    int totalPages = (int)Math.Ceiling((double)totalValidRows / rowsPerPage);
-                    if (totalPages == 0) totalPages = 1; // Ensure at least one page
-
+                    // Add page number at the bottom
                     string pageText = $"หน้า {_currentPage + 1} จาก {totalPages}";
 
                     e.Graphics.DrawString(pageText, smallFont, Brushes.Black,
                         rightMargin - e.Graphics.MeasureString(pageText, smallFont).Width,
-                        bottomMargin + 10);
+                        e.MarginBounds.Bottom + 10);
 
-                    // Check if more pages are needed
-                    if (endRow < dgvOrders.Rows.Count &&
-                        endRow < dgvOrders.Rows.Cast<DataGridViewRow>().Count(r =>
-                            r.Cells["หมายเลขใบรับผ้า"].Value != null || r.Cells["ชื่อลูกค้า"].Value != null))
+                    // Determine if we need to print more pages
+                    if (!isLastPage)
                     {
                         _currentPage++;
                         e.HasMorePages = true;
@@ -991,14 +1140,12 @@ namespace Laundry_Management.Laundry
                 _isPrintSuccessful = false;
                 _printErrorMessage = ex.Message;
 
-                // Show error report on the page
                 using (Font errorFont = new Font("Angsana New", 14, FontStyle.Bold))
                 {
                     string errorMsg = $"เกิดข้อผิดพลาดในการพิมพ์: {ex.Message}";
                     e.Graphics.DrawString(errorMsg, errorFont, Brushes.Red, e.MarginBounds.Left, e.MarginBounds.Top + 100);
                 }
 
-                // No more pages after error
                 e.HasMorePages = false;
             }
         }
@@ -1050,8 +1197,8 @@ namespace Laundry_Management.Laundry
                         // Define columns to export
                         var columnNames = new List<string> {
                             "หมายเลขใบรับผ้า", "หมายเลขใบเสร็จ", "ชื่อลูกค้า", "เบอร์โทรศัพท์",
-                            "ราคารวม", "ส่วนลด", "ราคารวมหลังหักส่วนลด",
-                            "วันที่ออกใบรับผ้า", "วันที่ต้องมารับผ้า", "สถานะ", "วันที่ลูกค้ามารับ"
+                            "ราคารวมใบรับผ้า", "ราคารวมใบเสร็จ", "ส่วนลด", "ราคารวมหลังหักส่วนลด",
+                            "วันที่ออกใบรับผ้า", "วันที่ครบกำหนด", "สถานะ", "วันที่ลูกค้ามารับ"
                         };
 
                         // Filter to include only columns that exist in the DataGridView
@@ -1089,7 +1236,7 @@ namespace Laundry_Management.Laundry
                                     {
                                         value = date.ToString("dd/MM/yyyy");
                                     }
-                                    else if ((col == "ราคารวม" || col == "ส่วนลด" || col == "ราคารวมหลังหักส่วนลด") &&
+                                    else if ((col == "ราคารวมใบรับผ้า" || col == "ราคารวมใบเสร็จ" || col == "ส่วนลด" || col == "ราคารวมหลังหักส่วนลด") &&
                                            decimal.TryParse(row.Cells[col].Value.ToString(), out decimal num))
                                     {
                                         value = num.ToString("0.00");

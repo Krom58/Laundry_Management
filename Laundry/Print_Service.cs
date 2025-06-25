@@ -52,6 +52,9 @@ namespace Laundry_Management.Laundry
             _printDocument.PrintPage += PrintPageHandler;
             _previewDialog = new PrintPreviewDialog { Document = _printDocument };
 
+            // Enhanced A5 paper size configuration
+            SetA5PaperSize();
+
             // Set A5 paper size in portrait orientation
             PaperSize paperSize = new PaperSize("A5", 583, 827); // A5 dimensions in hundredths of an inch
             _printDocument.DefaultPageSettings.PaperSize = paperSize;
@@ -60,6 +63,40 @@ namespace Laundry_Management.Laundry
             // Adjust margins to be smaller for A5
             _printDocument.DefaultPageSettings.Margins = new Margins(15, 40, 15, 15);
             LoadLogoImage();
+        }
+        private void SetA5PaperSize()
+        {
+            // A5 dimensions: 148 × 210 mm = 5.83 × 8.27 inches
+            // In hundredths of an inch (as required by .NET): 583 × 827
+
+            // First try to find the predefined A5 size
+            bool foundA5 = false;
+
+            foreach (PaperSize ps in _printDocument.PrinterSettings.PaperSizes)
+            {
+                if (ps.Kind == PaperKind.A5 || ps.PaperName.ToLower().Contains("a5"))
+                {
+                    _printDocument.DefaultPageSettings.PaperSize = ps;
+                    foundA5 = true;
+                    break;
+                }
+            }
+
+            // If A5 is not found in printer's supported paper sizes, create a custom size
+            if (!foundA5)
+            {
+                PaperSize customA5 = new PaperSize("A5", 583, 827); // 148mm × 210mm
+                _printDocument.DefaultPageSettings.PaperSize = customA5;
+            }
+
+            // Set portrait orientation
+            _printDocument.DefaultPageSettings.Landscape = false;
+
+            // Adjust margins to be smaller for A5
+            _printDocument.DefaultPageSettings.Margins = new Margins(15, 40, 15, 15);
+
+            // Set during PrintDialog display
+            _printDocument.PrinterSettings.DefaultPageSettings.PaperSize = _printDocument.DefaultPageSettings.PaperSize;
         }
         private void LoadLogoImage()
         {
@@ -112,10 +149,18 @@ namespace Laundry_Management.Laundry
             using (var dlg = new PrintDialog())
             {
                 dlg.Document = _printDocument;
+                dlg.AllowSomePages = false;
+
+                // Make sure the settings are set properly before showing dialog
+                SetA5PaperSize();
+
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     try
                     {
+                        // Double-check paper size is still A5 before printing
+                        EnsureA5PaperSize();
+
                         _printDocument.Print();
                         // ถ้าถึงตรงนี้ แปลว่าพิมพ์ไม่เกิด Exception
                         IsPrinted = true;
@@ -136,11 +181,30 @@ namespace Laundry_Management.Laundry
             }
             this.Close();
         }
+        private void EnsureA5PaperSize()
+        {
+            // Get the current paper size
+            PaperSize currentSize = _printDocument.DefaultPageSettings.PaperSize;
+
+            // Check if dimensions roughly match A5 (allow small tolerance)
+            bool isA5Size = (Math.Abs(currentSize.Width - 583) < 10 && Math.Abs(currentSize.Height - 827) < 10) ||
+                            (Math.Abs(currentSize.Height - 583) < 10 && Math.Abs(currentSize.Width - 827) < 10);
+
+            if (!isA5Size)
+            {
+                // Force A5 size if current size doesn't match
+                _printDocument.DefaultPageSettings.PaperSize = new PaperSize("A5", 583, 827);
+            }
+
+            // Ensure orientation is portrait
+            _printDocument.DefaultPageSettings.Landscape = false;
+        }
         // Modify PrintPageHandler to use smaller fonts for A5 paper
         private void PrintPageHandler(object sender, PrintPageEventArgs e)
         {
             Graphics g = e.Graphics;
-
+            g.ResetClip();
+            g.ResetTransform();
             // Enable high-quality rendering
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
@@ -195,7 +259,7 @@ namespace Laundry_Management.Laundry
                 if (!hasMoreItems)
                 {
                     y += 3; // Reduced spacing
-                    DrawFooter(g, bodyF, e.PageBounds, rightX);
+                    DrawFooter(g, bodyF, e.PageBounds, rightX, y);
                 }
 
                 // Add page number
@@ -206,7 +270,8 @@ namespace Laundry_Management.Laundry
                     g.DrawString(pageText, pageFont, Brushes.Black,
                         rightX - textSize.Width, e.PageBounds.Bottom - 30);
                 }
-
+                g.ResetClip();
+                g.ResetTransform();
                 // Set HasMorePages based on whether we have more items to print
                 if (hasMoreItems)
                 {
@@ -290,7 +355,7 @@ namespace Laundry_Management.Laundry
             g.DrawString(storeName, headerFont, new SolidBrush(accentColor), leftX, y);
 
             // วาดหมายเลขใบรับผ้าด้านขวา
-            string idLine = $"หมายเลขใบรับผ้า : {_orderId}";
+            string idLine = $"หมายเลขใบรับผ้า : OR.{_orderId}";
             SizeF idSz = g.MeasureString(idLine, headerFont);
             g.DrawString(idLine, headerFont, new SolidBrush(accentColor), rightX - idSz.Width, y);
 
@@ -329,7 +394,7 @@ namespace Laundry_Management.Laundry
                 new[] { "โทร. 02-217-0808 ต่อ 5340", $"วันที่: {_orderDate:dd/MM/yyyy}" },
                 new[] { "296 ถนนพญาไท กทม. 10400", $"ชื่อลูกค้า: {_customerName}" },
                 new[] { "เลขประจำตัวผู้เสียภาษีอากร: 0107535000346", $"โทรศัพท์: {_customerPhone}" },
-                new[] { "เปิดบริการ 7.00-19.00 น. ทุกวัน", $"วันที่ลูกค้ามารับ: {_PickupDate:dd/MM/yyyy}" }
+                new[] { "เปิดบริการ 9.30 - 18.00 น. ทุกวัน", $"วันที่ลูกค้ามารับ: {_PickupDate:dd/MM/yyyy}" }
             };
 
             // วาดแต่ละแถว
@@ -546,18 +611,49 @@ namespace Laundry_Management.Laundry
         private void DrawSummaryRight(Graphics g, Font font, Rectangle page, float y, float rightX)
         {
             // คำนวณยอดรวม
-            decimal total = _items.Sum(i => i.Price * i.Quantity);
+            decimal subtotal = _items.Sum(i => i.Price * i.Quantity);
+
+            // คำนวณส่วนลด
+            decimal discountAmount = 0;
+            decimal displayDiscount = _customerDiscount;
+
+            if (_customerDiscount > 0)
+            {
+                // ตรวจสอบว่าส่วนลดเป็นเปอร์เซ็นต์หรือจำนวนเงิน
+                if (_customerDiscount <= 1) // ถ้า _customerDiscount เป็นทศนิยม (เช่น 0.5 แทน 50%)
+                {
+                    // แปลงเป็นเปอร์เซ็นต์สำหรับการแสดงผล
+                    displayDiscount = _customerDiscount * 100;
+
+                    // คำนวณจำนวนส่วนลด
+                    discountAmount = Math.Round(subtotal * _customerDiscount, 2);
+                }
+                else if (_customerDiscount < 100) // ถ้า _customerDiscount เป็นเปอร์เซ็นต์ (เช่น 50)
+                {
+                    // คำนวณจำนวนส่วนลดจากเปอร์เซ็นต์
+                    discountAmount = Math.Round(subtotal * _customerDiscount / 100m, 2);
+                }
+                else
+                {
+                    // ส่วนลดแบบจำนวนเงิน
+                    discountAmount = _customerDiscount;
+                }
+            }
+
+            // คำนวณยอดรวมสุทธิ
+            decimal netTotal = subtotal - discountAmount;
 
             // สี
             Color summaryBgColor = Color.FromArgb(248, 248, 252);
             Color summaryBorderColor = Color.FromArgb(230, 230, 235);
             Color totalTextColor = Color.FromArgb(70, 70, 70);
+            Color discountColor = Color.Red;
 
             float leftX = page.Left + 15; // Match the left margin
 
             // สร้างพื้นที่สรุปยอด
             float summaryWidth = 180;
-            float summaryHeight = 50; // Reduced height since we don't have VAT/discount sections
+            float summaryHeight = _customerDiscount > 0 ? 80 : 50; // เพิ่มความสูงถ้ามีส่วนลด
             float summaryX = rightX - summaryWidth;
 
             // วาดพื้นหลังและกรอบ
@@ -572,46 +668,99 @@ namespace Laundry_Management.Laundry
             }
 
             // คำนวณความสูงของตัวอักษรสำหรับเว้นบรรทัด
-            float lineHeight = font.GetHeight(g);
+            float lineHeight = font.GetHeight(g) * 1.2f;
             float currentY = y + 8;
+            string discountLine;
+            // ยอดรวม (Subtotal)
+            string subtotalLine = $"ยอดรวม : {subtotal:N2} บาท";
+            g.DrawString(subtotalLine, font, new SolidBrush(totalTextColor),
+                        summaryX + 10, currentY);
+            currentY += lineHeight;
+
+            // ส่วนลด (ถ้ามี)
+            if (_customerDiscount > 0)
+            {
+                // แสดงส่วนลดแบบเปอร์เซ็นต์ (ใช้ displayDiscount ที่แปลงเป็นเปอร์เซ็นต์แล้ว)
+                discountLine = $"ส่วนลด ({displayDiscount}%) : {discountAmount:N2} บาท";
+            }
+            else
+            {
+                // แสดงส่วนลดแบบจำนวนเงิน
+                discountLine = $"ส่วนลด : 0.00 บาท";
+            }
+
+                g.DrawString(discountLine, font, new SolidBrush(discountColor),
+                            summaryX + 10, currentY);
+                currentY += lineHeight;
+
+                // เพิ่มเส้นคั่นหลังส่วนลด
+                g.DrawLine(new Pen(summaryBorderColor),
+                          summaryX + 5, currentY - 2,
+                          summaryX + summaryWidth - 5, currentY - 2);
 
             // ยอดรวมสุทธิ
-            string totalLine = $"ยอดรวมสุทธิ : {total:N2} บาท";
+            string totalLine = $"ยอดรวมสุทธิ : {netTotal:N2} บาท";
             SizeF totalSize = g.MeasureString(totalLine, font);
+
             using (Font totalFont = new Font(font.FontFamily, font.Size, FontStyle.Bold))
             {
                 g.DrawString(totalLine, totalFont, new SolidBrush(totalTextColor),
-                            rightX - 5 - totalSize.Width - 5, currentY);
+                            summaryX + 10, currentY);
+
+                // เพิ่มเส้นใต้ยอดรวมสุทธิเป็นสีแดง
+                using (Pen redPen = new Pen(Color.Red, 1.5f))
+                {
+                    float underlineY = currentY + totalFont.GetHeight(g) + 2;
+                    float underlineStartX = summaryX + 10;
+                    float underlineWidth = g.MeasureString(totalLine, totalFont).Width;
+
+                    g.DrawLine(redPen, underlineStartX, underlineY,
+                              underlineStartX + underlineWidth, underlineY);
+                }
             }
+
             DrawSignatureLine(g, font, rightX, y + summaryHeight);
         }
-        private void DrawFooter(Graphics g, Font font, Rectangle page, float rightX)
+        private void DrawFooter(Graphics g, Font font, Rectangle page, float rightX, float y)
         {
+            g.ResetClip();
             float leftX = page.Left + 15; // Match the left margin
 
-            // Calculate the position for footer (at the bottom of the page)
-            float footerY = page.Bottom - 180; // Space for both checklist and summary
+            // Add some spacing between the table and footer
+            float footerY = y + 15; // Add spacing after the table
+
+            // Make sure footer doesn't go off the page
+            float maxFooterY = page.Bottom - 120; // Reserve minimal space for footer
+            if (footerY > maxFooterY)
+            {
+                footerY = maxFooterY;
+            }
 
             // Draw the checklist on the left side of the footer
             DrawChecklistLeft(g, font, leftX, footerY);
 
-            // Draw the summary on the right side of the footer - modified version without VAT/discount
+            // Draw the summary on the right side of the footer
             DrawSummaryRight(g, font, page, footerY, rightX);
         }
         private void DrawSignatureLine(Graphics g, Font font, float rightX, float y)
         {
+            g.ResetClip();
             float signatureLineWidth = 150;
             float signatureX = rightX - signatureLineWidth;
-            float signatureY = y + 35; // เว้นระยะใต้กล่องสรุป
 
-            // วาดขีดเส้น
+            // Calculate signature position based on the provided y value
+            // instead of using a fixed offset
+            float signatureY = y + 35; // Still keep some space below the summary box
+
+            // Draw the line
             g.DrawLine(Pens.Black, signatureX, signatureY, signatureX + signatureLineWidth, signatureY);
 
-            // วาดข้อความใต้เส้น
+            // Draw text below the line
             string signatureLabel = "ลายเซ้นผู้รับผ้า";
             SizeF labelSize = g.MeasureString(signatureLabel, font);
             float labelX = signatureX + (signatureLineWidth - labelSize.Width) / 2;
             g.DrawString(signatureLabel, font, Brushes.Black, labelX, signatureY + 5);
+
         }
         private void DrawContinuationHeader(Graphics g, Font headerFont, Font subHeaderFont, float leftX, ref float y, float rightX)
         {
@@ -657,7 +806,6 @@ namespace Laundry_Management.Laundry
         // New method for drawing the service details table with pagination support
         private bool DrawServiceDetailsWithPagination(Graphics g, Font font, float leftX, ref float y, float rightX)
         {
-            // Colors same as the original method
             Color tableHeaderBgColor = Color.FromArgb(240, 240, 245);
             Color tableHeaderTextColor = Color.FromArgb(60, 60, 60);
             Color tableBorderColor = Color.FromArgb(180, 180, 180);
@@ -683,6 +831,13 @@ namespace Laundry_Management.Laundry
 
             // Calculate how many items can fit on this page
             float availableHeight = 650 - y - 100; // Reserve space for footer on last page
+
+            // คำนวณพื้นที่เพิ่มสำหรับส่วนสรุปยอดที่ขยายออก
+            if (_remainingItems.Count <= (int)Math.Floor(availableHeight / rowHeight) && _customerDiscount > 0)
+            {
+                availableHeight -= 30; // หากเป็นหน้าสุดท้ายและมีส่วนลด ให้สำรองพื้นที่เพิ่ม
+            }
+
             int maxItemsThisPage = (int)Math.Floor(availableHeight / rowHeight);
 
             // Get items for this page
