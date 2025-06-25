@@ -65,5 +65,11 @@ namespace Laundry_Management
             var ReportForm = new Report();
             ReportForm.ShowDialog();
         }
+
+        private void Modify_Service_Click(object sender, EventArgs e)
+        {
+            var Modify_Service_ItemForm = new Modify_Service_Item();
+            Modify_Service_ItemForm.ShowDialog();
+        }
     }
 }

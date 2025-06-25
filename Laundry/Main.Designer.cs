@@ -36,6 +36,7 @@
             this.Pickup_List = new System.Windows.Forms.Button();
             this.btnSetting = new System.Windows.Forms.Button();
             this.Report = new System.Windows.Forms.Button();
+            this.Modify_Service = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnAdd_Type_Service
@@ -134,11 +135,24 @@
             this.Report.UseVisualStyleBackColor = true;
             this.Report.Click += new System.EventHandler(this.Report_Click);
             // 
+            // Modify_Service
+            // 
+            this.Modify_Service.AutoSize = true;
+            this.Modify_Service.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Modify_Service.Location = new System.Drawing.Point(823, 425);
+            this.Modify_Service.Name = "Modify_Service";
+            this.Modify_Service.Size = new System.Drawing.Size(282, 109);
+            this.Modify_Service.TabIndex = 44;
+            this.Modify_Service.Text = "แก้ไขใบรับผ้า";
+            this.Modify_Service.UseVisualStyleBackColor = true;
+            this.Modify_Service.Click += new System.EventHandler(this.Modify_Service_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.Modify_Service);
             this.Controls.Add(this.Report);
             this.Controls.Add(this.btnSetting);
             this.Controls.Add(this.Pickup_List);
@@ -165,5 +179,6 @@
         private System.Windows.Forms.Button Pickup_List;
         private System.Windows.Forms.Button btnSetting;
         private System.Windows.Forms.Button Report;
+        private System.Windows.Forms.Button Modify_Service;
     }
 }
