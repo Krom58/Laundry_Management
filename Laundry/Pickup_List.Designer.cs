@@ -50,7 +50,7 @@
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(1142, 92);
+            this.label3.Location = new System.Drawing.Point(169, 201);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(59, 43);
             this.label3.TabIndex = 58;
@@ -60,7 +60,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(450, 92);
+            this.label2.Location = new System.Drawing.Point(734, 92);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(129, 43);
             this.label2.TabIndex = 57;
@@ -69,7 +69,7 @@
             // txtCustomerFilter
             // 
             this.txtCustomerFilter.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtCustomerFilter.Location = new System.Drawing.Point(585, 89);
+            this.txtCustomerFilter.Location = new System.Drawing.Point(869, 89);
             this.txtCustomerFilter.Name = "txtCustomerFilter";
             this.txtCustomerFilter.Size = new System.Drawing.Size(516, 51);
             this.txtCustomerFilter.TabIndex = 56;
@@ -90,7 +90,7 @@
             // txtOrderId
             // 
             this.txtOrderId.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtOrderId.Location = new System.Drawing.Point(250, 89);
+            this.txtOrderId.Location = new System.Drawing.Point(504, 89);
             this.txtOrderId.Name = "txtOrderId";
             this.txtOrderId.Size = new System.Drawing.Size(174, 51);
             this.txtOrderId.TabIndex = 54;
@@ -98,7 +98,7 @@
             // dtpCreateDate
             // 
             this.dtpCreateDate.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.dtpCreateDate.Location = new System.Drawing.Point(1207, 89);
+            this.dtpCreateDate.Location = new System.Drawing.Point(234, 198);
             this.dtpCreateDate.Name = "dtpCreateDate";
             this.dtpCreateDate.Size = new System.Drawing.Size(245, 51);
             this.dtpCreateDate.TabIndex = 53;
@@ -107,7 +107,7 @@
             // 
             this.btnSearch.AutoSize = true;
             this.btnSearch.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSearch.Location = new System.Drawing.Point(1500, 87);
+            this.btnSearch.Location = new System.Drawing.Point(973, 196);
             this.btnSearch.Name = "btnSearch";
             this.btnSearch.Size = new System.Drawing.Size(144, 53);
             this.btnSearch.TabIndex = 52;
@@ -119,11 +119,11 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(114, 92);
+            this.label1.Location = new System.Drawing.Point(169, 92);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(130, 43);
+            this.label1.Size = new System.Drawing.Size(329, 43);
             this.label1.TabIndex = 51;
-            this.label1.Text = "รหัสใบรับผ้า";
+            this.label1.Text = "หมายเลขใบเสร็จ / หมายเลขใบรับผ้า";
             // 
             // dgvOrders
             // 

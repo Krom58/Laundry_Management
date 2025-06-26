@@ -17,8 +17,21 @@ namespace Laundry_Management
         public Service()
         {
             InitializeComponent();
+            ItemName.KeyPress += TxtSearch_KeyPress;
+            ItemNumber.KeyPress += TxtSearch_KeyPress;
         }
+        private void TxtSearch_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // ตรวจสอบว่ากด Enter หรือไม่ (รหัส ASCII 13)
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                // ป้องกันเสียง beep
+                e.Handled = true;
 
+                // เรียกฟังก์ชันค้นหาเหมือนกับการกดปุ่ม
+                Search_Click(sender, EventArgs.Empty);
+            }
+        }
         private void Search_Click(object sender, EventArgs e)
         {
             string itemName = ItemName.Text.Trim();
@@ -66,19 +79,23 @@ namespace Laundry_Management
 
         private void Service_Load(object sender, EventArgs e)
         {
+            dgvItems.CellValueChanged += DgvItems_CellValueChanged;
+            dgvItems.RowsAdded += DgvItems_RowsChanged;
+            dgvItems.RowsRemoved += DgvItems_RowsChanged;
+
             // ตั้งค่า AutoSizeColumnsMode และ AutoSizeRowsMode
             dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dataGridView1.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
-            dataGridView2.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-            dataGridView2.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+            dgvItems.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
+            dgvItems.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
 
             // Enable text wrapping for all cells
             dataGridView1.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
-            dataGridView2.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            dgvItems.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
 
             // ตั้งค่า SelectionMode เป็น CellSelect เพื่อให้สามารถเลือกเซลล์เดียวได้
             dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
-            dataGridView2.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            dgvItems.SelectionMode = DataGridViewSelectionMode.CellSelect;
 
             // ป้องกันการพิมพ์ใน ComboBox
             ServiceType.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -96,6 +113,10 @@ namespace Laundry_Management
 
             LoadAllData();
             LoadSelectedItems();
+            ClearSelectedItems();
+
+            // Initialize the total
+            UpdateTotalFromDataGridView();
         }
         private void LoadAllData()
         {
@@ -125,12 +146,12 @@ namespace Laundry_Management
             {
                 DataTable dt = new DataTable();
                 adapter.Fill(dt);
-                dataGridView2.DataSource = dt;
+                dgvItems.DataSource = dt;
             }
-            dataGridView2.Columns["ItemNumber"].HeaderText = "หมายเลขรายการ";
-            dataGridView2.Columns["ItemName"].HeaderText = "ชื่อ-รายการ";
-            dataGridView2.Columns["Quantity"].HeaderText = "จำนวนชิ้น";
-            dataGridView2.Columns["TotalAmount"].HeaderText = "จำนวนเงิน";
+            dgvItems.Columns["ItemNumber"].HeaderText = "หมายเลขรายการ";
+            dgvItems.Columns["ItemName"].HeaderText = "ชื่อ-รายการ";
+            dgvItems.Columns["Quantity"].HeaderText = "จำนวนชิ้น";
+            dgvItems.Columns["TotalAmount"].HeaderText = "จำนวนเงิน";
         }
 
 
@@ -187,15 +208,15 @@ namespace Laundry_Management
         private void Delete_Click(object sender, EventArgs e)
         {
             // ตรวจสอบว่ามีการเลือกเซลล์หรือไม่
-            if (dataGridView2.CurrentCell == null)
+            if (dgvItems.CurrentCell == null)
             {
                 MessageBox.Show("กรุณาเลือกรายการที่ต้องการลบ");
                 return;
             }
 
             // ดึงแถวที่เซลล์ปัจจุบันอยู่
-            int rowIndex = dataGridView2.CurrentCell.RowIndex;
-            DataGridViewRow row = dataGridView2.Rows[rowIndex];
+            int rowIndex = dgvItems.CurrentCell.RowIndex;
+            DataGridViewRow row = dgvItems.Rows[rowIndex];
 
             // ดึงค่า ItemNumber จากแถวนั้น
             var itemNumber = row.Cells["ItemNumber"].Value?.ToString();
@@ -226,15 +247,15 @@ namespace Laundry_Management
         private void btnFix_Click(object sender, EventArgs e)
         {
             // ตรวจสอบว่ามีการเลือกเซลล์หรือไม่
-            if (dataGridView2.CurrentCell == null)
+            if (dgvItems.CurrentCell == null)
             {
                 MessageBox.Show("กรุณาเลือกรายการที่ต้องการแก้ไข");
                 return;
             }
 
             // ดึงแถวที่เซลล์ปัจจุบันอยู่
-            int rowIndex = dataGridView2.CurrentCell.RowIndex;
-            DataGridViewRow row = dataGridView2.Rows[rowIndex];
+            int rowIndex = dgvItems.CurrentCell.RowIndex;
+            DataGridViewRow row = dgvItems.Rows[rowIndex];
 
             // ดึงข้อมูลจากแถวนั้น
             var itemNumber = row.Cells["ItemNumber"].Value?.ToString();
@@ -258,7 +279,7 @@ namespace Laundry_Management
             {
                 MessageBox.Show("จำนวนไม่ถูกต้อง");
                 return;
-           }
+            }
 
             decimal unitPrice = totalAmount / quantity;
 
@@ -266,6 +287,89 @@ namespace Laundry_Management
             var itemForm = new Item(unitPrice, itemNumber, itemName, quantity);
             itemForm.IsEditMode = true; // เพิ่ม property นี้ใน Item.cs
 
+            // เพิ่มเงื่อนไขสำหรับรหัสผ้า A00 เพื่อให้แก้ไขราคาได้
+            if (itemNumber == "A00")
+            {
+                // แสดง dialog สำหรับการแก้ไขราคา
+                using (var priceForm = new Form())
+                {
+                    priceForm.Text = "แก้ไขราคา";
+                    priceForm.Size = new Size(400, 200);
+                    priceForm.StartPosition = FormStartPosition.CenterParent;
+                    priceForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    priceForm.MaximizeBox = false;
+                    priceForm.MinimizeBox = false;
+
+                    Label lblPrice = new Label();
+                    lblPrice.Text = "ราคาต่อชิ้น:";
+                    lblPrice.Font = new Font("Angsana New", 20, FontStyle.Regular);
+                    lblPrice.Location = new Point(20, 20);
+                    lblPrice.Size = new Size(150, 40);
+
+                    TextBox txtPrice = new TextBox();
+                    txtPrice.Text = unitPrice.ToString("0.00");
+                    txtPrice.Font = new Font("Angsana New", 20, FontStyle.Regular);
+                    txtPrice.Location = new Point(170, 20);
+                    txtPrice.Size = new Size(180, 40);
+
+                    Button btnConfirm = new Button();
+                    btnConfirm.Text = "ตกลง";
+                    btnConfirm.Font = new Font("Angsana New", 18, FontStyle.Regular);
+                    btnConfirm.Location = new Point(80, 80);
+                    btnConfirm.Size = new Size(100, 50);
+                    btnConfirm.DialogResult = DialogResult.OK;
+
+                    Button btnCancel = new Button();
+                    btnCancel.Text = "ยกเลิก";
+                    btnCancel.Font = new Font("Angsana New", 18, FontStyle.Regular);
+                    btnCancel.Location = new Point(210, 80);
+                    btnCancel.Size = new Size(100, 50);
+                    btnCancel.DialogResult = DialogResult.Cancel;
+
+                    priceForm.Controls.Add(lblPrice);
+                    priceForm.Controls.Add(txtPrice);
+                    priceForm.Controls.Add(btnConfirm);
+                    priceForm.Controls.Add(btnCancel);
+                    priceForm.AcceptButton = btnConfirm;
+                    priceForm.CancelButton = btnCancel;
+
+                    if (priceForm.ShowDialog() == DialogResult.OK)
+                    {
+                        if (decimal.TryParse(txtPrice.Text, out decimal newPrice) && newPrice > 0)
+                        {
+                            // คำนวณราคารวมใหม่
+                            decimal newTotalAmount = newPrice * quantity;
+
+                            // อัพเดทราคาในฐานข้อมูลโดยตรง
+                            string updateQuery = "UPDATE SelectedItems SET TotalAmount = @totalAmount WHERE ItemNumber = @itemNumber";
+                            using (SqlConnection connection = DBconfig.GetConnection())
+                            using (SqlCommand command = new SqlCommand(updateQuery, connection))
+                            {
+                                command.Parameters.AddWithValue("@itemNumber", itemNumber);
+                                command.Parameters.AddWithValue("@totalAmount", newTotalAmount);
+                                connection.Open();
+                                command.ExecuteNonQuery();
+                            }
+
+                            // โหลดข้อมูลใหม่
+                            LoadSelectedItems();
+                            return;
+                        }
+                        else
+                        {
+                            MessageBox.Show("กรุณาระบุราคาที่ถูกต้อง");
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // ผู้ใช้ยกเลิกการแก้ไขราคา
+                        return;
+                    }
+                }
+            }
+
+            // ดำเนินการปกติสำหรับรหัสอื่นๆ
             var result = itemForm.ShowDialog();
 
             if (result == DialogResult.OK)
@@ -415,7 +519,7 @@ namespace Laundry_Management
         {
             var selectedItems = new List<Item>();
 
-            foreach (DataGridViewRow row in dataGridView2.Rows)
+            foreach (DataGridViewRow row in dgvItems.Rows)
             {
                 if (row.Cells["ItemNumber"].Value != null &&
                     row.Cells["ItemName"].Value != null &&
@@ -525,6 +629,43 @@ VALUES
                     cmd.ExecuteNonQuery();
                 }
             }
+        }
+        private void UpdateTotalFromDataGridView()
+        {
+            decimal total = 0;
+
+            // Check if dgvItems has data
+            if (dgvItems.Rows.Count > 0)
+            {
+                // Loop through all rows in dgvItems
+                foreach (DataGridViewRow row in dgvItems.Rows)
+                {
+                    // Skip new rows (the empty row at the end)
+                    if (row.IsNewRow) continue;
+
+                    // Check if TotalAmount column exists and has a value
+                    if (row.Cells["TotalAmount"].Value != null &&
+                        row.Cells["TotalAmount"].Value != DBNull.Value)
+                    {
+                        // Add to total
+                        total += Convert.ToDecimal(row.Cells["TotalAmount"].Value);
+                    }
+                }
+            }
+
+            // Update the lblTotal with the calculated total
+            lblTotal.Text = total.ToString("N2") + " บาท";
+        }
+        private void DgvItems_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            // Update the total when a cell value changes
+            UpdateTotalFromDataGridView();
+        }
+
+        private void DgvItems_RowsChanged(object sender, EventArgs e)
+        {
+            // Update the total when rows are added or removed
+            UpdateTotalFromDataGridView();
         }
     }
 }

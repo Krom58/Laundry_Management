@@ -19,8 +19,26 @@ namespace Laundry_Management.Laundry
         public Select_Service()
         {
             InitializeComponent();
-        }
 
+            // เพิ่ม event handlers สำหรับการกด Enter ในช่องค้นหา
+            ItemName.KeyPress += TxtSearch_KeyPress;
+            ItemNumber.KeyPress += TxtSearch_KeyPress;
+
+            // ตั้งค่าปุ่ม Search เป็น AcceptButton ของฟอร์ม
+            this.AcceptButton = Search;
+        }
+        private void TxtSearch_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // ตรวจสอบว่ากด Enter หรือไม่ (รหัส ASCII 13)
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                // ป้องกันเสียง beep
+                e.Handled = true;
+
+                // เรียกฟังก์ชันค้นหาเหมือนกับการกดปุ่ม
+                Search_Click(sender, EventArgs.Empty);
+            }
+        }
         private void Search_Click(object sender, EventArgs e)
         {
             // ดึงค่าจาก TextBox และ ComboBox

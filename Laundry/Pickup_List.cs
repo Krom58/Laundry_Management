@@ -17,6 +17,10 @@ namespace Laundry_Management.Laundry
         {
             InitializeComponent();
 
+            // เพิ่ม event handlers สำหรับการกด Enter ในช่องค้นหา
+            txtOrderId.KeyPress += TxtSearch_KeyPress;
+            txtCustomerFilter.KeyPress += TxtSearch_KeyPress;
+
             // Wire up event handlers
             chkNotPickup.CheckedChanged += chkNotPickup_CheckedChanged;
             chkPickedup.CheckedChanged += chkPickedup_CheckedChanged;
@@ -30,6 +34,21 @@ namespace Laundry_Management.Laundry
             chkPickedup.Checked = false;
             dgvOrders.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dgvOrders.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+
+            // ตั้งค่าปุ่ม Search เป็น AcceptButton ของฟอร์ม
+            this.AcceptButton = btnSearch;
+        }
+        private void TxtSearch_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // ตรวจสอบว่ากด Enter หรือไม่ (รหัส ASCII 13)
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                // ป้องกันเสียง beep
+                e.Handled = true;
+
+                // เรียกฟังก์ชันค้นหาเหมือนกับการกดปุ่ม
+                btnSearch_Click(sender, EventArgs.Empty);
+            }
         }
         private void LoadPickupOrders()
         {

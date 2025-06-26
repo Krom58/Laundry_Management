@@ -32,6 +32,7 @@
             this.btnOk = new System.Windows.Forms.Button();
             this.label2 = new System.Windows.Forms.Label();
             this.txtQuantity = new System.Windows.Forms.TextBox();
+            this.label1 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // btnCancle
@@ -71,16 +72,27 @@
             // txtQuantity
             // 
             this.txtQuantity.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtQuantity.Location = new System.Drawing.Point(290, 174);
+            this.txtQuantity.Location = new System.Drawing.Point(305, 174);
             this.txtQuantity.Name = "txtQuantity";
             this.txtQuantity.Size = new System.Drawing.Size(535, 72);
             this.txtQuantity.TabIndex = 38;
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label1.Location = new System.Drawing.Point(262, 177);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(37, 65);
+            this.label1.TabIndex = 39;
+            this.label1.Text = ":";
             // 
             // Item
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(984, 586);
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.txtQuantity);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.btnOk);
@@ -88,6 +100,7 @@
             this.Name = "Item";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "จำนวนสินค้า";
+            this.Load += new System.EventHandler(this.Item_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -99,5 +112,6 @@
         private System.Windows.Forms.Button btnOk;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TextBox txtQuantity;
+        private System.Windows.Forms.Label label1;
     }
 }

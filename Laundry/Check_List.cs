@@ -28,6 +28,9 @@ namespace Laundry_Management.Laundry
             // Add this line to wire up the DateTimePicker ValueChanged event
             dtpCreateDate.ValueChanged += dtpCreateDate_ValueChanged;
 
+            txtSearchId.KeyPress += TxtSearch_KeyPress;
+            txtCustomerFilter.KeyPress += TxtSearch_KeyPress;
+
             // Set default checkbox state
             chkPending.Checked = false;
             chkCompleted.Checked = false;
@@ -43,7 +46,18 @@ namespace Laundry_Management.Laundry
             dgvOrders.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
             dgvOrders.DataBindingComplete += DgvOrders_DataBindingComplete;
         }
+        private void TxtSearch_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // Check if Enter key was pressed (ASCII code 13)
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                // Prevent the beep sound
+                e.Handled = true;
 
+                // Trigger the search button click event
+                btnSearch_Click(sender, EventArgs.Empty);
+            }
+        }
         private void DgvOrders_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
             // ปรับชื่อหัวคอลัมน์ให้เป็นภาษาไทย
@@ -78,27 +92,29 @@ namespace Laundry_Management.Laundry
         private void LoadOrders(string customId = null, string customerName = null, DateTime? createDate = null)
         {
             string query = @"
-                            SELECT 
-                                o.OrderID, 
-                                r.CustomReceiptId as 'หมายเลขใบเสร็จ',
-                                o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                                o.CustomerName as 'ชื่อลูกค้า', 
-                                o.Phone as 'เบอร์โทรศัพท์',
-                                o.GrandTotalPrice as 'ราคารวมใบรับผ้า',
-                                r.TotalBeforeDiscount as 'ราคารวมใบเสร็จ',
-                                r.Discount as 'ส่วนลด',
-                                r.TotalAfterDiscount as 'ราคารวมหลังหักส่วนลด',
-                                o.OrderDate as 'วันที่ออกใบรับผ้า',
-                                o.PickupDate as 'วันที่ครบกำหนด',
-                                r.ReceiptID, 
-                                r.ReceiptStatus as 'สถานะใบเสร็จ',
-                                r.PaymentMethod as 'วิธีการชำระเงิน',
-                                r.IsPickedUp as 'สถานะ', 
-                                r.CustomerPickupDate as 'วันที่ลูกค้ามารับ'
-                            FROM OrderHeader o
-                            LEFT JOIN Receipt r ON o.OrderID = r.OrderID
-                            WHERE 1=1
-                        ";
+                    SELECT 
+                        o.OrderID, 
+                        r.CustomReceiptId as 'หมายเลขใบเสร็จ',
+                        o.CustomOrderId as 'หมายเลขใบรับผ้า', 
+                        o.CustomerName as 'ชื่อลูกค้า', 
+                        o.Phone as 'เบอร์โทรศัพท์',
+                        o.GrandTotalPrice as 'ราคารวมใบรับผ้า',
+                        r.TotalBeforeDiscount as 'ราคารวมใบเสร็จ',
+                        r.Discount as 'ส่วนลด',
+                        r.TotalAfterDiscount as 'ราคารวมหลังหักส่วนลด',
+                        o.OrderDate as 'วันที่ออกใบรับผ้า',
+                        o.PickupDate as 'วันที่ครบกำหนด',
+                        r.ReceiptID, 
+                        r.ReceiptStatus as 'สถานะใบเสร็จ',
+                        r.PaymentMethod as 'วิธีการชำระเงิน',
+                        r.IsPickedUp as 'สถานะ', 
+                        r.CustomerPickupDate as 'วันที่ลูกค้ามารับ'
+                    FROM OrderHeader o
+                    LEFT JOIN Receipt r ON o.OrderID = r.OrderID
+                    WHERE 1=1
+                    AND (r.ReceiptStatus IS NULL OR r.ReceiptStatus <> N'ยกเลิกการพิมพ์')
+                    AND (o.OrderStatus <> N'รายการถูกยกเลิก' OR o.OrderStatus IS NULL)
+                ";
 
             var filters = new List<string>();
             var parameters = new List<SqlParameter>();
@@ -162,7 +178,7 @@ namespace Laundry_Management.Laundry
             txtCustomerFilter.Clear();
             dtpCreateDate.Checked = true;
             dtpCreateDate.Value = DateTime.Today;
-            chkPending.Checked = true;
+            chkPending.Checked = false;
             chkCompleted.Checked = false;
             LoadOrders(null, null, DateTime.Today);
         }
@@ -1294,6 +1310,127 @@ namespace Laundry_Management.Laundry
             {
                 Cursor = Cursors.Default;
                 MessageBox.Show($"เกิดข้อผิดพลาดในการส่งออกข้อมูล: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnCancle_Click(object sender, EventArgs e)
+        {
+            // Check if a row is selected
+            if (dgvOrders.CurrentRow == null)
+            {
+                MessageBox.Show("กรุณาเลือกรายการที่ต้องการยกเลิก", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // Get OrderID and check if it has a receipt
+                int orderId = Convert.ToInt32(dgvOrders.CurrentRow.Cells["OrderID"].Value);
+                var receiptIdObj = dgvOrders.CurrentRow.Cells["ReceiptID"].Value;
+                string customOrderId = dgvOrders.CurrentRow.Cells["หมายเลขใบรับผ้า"].Value?.ToString();
+                string customerName = dgvOrders.CurrentRow.Cells["ชื่อลูกค้า"].Value?.ToString();
+
+                // Check if order has a receipt (cannot cancel if it has one)
+                if (receiptIdObj != null && receiptIdObj != DBNull.Value)
+                {
+                    MessageBox.Show("ไม่สามารถยกเลิกรายการนี้ได้เนื่องจากมีการออกใบเสร็จแล้ว",
+                        "ไม่อนุญาตให้ยกเลิก", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Show confirmation dialog
+                using (Form confirmDialog = new Form())
+                {
+                    confirmDialog.Text = "ยืนยันการยกเลิกรายการ";
+                    confirmDialog.Size = new Size(500, 300);
+                    confirmDialog.StartPosition = FormStartPosition.CenterParent;
+                    confirmDialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    confirmDialog.MaximizeBox = false;
+                    confirmDialog.MinimizeBox = false;
+
+                    Label lblMessage = new Label();
+                    lblMessage.Text = $"ยืนยันการยกเลิกรายการนี้?\nลูกค้า: {customerName}\nหมายเลขใบรับผ้า: {customOrderId}";
+                    lblMessage.Font = new Font("Angsana New", 26, FontStyle.Bold);
+                    lblMessage.TextAlign = ContentAlignment.MiddleCenter;
+                    lblMessage.Dock = DockStyle.Top;
+                    lblMessage.Height = 150;
+
+                    Button btnConfirm = new Button();
+                    btnConfirm.Text = "ยืนยัน";
+                    btnConfirm.Font = new Font("Angsana New", 24);
+                    btnConfirm.Size = new Size(150, 60);
+                    btnConfirm.Location = new Point(80, 180);
+                    btnConfirm.DialogResult = DialogResult.Yes;
+
+                    Button btnCancel = new Button();
+                    btnCancel.Text = "ยกเลิก";
+                    btnCancel.Font = new Font("Angsana New", 24);
+                    btnCancel.Size = new Size(150, 60);
+                    btnCancel.Location = new Point(260, 180);
+                    btnCancel.DialogResult = DialogResult.Cancel;
+
+                    confirmDialog.Controls.Add(lblMessage);
+                    confirmDialog.Controls.Add(btnConfirm);
+                    confirmDialog.Controls.Add(btnCancel);
+                    confirmDialog.AcceptButton = btnConfirm;
+                    confirmDialog.CancelButton = btnCancel;
+
+                    // Show dialog and wait for response
+                    DialogResult result = confirmDialog.ShowDialog();
+
+                    // If not confirmed, cancel the operation
+                    if (result != DialogResult.Yes)
+                    {
+                        return;
+                    }
+                }
+
+                // Update order status in database
+                using (SqlConnection conn = DBconfig.GetConnection())
+                {
+                    conn.Open();
+                    using (SqlTransaction transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Update OrderHeader status
+                            string updateQuery = "UPDATE OrderHeader SET OrderStatus = @Status WHERE OrderID = @OrderID";
+                            using (SqlCommand cmd = new SqlCommand(updateQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@Status", "รายการถูกยกเลิก");
+                                cmd.Parameters.AddWithValue("@OrderID", orderId);
+                                int rowsAffected = cmd.ExecuteNonQuery();
+
+                                if (rowsAffected > 0)
+                                {
+                                    transaction.Commit();
+                                    MessageBox.Show("ยกเลิกรายการเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                                    // Refresh the order list to reflect changes
+                                    string searchId = txtSearchId.Text.Trim();
+                                    string customerNameFilter = txtCustomerFilter.Text.Trim();
+                                    DateTime? createDate = dtpCreateDate.Checked ? (DateTime?)dtpCreateDate.Value.Date : null;
+                                    LoadOrders(searchId, customerNameFilter, createDate);
+                                }
+                                else
+                                {
+                                    transaction.Rollback();
+                                    MessageBox.Show("ไม่สามารถยกเลิกรายการได้ กรุณาลองใหม่อีกครั้ง", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            throw new Exception("เกิดข้อผิดพลาดในการยกเลิกรายการ: " + ex.Message);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}\n\nStackTrace: {ex.StackTrace}",
+                    "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

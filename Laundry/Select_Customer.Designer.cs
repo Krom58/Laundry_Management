@@ -37,7 +37,7 @@
             this.label1 = new System.Windows.Forms.Label();
             this.txtFullName = new System.Windows.Forms.TextBox();
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
-            this.Search = new System.Windows.Forms.Button();
+            this.btnSearch = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -125,24 +125,24 @@
             this.dataGridView1.Size = new System.Drawing.Size(1435, 329);
             this.dataGridView1.TabIndex = 43;
             // 
-            // Search
+            // btnSearch
             // 
-            this.Search.AutoSize = true;
-            this.Search.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Search.Location = new System.Drawing.Point(952, 139);
-            this.Search.Name = "Search";
-            this.Search.Size = new System.Drawing.Size(144, 53);
-            this.Search.TabIndex = 44;
-            this.Search.Text = "ค้นหา";
-            this.Search.UseVisualStyleBackColor = true;
-            this.Search.Click += new System.EventHandler(this.Search_Click);
+            this.btnSearch.AutoSize = true;
+            this.btnSearch.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSearch.Location = new System.Drawing.Point(952, 139);
+            this.btnSearch.Name = "btnSearch";
+            this.btnSearch.Size = new System.Drawing.Size(144, 53);
+            this.btnSearch.TabIndex = 44;
+            this.btnSearch.Text = "ค้นหา";
+            this.btnSearch.UseVisualStyleBackColor = true;
+            this.btnSearch.Click += new System.EventHandler(this.Search_Click);
             // 
             // Select_Customer
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1434, 686);
-            this.Controls.Add(this.Search);
+            this.Controls.Add(this.btnSearch);
             this.Controls.Add(this.dataGridView1);
             this.Controls.Add(this.txtPhone);
             this.Controls.Add(this.label2);
@@ -169,6 +169,6 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TextBox txtFullName;
         private System.Windows.Forms.DataGridView dataGridView1;
-        private System.Windows.Forms.Button Search;
+        private System.Windows.Forms.Button btnSearch;
     }
 }

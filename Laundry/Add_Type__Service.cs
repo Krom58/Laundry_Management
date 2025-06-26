@@ -17,8 +17,23 @@ namespace Laundry_Management
         public Add_Type__Service()
         {
             InitializeComponent();
+            // Add KeyDown event handlers to text fields
+            ItemName.KeyDown += TextBox_KeyDown;
+            Price.KeyDown += TextBox_KeyDown;
+            ItemNumber.KeyDown += TextBox_KeyDown;
         }
+        private void TextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Check if Enter key was pressed
+            if (e.KeyCode == Keys.Enter)
+            {
+                // Prevent the "ding" sound
+                e.SuppressKeyPress = true;
 
+                // Execute the same code as the search button click
+                Search_Click(sender, e);
+            }
+        }
         private void Save_Click(object sender, EventArgs e)
         {
             // ตรวจสอบว่ากรอกข้อมูลครบทุกช่องหรือไม่

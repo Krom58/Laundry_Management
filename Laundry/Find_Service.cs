@@ -9,7 +9,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
 
 namespace Laundry_Management.Laundry
 {
@@ -23,9 +22,12 @@ namespace Laundry_Management.Laundry
         {
             InitializeComponent();
 
+            txtCustomerFilter.KeyPress += TxtSearch_KeyPress;
+            txtOrderId.KeyPress += TxtSearch_KeyPress;
+
             // เมื่อเปิดหน้านี้ครั้งแรก ให้โหลดเฉพาะข้อมูลของวันปัจจุบันที่มีสถานะ "รอดำเนินการ"
             DateTime today = DateTime.Today;
-            LoadOrders(null, null, today, "ดำเนินการสำเร็จ");
+            LoadOrders(null, null, today, "ดำเนินการสำเร็จ", null);
 
             // เลือกวันที่ปัจจุบันใน DateTimePicker
             dtpCreateDate.Value = today;
@@ -43,6 +45,19 @@ namespace Laundry_Management.Laundry
             dgvItems.DataBindingComplete += DgvItems_DataBindingComplete;
 
         }
+        private void TxtSearch_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // ตรวจสอบว่ากด Enter หรือไม่ (รหัส ASCII 13)
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                // ป้องกันเสียง beep
+                e.Handled = true;
+
+                // เรียกฟังก์ชันค้นหาเหมือนกับการกดปุ่ม
+                btnSearch_Click(sender, EventArgs.Empty);
+            }
+        }
+
         private void DgvOrders_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0) // ป้องกันการคลิกที่ส่วนหัวคอลัมน์
@@ -135,10 +150,10 @@ namespace Laundry_Management.Laundry
                 dgvOrders.Columns["TodayDiscount"].Visible = false;
             if (dgvOrders.Columns["IsTodayDiscountPercent"] != null)
                 dgvOrders.Columns["IsTodayDiscountPercent"].Visible = false;
-            if (dgvOrders.Columns["CustomerName"] != null)
-                dgvOrders.Columns["CustomerName"].Visible = false;
-            if (dgvOrders.Columns["Phone"] != null)
-                dgvOrders.Columns["Phone"].Visible = false;
+            //if (dgvOrders.Columns["CustomerName"] != null)
+            //    dgvOrders.Columns["CustomerName"].Visible = false;
+            //if (dgvOrders.Columns["Phone"] != null)
+            //    dgvOrders.Columns["Phone"].Visible = false;
             if (dgvOrders.Columns["GrandTotalPrice"] != null)
                 dgvOrders.Columns["GrandTotalPrice"].Visible = false;
             if (dgvOrders.Columns["DiscountedTotal"] != null)
@@ -162,16 +177,17 @@ namespace Laundry_Management.Laundry
         }
         // ปรับปรุงเมธอด LoadOrders ให้รองรับพารามิเตอร์ statusFilter
         private void LoadOrders(
-            string customerFilter = null,
-            int? orderIdFilter = null,
-            DateTime? createDateFilter = null,
-            string statusFilter = null)
+    string customerFilter = null,
+    int? orderIdFilter = null,
+    DateTime? createDateFilter = null,
+    string statusFilter = null,
+    string customOrderIdFilter = null)
         {
             dgvOrders.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dgvOrders.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
             dgvItems.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dgvItems.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
-            dgvOrders.DataSource = _repo.GetOrders(customerFilter, orderIdFilter, createDateFilter, statusFilter);
+            dgvOrders.DataSource = _repo.GetOrders(customerFilter, orderIdFilter, createDateFilter, statusFilter, customOrderIdFilter);
             dgvItems.DataSource = null;
             SelectFirstRow();
         }
@@ -227,10 +243,11 @@ namespace Laundry_Management.Laundry
                 }
             }
             public List<OrderHeaderDto> GetOrders(
-                string customerFilter = null,
-                int? orderIdFilter = null,
-                DateTime? createDateFilter = null,
-                string statusFilter = null)
+    string customerFilter = null,
+    int? orderIdFilter = null,
+    DateTime? createDateFilter = null,
+    string statusFilter = null,
+    string customOrderIdFilter = null)
             {
                 var list = new List<OrderHeaderDto>();
                 using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
@@ -238,11 +255,11 @@ namespace Laundry_Management.Laundry
                 {
                     cmd.Connection = cn;
                     var sb = new StringBuilder(@"
-            SELECT OH.OrderID, OH.CustomOrderId, OH.Discount, OH.CustomerName, OH.Phone, OH.OrderDate,
-                   OH.PickupDate, OH.GrandTotalPrice, OH.DiscountedTotal, R.ReceiptID, R.IsPickedUp, R.CustomReceiptId, OH.OrderStatus
-              FROM OrderHeader OH
-                LEFT JOIN Receipt R ON OH.OrderID = R.OrderID
-             WHERE 1=1");
+SELECT OH.OrderID, OH.CustomOrderId, OH.Discount, OH.CustomerName, OH.Phone, OH.OrderDate,
+       OH.PickupDate, OH.GrandTotalPrice, OH.DiscountedTotal, R.ReceiptID, R.IsPickedUp, R.CustomReceiptId, OH.OrderStatus
+  FROM OrderHeader OH
+    LEFT JOIN Receipt R ON OH.OrderID = R.OrderID
+ WHERE 1=1");
 
                     if (!string.IsNullOrWhiteSpace(customerFilter))
                     {
@@ -263,6 +280,12 @@ namespace Laundry_Management.Laundry
                     {
                         sb.Append(" AND OH.OrderStatus = @status");
                         cmd.Parameters.AddWithValue("@status", statusFilter);
+                    }
+                    // Add filter for CustomOrderId
+                    if (!string.IsNullOrWhiteSpace(customOrderIdFilter))
+                    {
+                        sb.Append(" AND OH.CustomOrderId LIKE @customId");
+                        cmd.Parameters.AddWithValue("@customId", "%" + customOrderIdFilter + "%");
                     }
 
                     cmd.CommandText = sb.ToString();
@@ -825,14 +848,26 @@ namespace Laundry_Management.Laundry
                 MessageBox.Show("พิมพ์และบันทึกใบเสร็จสำเร็จ");
 
                 // รีเฟรชข้อมูลในตารางเพื่อแสดงสถานะใหม่
+                // Inside btnPrintReceipt_Click method where it refreshes data at the end:
                 string cust = txtCustomerFilter.Text.Trim();
                 int? oid = null;
-                if (int.TryParse(txtOrderId.Text.Trim(), out int tmp))
+                string customOrderId = null;
+                string orderText = txtOrderId.Text.Trim();
+
+                if (int.TryParse(orderText, out int tmp))
+                {
                     oid = tmp;
+                }
+                else if (!string.IsNullOrEmpty(orderText))
+                {
+                    customOrderId = orderText;
+                }
+
                 DateTime? createDt = null;
                 if (dtpCreateDate.Checked)
                     createDt = dtpCreateDate.Value.Date;
-                LoadOrders(cust, oid, createDt, "ดำเนินการสำเร็จ");
+
+                LoadOrders(cust, oid, createDt, "ดำเนินการสำเร็จ", customOrderId);
             }
             catch (Exception ex)
             {
@@ -843,25 +878,26 @@ namespace Laundry_Management.Laundry
 
         private void btnSearch_Click(object sender, EventArgs e)
         {
+            string orderText = txtOrderId.Text.Trim();
             string cust = txtCustomerFilter.Text.Trim();
 
             int? oid = null;
-            if (int.TryParse(txtOrderId.Text.Trim(), out int tmp))
-                oid = tmp;
-
+            string customOrderId = null;
+                    // If it's not a valid integer, use it as CustomOrderId
+            customOrderId = orderText;
             DateTime? createDt = null;
             if (dtpCreateDate.Checked)
                 createDt = dtpCreateDate.Value.Date;
 
             // เพิ่มพารามิเตอร์ statusFilter เป็น "ดำเนินการสำเร็จ" เพื่อค้นหาเฉพาะรายการที่มีสถานะนี้
-            LoadOrders(cust, oid, createDt, "ดำเนินการสำเร็จ");
+            LoadOrders(cust, oid, createDt, "ดำเนินการสำเร็จ", customOrderId);
             SelectFirstRow();
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
             // แสดงทั้งหมดแต่เฉพาะรายการที่มีสถานะ "ดำเนินการสำเร็จ"
-            LoadOrders(null, null, null, "ดำเนินการสำเร็จ");
+            LoadOrders(null, null, null, "ดำเนินการสำเร็จ", null);
         }
 
         private void Back_Click(object sender, EventArgs e)
@@ -1056,14 +1092,23 @@ namespace Laundry_Management.Laundry
 
                 // Get order ID filter
                 int? oid = null;
-                if (int.TryParse(txtOrderId.Text.Trim(), out int tmp))
+                string customOrderId = null;
+                string orderText = txtOrderId.Text.Trim();
+
+                if (int.TryParse(orderText, out int tmp))
+                {
                     oid = tmp;
+                }
+                else if (!string.IsNullOrEmpty(orderText))
+                {
+                    customOrderId = orderText;
+                }
 
                 // Use the currently selected date
                 DateTime? createDt = dtpCreateDate.Value.Date;
 
                 // Load orders with the specified filters and status
-                LoadOrders(cust, oid, createDt, "ดำเนินการสำเร็จ");
+                LoadOrders(cust, oid, createDt, "ดำเนินการสำเร็จ", customOrderId);
                 SelectFirstRow();
             }
         }

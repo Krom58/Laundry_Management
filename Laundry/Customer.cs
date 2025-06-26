@@ -16,9 +16,24 @@ namespace Laundry_Management
         public Customer()
         {
             InitializeComponent();
+
+            txtFullName.KeyPress += TxtSearch_KeyPress;
+            txtPhone.KeyPress += TxtSearch_KeyPress;
+
             LoadCustomerData();
         }
+        private void TxtSearch_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // ตรวจสอบว่ากด Enter หรือไม่ (รหัส ASCII 13)
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                // ป้องกันเสียง beep
+                e.Handled = true;
 
+                // เรียกฟังก์ชัน Search เหมือนกดปุ่มค้นหา
+                Search_Click(sender, EventArgs.Empty);
+            }
+        }
         private void Back_Click(object sender, EventArgs e)
         {
             this.Close();

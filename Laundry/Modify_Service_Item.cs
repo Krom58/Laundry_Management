@@ -49,6 +49,9 @@ namespace Laundry_Management.Laundry
             // เพิ่ม event handler สำหรับ DateTimePicker
             dtpCreateDate.ValueChanged += dtpCreateDate_ValueChanged;
 
+            // Add event handler for _modifiedItems changes
+            _modifiedItems.ListChanged += ModifiedItems_ListChanged;
+
             // โหลดข้อมูลเริ่มต้น
             LoadOrders(null, null, today, null);
             SelectFirstRow();
@@ -57,6 +60,8 @@ namespace Laundry_Management.Laundry
         {
             dgvItems.DataSource = _modifiedItems;
             dgvItems.Refresh();
+
+            UpdateTotalFromDataGridView();
         }
 
         private void btnSearch_Click(object sender, EventArgs e)
@@ -257,10 +262,16 @@ namespace Laundry_Management.Laundry
                     }
                 }
 
+                // Re-wire the ListChanged event after creating a new BindingList
+                _modifiedItems.ListChanged += ModifiedItems_ListChanged;
+
                 dgvItems.DataSource = _modifiedItems;
 
                 // Store the current items for reference
                 _currentItems = items;
+
+                // Calculate and update the total price display based on selected order
+                UpdateTotalFromDataGridView();
             }
             catch (Exception ex)
             {
@@ -313,6 +324,9 @@ namespace Laundry_Management.Laundry
 
                 // บังคับให้แสดงการเลือก
                 dgvOrders.Refresh();
+
+                // Update the total price display
+                UpdateTotalFromDataGridView();
             }
         }
 
@@ -554,7 +568,81 @@ namespace Laundry_Management.Laundry
                 // Calculate unit price
                 decimal unitPrice = item.Quantity > 0 ? item.TotalAmount / item.Quantity : 0;
 
-                // Open Item form for editing
+                // เพิ่มเงื่อนไขสำหรับรหัสผ้า A00 เพื่อให้แก้ไขราคาได้
+                if (item.ItemNumber == "A00")
+                {
+                    // แสดง dialog สำหรับการแก้ไขราคา
+                    using (var priceForm = new Form())
+                    {
+                        priceForm.Text = "แก้ไขราคา";
+                        priceForm.Size = new Size(400, 200);
+                        priceForm.StartPosition = FormStartPosition.CenterParent;
+                        priceForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                        priceForm.MaximizeBox = false;
+                        priceForm.MinimizeBox = false;
+
+                        Label lblPrice = new Label();
+                        lblPrice.Text = "ราคาต่อชิ้น:";
+                        lblPrice.Font = new Font("Angsana New", 20, FontStyle.Regular);
+                        lblPrice.Location = new Point(20, 20);
+                        lblPrice.Size = new Size(150, 40);
+
+                        TextBox txtPrice = new TextBox();
+                        txtPrice.Text = unitPrice.ToString("0.00");
+                        txtPrice.Font = new Font("Angsana New", 20, FontStyle.Regular);
+                        txtPrice.Location = new Point(170, 20);
+                        txtPrice.Size = new Size(180, 40);
+
+                        Button btnConfirm = new Button();
+                        btnConfirm.Text = "ตกลง";
+                        btnConfirm.Font = new Font("Angsana New", 18, FontStyle.Regular);
+                        btnConfirm.Location = new Point(80, 80);
+                        btnConfirm.Size = new Size(100, 50);
+                        btnConfirm.DialogResult = DialogResult.OK;
+
+                        Button btnCancel = new Button();
+                        btnCancel.Text = "ยกเลิก";
+                        btnCancel.Font = new Font("Angsana New", 18, FontStyle.Regular);
+                        btnCancel.Location = new Point(210, 80);
+                        btnCancel.Size = new Size(100, 50);
+                        btnCancel.DialogResult = DialogResult.Cancel;
+
+                        priceForm.Controls.Add(lblPrice);
+                        priceForm.Controls.Add(txtPrice);
+                        priceForm.Controls.Add(btnConfirm);
+                        priceForm.Controls.Add(btnCancel);
+                        priceForm.AcceptButton = btnConfirm;
+                        priceForm.CancelButton = btnCancel;
+
+                        if (priceForm.ShowDialog() == DialogResult.OK)
+                        {
+                            if (decimal.TryParse(txtPrice.Text, out decimal newPrice) && newPrice > 0)
+                            {
+                                // คำนวณราคารวมใหม่
+                                decimal newTotalAmount = newPrice * item.Quantity;
+
+                                // อัพเดทราคาในรายการที่กำลังแก้ไข
+                                item.TotalAmount = newTotalAmount;
+
+                                // อัพเดทการแสดงผล
+                                UpdateModifiedItemsGrid();
+                                return;
+                            }
+                            else
+                            {
+                                MessageBox.Show("กรุณาระบุราคาที่ถูกต้อง", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            // ผู้ใช้ยกเลิกการแก้ไขราคา
+                            return;
+                        }
+                    }
+                }
+
+                // Open Item form for editing (สำหรับรายการปกติที่ไม่ใช่ A00)
                 var itemForm = new Item(unitPrice, item.ItemNumber, item.ItemName, item.Quantity);
                 itemForm.IsEditMode = true;
 
@@ -825,5 +913,151 @@ namespace Laundry_Management.Laundry
                     "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        private void Select_Customer_Click(object sender, EventArgs e)
+        {
+            if (!CanEditOrder()) return;
+
+            try
+            {
+                // Get current order data
+                if (dgvOrders.CurrentRow == null)
+                {
+                    MessageBox.Show("กรุณาเลือกรายการที่ต้องการแก้ไขข้อมูลลูกค้า", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                int orderId = (int)dgvOrders.CurrentRow.Cells["OrderID"].Value;
+                string currentCustomerName = dgvOrders.CurrentRow.Cells["CustomerName"].Value.ToString();
+                string currentPhone = dgvOrders.CurrentRow.Cells["Phone"].Value.ToString();
+                decimal currentDiscount = Convert.ToDecimal(dgvOrders.CurrentRow.Cells["Discount"].Value);
+
+                // Open Select_Customer form
+                using (var selectCustomerForm = new Select_Customer())
+                {
+                    // Show the form and check if user clicked OK
+                    if (selectCustomerForm.ShowDialog() == DialogResult.OK)
+                    {
+                        // Get the selected customer data
+                        string newCustomerName = selectCustomerForm.SelectedCustomerName;
+                        string newPhone = selectCustomerForm.SelectedPhone;
+                        decimal newDiscount = selectCustomerForm.SelectedDiscount;
+
+                        // Check if data has changed
+                        bool dataChanged = newCustomerName != currentCustomerName ||
+                                          newPhone != currentPhone ||
+                                          newDiscount != currentDiscount;
+
+                        // If no changes, do nothing
+                        if (!dataChanged)
+                        {
+                            MessageBox.Show("ไม่มีการเปลี่ยนแปลงข้อมูลลูกค้า", "ข้อมูล", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+
+                        // Confirm the changes
+                        string message = "ยืนยันการเปลี่ยนแปลงข้อมูลลูกค้า:\n\n";
+                        if (newCustomerName != currentCustomerName)
+                            message += $"ชื่อลูกค้า: {currentCustomerName} → {newCustomerName}\n";
+                        if (newPhone != currentPhone)
+                            message += $"เบอร์โทร: {currentPhone} → {newPhone}\n";
+                        if (newDiscount != currentDiscount)
+                            message += $"ส่วนลด: {currentDiscount}% → {newDiscount}%\n";
+
+                        DialogResult confirmResult = MessageBox.Show(
+                            message,
+                            "ยืนยันการเปลี่ยนแปลง",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
+
+                        if (confirmResult != DialogResult.Yes)
+                        {
+                            return; // User canceled
+                        }
+
+                        // Update the customer information in the database
+                        using (var cn = DBconfig.GetConnection())
+                        {
+                            cn.Open();
+                            using (var transaction = cn.BeginTransaction())
+                            {
+                                try
+                                {
+                                    // Update OrderHeader with new customer information
+                                    using (var cmd = new SqlCommand(
+                                        @"UPDATE OrderHeader 
+                                SET CustomerName = @customerName, 
+                                    Phone = @phone, 
+                                    Discount = @discount,
+                                    DiscountedTotal = GrandTotalPrice - (GrandTotalPrice * @discountRate)
+                                WHERE OrderID = @orderId", cn, transaction))
+                                    {
+                                        cmd.Parameters.AddWithValue("@customerName", newCustomerName);
+                                        cmd.Parameters.AddWithValue("@phone", newPhone);
+                                        cmd.Parameters.AddWithValue("@discount", newDiscount);
+                                        cmd.Parameters.AddWithValue("@discountRate", newDiscount / 100m);
+                                        cmd.Parameters.AddWithValue("@orderId", orderId);
+                                        cmd.ExecuteNonQuery();
+                                    }
+
+                                    // Commit the transaction
+                                    transaction.Commit();
+
+                                    // Update the current row in the grid with new values
+                                    dgvOrders.CurrentRow.Cells["CustomerName"].Value = newCustomerName;
+                                    dgvOrders.CurrentRow.Cells["Phone"].Value = newPhone;
+                                    dgvOrders.CurrentRow.Cells["Discount"].Value = newDiscount;
+
+                                    // Recalculate discounted total
+                                    decimal grandTotal = Convert.ToDecimal(dgvOrders.CurrentRow.Cells["GrandTotalPrice"].Value);
+                                    decimal newDiscountedTotal = grandTotal - (grandTotal * (newDiscount / 100m));
+                                    dgvOrders.CurrentRow.Cells["DiscountedTotal"].Value = newDiscountedTotal;
+
+                                    MessageBox.Show("อัพเดทข้อมูลลูกค้าเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Rollback on error
+                                    transaction.Rollback();
+                                    throw new Exception("เกิดข้อผิดพลาดในการอัพเดทข้อมูลลูกค้า: " + ex.Message);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        private void UpdateTotalFromDataGridView()
+        {
+            decimal total = 0;
+
+            // Calculate total based on what's available - either the modified items collection or the current items
+            if (_modifiedItems != null && _modifiedItems.Count > 0)
+            {
+                // Use _modifiedItems when it's populated
+                total = _modifiedItems
+                    .Where(item => !item.IsCanceled)
+                    .Sum(item => item.TotalAmount);
+            }
+            else if (_currentItems != null && _currentItems.Count > 0)
+            {
+                // Use _currentItems when _modifiedItems is empty
+                total = _currentItems
+                    .Where(item => !item.IsCanceled)
+                    .Sum(item => item.TotalAmount);
+            }
+
+            // Update the lblTotal with the calculated total
+            lblTotal.Text = total.ToString("N2") + " บาท";
+        }
+        private void ModifiedItems_ListChanged(object sender, ListChangedEventArgs e)
+        {
+            UpdateTotalFromDataGridView();
+        }
+
     }
 }

@@ -41,15 +41,17 @@
             this.ServiceType = new System.Windows.Forms.ComboBox();
             this.Gender = new System.Windows.Forms.ComboBox();
             this.label3 = new System.Windows.Forms.Label();
-            this.dataGridView2 = new System.Windows.Forms.DataGridView();
+            this.dgvItems = new System.Windows.Forms.DataGridView();
             this.Search = new System.Windows.Forms.Button();
             this.Delete = new System.Windows.Forms.Button();
             this.Back = new System.Windows.Forms.Button();
             this.btnSaveSelected = new System.Windows.Forms.Button();
             this.btnFix = new System.Windows.Forms.Button();
             this.btnEnd = new System.Windows.Forms.Button();
+            this.lblTotal = new System.Windows.Forms.Label();
+            this.label4 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.dataGridView2)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvItems)).BeginInit();
             this.SuspendLayout();
             // 
             // dataGridView1
@@ -151,7 +153,7 @@
             this.label3.TabIndex = 26;
             this.label3.Text = "เพศ";
             // 
-            // dataGridView2
+            // dgvItems
             // 
             dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Control;
@@ -160,8 +162,8 @@
             dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
             dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView2.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
-            this.dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvItems.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
+            this.dgvItems.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle4.BackColor = System.Drawing.SystemColors.Window;
             dataGridViewCellStyle4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -169,12 +171,12 @@
             dataGridViewCellStyle4.SelectionBackColor = System.Drawing.SystemColors.Highlight;
             dataGridViewCellStyle4.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView2.DefaultCellStyle = dataGridViewCellStyle4;
-            this.dataGridView2.Location = new System.Drawing.Point(955, 304);
-            this.dataGridView2.Name = "dataGridView2";
-            this.dataGridView2.ReadOnly = true;
-            this.dataGridView2.Size = new System.Drawing.Size(950, 738);
-            this.dataGridView2.TabIndex = 28;
+            this.dgvItems.DefaultCellStyle = dataGridViewCellStyle4;
+            this.dgvItems.Location = new System.Drawing.Point(955, 304);
+            this.dgvItems.Name = "dgvItems";
+            this.dgvItems.ReadOnly = true;
+            this.dgvItems.Size = new System.Drawing.Size(950, 738);
+            this.dgvItems.TabIndex = 28;
             // 
             // Search
             // 
@@ -249,18 +251,42 @@
             this.btnEnd.UseVisualStyleBackColor = true;
             this.btnEnd.Click += new System.EventHandler(this.btnEnd_Click);
             // 
+            // lblTotal
+            // 
+            this.lblTotal.AutoSize = true;
+            this.lblTotal.Font = new System.Drawing.Font("Angsana New", 36F);
+            this.lblTotal.ForeColor = System.Drawing.Color.Green;
+            this.lblTotal.Location = new System.Drawing.Point(1598, 140);
+            this.lblTotal.Name = "lblTotal";
+            this.lblTotal.Size = new System.Drawing.Size(39, 65);
+            this.lblTotal.TabIndex = 58;
+            this.lblTotal.Text = "-";
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Font = new System.Drawing.Font("Angsana New", 36F);
+            this.label4.ForeColor = System.Drawing.Color.Green;
+            this.label4.Location = new System.Drawing.Point(1431, 140);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(161, 65);
+            this.label4.TabIndex = 57;
+            this.label4.Text = "ราคารวม :";
+            // 
             // Service
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.lblTotal);
+            this.Controls.Add(this.label4);
             this.Controls.Add(this.btnEnd);
             this.Controls.Add(this.btnFix);
             this.Controls.Add(this.btnSaveSelected);
             this.Controls.Add(this.Back);
             this.Controls.Add(this.Delete);
             this.Controls.Add(this.Search);
-            this.Controls.Add(this.dataGridView2);
+            this.Controls.Add(this.dgvItems);
             this.Controls.Add(this.Gender);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.label2);
@@ -275,7 +301,7 @@
             this.Text = "สร้างใบรับผ้า";
             this.Load += new System.EventHandler(this.Service_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.dataGridView2)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvItems)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -292,12 +318,14 @@
         private System.Windows.Forms.ComboBox ServiceType;
         private System.Windows.Forms.ComboBox Gender;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.DataGridView dataGridView2;
+        private System.Windows.Forms.DataGridView dgvItems;
         private System.Windows.Forms.Button Search;
         private System.Windows.Forms.Button Delete;
         private System.Windows.Forms.Button Back;
         private System.Windows.Forms.Button btnSaveSelected;
         private System.Windows.Forms.Button btnFix;
         private System.Windows.Forms.Button btnEnd;
+        private System.Windows.Forms.Label lblTotal;
+        private System.Windows.Forms.Label label4;
     }
 }
