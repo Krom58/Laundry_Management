@@ -368,10 +368,10 @@ namespace Laundry_Management.Laundry
         public class OrderRepository
         {
             public List<OrderHeaderDto> GetOrders(
-                string customerFilter = null,
-                int? orderIdFilter = null,
-                DateTime? createDateFilter = null,
-                string statusFilter = null)
+    string customerFilter = null,
+    int? orderIdFilter = null,
+    DateTime? createDateFilter = null,
+    string statusFilter = null)
             {
                 var list = new List<OrderHeaderDto>();
                 using (var cn = DBconfig.GetConnection())
@@ -379,11 +379,12 @@ namespace Laundry_Management.Laundry
                 {
                     cmd.Connection = cn;
                     var sb = new StringBuilder(@"
-                    SELECT OH.OrderID, OH.CustomOrderId, OH.Discount, OH.CustomerName, OH.Phone, OH.OrderDate,
-                           OH.PickupDate, OH.GrandTotalPrice, OH.DiscountedTotal, R.ReceiptID, R.IsPickedUp, R.CustomReceiptId, OH.OrderStatus
-                      FROM OrderHeader OH
-                        LEFT JOIN Receipt R ON OH.OrderID = R.OrderID
-                     WHERE 1=1");
+        SELECT OH.OrderID, OH.CustomOrderId, OH.Discount, OH.CustomerName, OH.Phone, OH.OrderDate,
+               OH.PickupDate, OH.GrandTotalPrice, OH.DiscountedTotal, R.ReceiptID, R.IsPickedUp, R.CustomReceiptId, OH.OrderStatus
+          FROM OrderHeader OH
+            LEFT JOIN Receipt R ON OH.OrderID = R.OrderID
+         WHERE 1=1
+           AND (OH.OrderStatus <> N'รายการถูกยกเลิก' OR OH.OrderStatus IS NULL)");
 
                     if (!string.IsNullOrWhiteSpace(customerFilter))
                     {

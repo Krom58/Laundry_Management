@@ -415,6 +415,7 @@ namespace Laundry_Management.Laundry
                 using (Font headerFont = new Font("Angsana New", 12, FontStyle.Bold))
                 using (Font normalFont = new Font("Angsana New", 12))
                 using (Font smallFont = new Font("Angsana New", 10))
+                using (Font boldFont = new Font("Angsana New", 12, FontStyle.Bold)) // เพิ่มฟอนต์ตัวหนาสำหรับแถวรวม
                 {
                     // Draw the page header
                     float yPosition = topMargin;
@@ -453,11 +454,11 @@ namespace Laundry_Management.Laundry
                     e.Graphics.DrawString(paymentInfo, headerFont, Brushes.Black, paymentInfoX, yPosition);
                     yPosition += headerFont.GetHeight() * 1.5f;
 
-                    // Define columns to print with multi-line headers - ใช้ \n เพื่อแบ่งบรรทัด
                     string[] columnNames = new string[] {
+                "ลำดับ",
                 "วันที่\nออกใบเสร็จ",
                 "เลขที่\nใบเสร็จ",
-                "เลขที่\nรายการ",
+                "เลขที่\nใบรับผ้า",
                 "ยอดรวมก่อน\nหักส่วนลด",
                 "ส่วนลด",
                 "ยอดรวมหลัง\nหักส่วนลด",
@@ -467,6 +468,7 @@ namespace Laundry_Management.Laundry
             };
 
                     string[] columnDataProperties = new string[] {
+                "", // ลำดับ - ไม่มี property คู่กัน
                 "ReceiptDate",
                 "CustomReceiptId",
                 "CustomOrderId",
@@ -478,17 +480,18 @@ namespace Laundry_Management.Laundry
                 "CreditAmount"
             };
 
-                    // Column width percentages - ปรับความกว้างคอลัมน์ให้พอดีกับจำนวนคอลัมน์ที่เพิ่มขึ้น
+                    // Column width percentages - ปรับความกว้างคอลัมน์ให้เหมาะสมกับแนวตั้งและเพิ่มคอลัมน์ลำดับ
                     float[] columnWidthPercentages = new float[] {
-                0.12f, // วันที่ออกใบเสร็จ
+                0.05f, // ลำดับ
+                0.15f, // วันที่ออกใบเสร็จ
                 0.10f, // เลขที่ใบเสร็จ
                 0.10f, // เลขที่รายการ
-                0.12f, // ยอดรวมก่อนหักส่วนลด
-                0.09f, // ส่วนลด
-                0.12f, // ยอดรวมหลังหักส่วนลด
-                0.11f, // ชำระด้วยเงินสด
-                0.11f, // ชำระด้วย QR
-                0.13f  // ชำระด้วยบัตรเครดิต
+                0.11f, // ยอดรวมก่อนหักส่วนลด
+                0.08f, // ส่วนลด
+                0.11f, // ยอดรวมหลังหักส่วนลด
+                0.10f, // ชำระด้วยเงินสด
+                0.10f, // ชำระด้วย QR
+                0.10f  // ชำระด้วยบัตรเครดิต
             };
 
                     // Calculate column widths
@@ -499,8 +502,7 @@ namespace Laundry_Management.Laundry
                     }
 
                     // Draw table header with multi-line support
-                    // เพิ่มความสูงให้เพียงพอสำหรับข้อความสองบรรทัด
-                    float headerHeight = headerFont.GetHeight() * 2.5f; // เพิ่มความสูงให้มากขึ้นเพื่อรองรับสองบรรทัด
+                    float headerHeight = headerFont.GetHeight() * 2.5f;
                     float currentX = leftMargin;
 
                     for (int i = 0; i < columnNames.Length; i++)
@@ -511,7 +513,6 @@ namespace Laundry_Management.Laundry
                         {
                             sf.Alignment = StringAlignment.Center;
                             sf.LineAlignment = StringAlignment.Center;
-                            // เพิ่ม flag ที่สำคัญเพื่อรองรับการแสดงผลหลายบรรทัด
                             sf.FormatFlags = StringFormatFlags.LineLimit | StringFormatFlags.NoClip;
 
                             e.Graphics.FillRectangle(Brushes.LightGray, headerRect);
@@ -523,16 +524,56 @@ namespace Laundry_Management.Laundry
                     }
                     yPosition += headerHeight;
 
+                    // เตรียมข้อมูลสำหรับแถวรวม
+                    decimal totalBeforeDiscount = 0;
+                    decimal totalDiscount = 0;
+                    decimal totalAfterDiscount = 0;
+                    decimal totalCashAmount = 0;
+                    decimal totalQRAmount = 0;
+                    decimal totalCreditAmount = 0;
+
+                    // ดึงข้อมูลรวมจาก DataGridView
+                    foreach (DataGridViewRow row in dgvReport.Rows)
+                    {
+                        if (row.Cells["CustomReceiptId"].Value != null)
+                        {
+                            try
+                            {
+                                if (row.Cells["TotalBeforeDiscount"].Value != null)
+                                    totalBeforeDiscount += Convert.ToDecimal(row.Cells["TotalBeforeDiscount"].Value);
+
+                                if (row.Cells["Discount"].Value != null)
+                                    totalDiscount += Convert.ToDecimal(row.Cells["Discount"].Value);
+
+                                if (row.Cells["TotalAfterDiscount"].Value != null)
+                                    totalAfterDiscount += Convert.ToDecimal(row.Cells["TotalAfterDiscount"].Value);
+
+                                if (row.Cells["CashAmount"].Value != null)
+                                    totalCashAmount += Convert.ToDecimal(row.Cells["CashAmount"].Value);
+
+                                if (row.Cells["QRAmount"].Value != null)
+                                    totalQRAmount += Convert.ToDecimal(row.Cells["QRAmount"].Value);
+
+                                if (row.Cells["CreditAmount"].Value != null)
+                                    totalCreditAmount += Convert.ToDecimal(row.Cells["CreditAmount"].Value);
+                            }
+                            catch { }
+                        }
+                    }
+
                     // Calculate how many rows can fit on a page
                     float rowHeight = normalFont.GetHeight() * 1.2f;
-                    int rowsPerPage = (int)((availableHeight - (yPosition - topMargin) - 40) / rowHeight);
+                    int rowsPerPage = (int)((availableHeight - (yPosition - topMargin) - 40 - rowHeight) / rowHeight); // ลดจำนวนแถวลง 1 เพื่อเหลือที่ให้แถวรวม
 
                     // Calculate the range of rows to print for the current page
                     int startRow = _currentPage * rowsPerPage;
                     int endRow = Math.Min(startRow + rowsPerPage, dgvReport.Rows.Count);
+                    bool isLastPage = endRow >= dgvReport.Rows.Count;
 
                     // Print data rows
                     int validRowsPrinted = 0;
+                    int sequenceNumber = startRow + 1; // เริ่มต้นลำดับตามหน้าที่พิมพ์
+
                     for (int i = startRow; i < endRow; i++)
                     {
                         DataGridViewRow row = dgvReport.Rows[i];
@@ -545,7 +586,19 @@ namespace Laundry_Management.Laundry
 
                         currentX = leftMargin;
 
-                        for (int j = 0; j < columnDataProperties.Length; j++)
+                        // เพิ่มคอลัมน์ลำดับ
+                        RectangleF seqRect = new RectangleF(currentX, yPosition, columnWidths[0], rowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            e.Graphics.DrawString(sequenceNumber.ToString(), normalFont, Brushes.Black, seqRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, seqRect.X, seqRect.Y, seqRect.Width, seqRect.Height);
+                        }
+                        currentX += columnWidths[0];
+
+                        // ลำดับข้อมูลในแถว
+                        for (int j = 1; j < columnDataProperties.Length; j++) // เริ่มที่ 1 เพราะคอลัมน์แรกเป็นลำดับ
                         {
                             string cellValue = "";
                             try
@@ -619,20 +672,112 @@ namespace Laundry_Management.Laundry
                         }
 
                         yPosition += rowHeight;
+                        sequenceNumber++; // เพิ่มลำดับ
                         validRowsPrinted++;
                     }
 
-                    // Add summary at the bottom if this is the last page
-                    bool isLastPage = endRow >= dgvReport.Rows.Count;
-
+                    // พิมพ์แถวรวมท้ายตารางเฉพาะในหน้าสุดท้าย
                     if (isLastPage)
                     {
-                        yPosition += 15;
+                        currentX = leftMargin;
 
-                        // Count valid rows
+                        // คอลัมน์ลำดับ - แสดงเป็นคำว่า "รวม"
+                        RectangleF totalLabelRect = new RectangleF(currentX, yPosition, columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3], rowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+
+                            e.Graphics.FillRectangle(Brushes.LightGray, totalLabelRect);
+                            e.Graphics.DrawRectangle(Pens.Black, totalLabelRect.X, totalLabelRect.Y, totalLabelRect.Width, totalLabelRect.Height);
+                            e.Graphics.DrawString("รวมทั้งหมด", boldFont, Brushes.Black, totalLabelRect, sf);
+                        }
+
+                        currentX += columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3];
+
+                        // ยอดรวมก่อนหักส่วนลด
+                        RectangleF totalBeforeRect = new RectangleF(currentX, yPosition, columnWidths[4], rowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Far;
+                            sf.LineAlignment = StringAlignment.Center;
+
+                            e.Graphics.FillRectangle(Brushes.LightGray, totalBeforeRect);
+                            e.Graphics.DrawRectangle(Pens.Black, totalBeforeRect.X, totalBeforeRect.Y, totalBeforeRect.Width, totalBeforeRect.Height);
+                            e.Graphics.DrawString(totalBeforeDiscount.ToString("N2"), boldFont, Brushes.Black, totalBeforeRect, sf);
+                        }
+                        currentX += columnWidths[4];
+
+                        // ส่วนลด
+                        RectangleF discountRect = new RectangleF(currentX, yPosition, columnWidths[5], rowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Far;
+                            sf.LineAlignment = StringAlignment.Center;
+
+                            e.Graphics.FillRectangle(Brushes.LightGray, discountRect);
+                            e.Graphics.DrawRectangle(Pens.Black, discountRect.X, discountRect.Y, discountRect.Width, discountRect.Height);
+                            e.Graphics.DrawString(totalDiscount.ToString("N2"), boldFont, Brushes.Black, discountRect, sf);
+                        }
+                        currentX += columnWidths[5];
+
+                        // ยอดรวมหลังหักส่วนลด
+                        RectangleF totalAfterRect = new RectangleF(currentX, yPosition, columnWidths[6], rowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Far;
+                            sf.LineAlignment = StringAlignment.Center;
+
+                            e.Graphics.FillRectangle(Brushes.LightGray, totalAfterRect);
+                            e.Graphics.DrawRectangle(Pens.Black, totalAfterRect.X, totalAfterRect.Y, totalAfterRect.Width, totalAfterRect.Height);
+                            e.Graphics.DrawString(totalAfterDiscount.ToString("N2"), boldFont, Brushes.Black, totalAfterRect, sf);
+                        }
+                        currentX += columnWidths[6];
+
+                        // ชำระด้วยเงินสด
+                        RectangleF cashRect = new RectangleF(currentX, yPosition, columnWidths[7], rowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Far;
+                            sf.LineAlignment = StringAlignment.Center;
+
+                            e.Graphics.FillRectangle(Brushes.LightGray, cashRect);
+                            e.Graphics.DrawRectangle(Pens.Black, cashRect.X, cashRect.Y, cashRect.Width, cashRect.Height);
+                            e.Graphics.DrawString(totalCashAmount.ToString("N2"), boldFont, Brushes.Black, cashRect, sf);
+                        }
+                        currentX += columnWidths[7];
+
+                        // ชำระด้วย QR
+                        RectangleF qrRect = new RectangleF(currentX, yPosition, columnWidths[8], rowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Far;
+                            sf.LineAlignment = StringAlignment.Center;
+
+                            e.Graphics.FillRectangle(Brushes.LightGray, qrRect);
+                            e.Graphics.DrawRectangle(Pens.Black, qrRect.X, qrRect.Y, qrRect.Width, qrRect.Height);
+                            e.Graphics.DrawString(totalQRAmount.ToString("N2"), boldFont, Brushes.Black, qrRect, sf);
+                        }
+                        currentX += columnWidths[8];
+
+                        // ชำระด้วยบัตรเครดิต
+                        RectangleF creditRect = new RectangleF(currentX, yPosition, columnWidths[9], rowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Far;
+                            sf.LineAlignment = StringAlignment.Center;
+
+                            e.Graphics.FillRectangle(Brushes.LightGray, creditRect);
+                            e.Graphics.DrawRectangle(Pens.Black, creditRect.X, creditRect.Y, creditRect.Width, creditRect.Height);
+                            e.Graphics.DrawString(totalCreditAmount.ToString("N2"), boldFont, Brushes.Black, creditRect, sf);
+                        }
+
+                        yPosition += rowHeight;
+
+                        // เพิ่มข้อความจำนวนรายการใต้ตาราง
+                        yPosition += 15;
                         int validRowCount = dgvReport.Rows.Cast<DataGridViewRow>().Count(r =>
                             r.Cells["CustomReceiptId"].Value != null);
-
                         string summaryText = $"จำนวนรายการขายทั้งหมด {validRowCount} รายการ";
                         e.Graphics.DrawString(summaryText, normalFont, Brushes.Black, leftMargin, yPosition);
                     }

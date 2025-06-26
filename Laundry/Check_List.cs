@@ -836,10 +836,59 @@ namespace Laundry_Management.Laundry
                 int totalValidRows = dgvOrders.Rows.Cast<DataGridViewRow>().Count(r =>
                     r.Cells["หมายเลขใบรับผ้า"].Value != null || r.Cells["ชื่อลูกค้า"].Value != null);
 
+                // Pre-calculate totals for all valid rows
+                decimal totalOrderAmount = 0m;
+                decimal totalReceiptAmount = 0m;
+                decimal totalDiscount = 0m;
+                decimal totalAfterDiscount = 0m;
+
+                foreach (DataGridViewRow row in dgvOrders.Rows)
+                {
+                    if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
+                    {
+                        if (row.Cells["ราคารวมใบรับผ้า"].Value != null && row.Cells["ราคารวมใบรับผ้า"].Value != DBNull.Value)
+                        {
+                            decimal amount;
+                            if (decimal.TryParse(row.Cells["ราคารวมใบรับผ้า"].Value.ToString(), out amount))
+                            {
+                                totalOrderAmount += amount;
+                            }
+                        }
+
+                        if (row.Cells["ราคารวมใบเสร็จ"].Value != null && row.Cells["ราคารวมใบเสร็จ"].Value != DBNull.Value)
+                        {
+                            decimal amount;
+                            if (decimal.TryParse(row.Cells["ราคารวมใบเสร็จ"].Value.ToString(), out amount))
+                            {
+                                totalReceiptAmount += amount;
+                            }
+                        }
+
+                        if (row.Cells["ส่วนลด"].Value != null && row.Cells["ส่วนลด"].Value != DBNull.Value)
+                        {
+                            decimal discount;
+                            if (decimal.TryParse(row.Cells["ส่วนลด"].Value.ToString(), out discount))
+                            {
+                                totalDiscount += discount;
+                            }
+                        }
+
+                        if (row.Cells["ราคารวมหลังหักส่วนลด"].Value != null && row.Cells["ราคารวมหลังหักส่วนลด"].Value != DBNull.Value)
+                        {
+                            decimal netAmount;
+                            if (decimal.TryParse(row.Cells["ราคารวมหลังหักส่วนลด"].Value.ToString(), out netAmount))
+                            {
+                                totalAfterDiscount += netAmount;
+                            }
+                        }
+                    }
+                }
+
                 // Use smaller fonts to fit better in portrait mode
                 using (Font titleFont = new Font("Angsana New", 12, FontStyle.Bold))
                 using (Font headerFont = new Font("Angsana New", 10, FontStyle.Bold))
                 using (Font normalFont = new Font("Angsana New", 10))
+                using (Font totalFont = new Font("Angsana New", 10, FontStyle.Bold))
                 using (Font smallFont = new Font("Angsana New", 8))
                 {
                     float yPosition = topMargin;
@@ -879,8 +928,14 @@ namespace Laundry_Management.Laundry
                     float fixedHeaderSpace = headerSpace + tableHeaderHeight;
 
                     // Calculate how many rows can fit on each page
-                    int rowsPerFirstPage = (int)((availableHeight - fixedHeaderSpace) / rowHeight);
-                    int rowsPerSubsequentPage = (int)((availableHeight - fixedHeaderSpace) / rowHeight);
+                    // Include space for total row on the last page
+                    float totalRowHeight = rowHeight * 1.3f;
+                    int rowsPerFirstPage = (int)((availableHeight - fixedHeaderSpace - totalRowHeight) / rowHeight);
+                    int rowsPerSubsequentPage = (int)((availableHeight - fixedHeaderSpace - totalRowHeight) / rowHeight);
+
+                    // Ensure at least one row per page (minimum)
+                    rowsPerFirstPage = Math.Max(1, rowsPerFirstPage);
+                    rowsPerSubsequentPage = Math.Max(1, rowsPerSubsequentPage);
 
                     // Calculate total pages based on row count
                     int totalPages = 1;
@@ -900,12 +955,13 @@ namespace Laundry_Management.Laundry
 
                     // Define column names for the table header - shorter text for portrait mode
                     string[] columnNames = new string[] {
+                "ลำดับ",
                 "เลขใบรับผ้า",
                 "เลขใบเสร็จ",
                 "ชื่อลูกค้า",
                 "เบอร์โทร",
-                "ราคาใบรับผ้า",
-                "ราคาใบเสร็จ",
+                "ใบรับผ้า",
+                "ราคาก่อนลด",
                 "ส่วนลด",
                 "ราคาสุทธิ",
                 "วันออกใบรับผ้า",
@@ -914,30 +970,58 @@ namespace Laundry_Management.Laundry
                 "วันที่มารับ"
             };
 
-                    string[] columnDataProperties = new string[] {
-                "หมายเลขใบรับผ้า",
-                "หมายเลขใบเสร็จ",
-                "ชื่อลูกค้า",
-                "เบอร์โทรศัพท์",
-                "ราคารวมใบรับผ้า",
-                "ราคารวมใบเสร็จ",
-                "ส่วนลด",
-                "ราคารวมหลังหักส่วนลด",
-                "วันที่ออกใบรับผ้า",
-                "วันที่ครบกำหนด",
-                "สถานะ",
-                "วันที่ลูกค้ามารับ"
+                    // Adjust column width percentages for better fit including row numbers
+                    float[] columnWidthPercentages = new float[] {
+                0.04f, // ลำดับ (new column)
+                0.08f, // หมายเลขใบรับผ้า
+                0.08f, // หมายเลขใบเสร็จ
+                0.12f, // ชื่อลูกค้า
+                0.07f, // เบอร์โทรศัพท์
+                0.07f, // ราคารวมใบรับผ้า
+                0.07f, // ราคารวมใบเสร็จ
+                0.05f, // ส่วนลด
+                0.08f, // ราคารวมหลังหักส่วนลด
+                0.08f, // วันที่ออกใบรับผ้า
+                0.08f, // วันที่ครบกำหนด
+                0.08f, // สถานะ
+                0.10f  // วันที่ลูกค้ามารับ
             };
 
-                    // Draw the table header on every page
-                    float[] columnWidths;
-                    float headerHeight;
-                    DrawTableHeader(e.Graphics, headerFont, leftMargin, yPosition, rightMargin, columnNames, out columnWidths, out headerHeight);
+                    // Calculate column widths
+                    float[] columnWidths = new float[columnWidthPercentages.Length];
+                    for (int i = 0; i < columnWidthPercentages.Length; i++)
+                    {
+                        columnWidths[i] = availableWidth * columnWidthPercentages[i];
+                    }
+
+                    // Draw table header
+                    float headerHeight = headerFont.GetHeight() * 2.7f;
+                    float headerX = leftMargin;
+
+                    // Draw header cells
+                    for (int i = 0; i < columnNames.Length; i++)
+                    {
+                        RectangleF headerRect = new RectangleF(headerX, yPosition, columnWidths[i], headerHeight);
+
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            sf.FormatFlags = StringFormatFlags.LineLimit | StringFormatFlags.NoClip;
+                            e.Graphics.FillRectangle(Brushes.LightGray, headerRect);
+                            e.Graphics.DrawRectangle(Pens.Black, headerRect.X, headerRect.Y, headerRect.Width, headerRect.Height);
+                            e.Graphics.DrawString(columnNames[i], headerFont, Brushes.Black, headerRect, sf);
+                        }
+
+                        headerX += columnWidths[i];
+                    }
+
                     yPosition += headerHeight;
 
                     // Calculate start and end row for current page
                     int startRow;
                     int endRow;
+                    bool isLastPage = false;
 
                     if (_currentPage == 0)
                     {
@@ -948,6 +1032,27 @@ namespace Laundry_Management.Laundry
                     {
                         startRow = rowsPerFirstPage + (_currentPage - 1) * rowsPerSubsequentPage;
                         endRow = Math.Min(startRow + rowsPerSubsequentPage, dgvOrders.Rows.Count);
+                    }
+
+                    // Track valid rows for row numbering
+                    int validRowCount = 0;
+
+                    // Get the starting row number for this page
+                    int rowNumberStart = 0;
+                    if (_currentPage > 0)
+                    {
+                        // Count valid rows on previous pages
+                        for (int i = 0; i < startRow; i++)
+                        {
+                            if (i < dgvOrders.Rows.Count)
+                            {
+                                DataGridViewRow row = dgvOrders.Rows[i];
+                                if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
+                                {
+                                    rowNumberStart++;
+                                }
+                            }
+                        }
                     }
 
                     // Draw data rows for this page
@@ -967,39 +1072,72 @@ namespace Laundry_Management.Laundry
                             continue;
                         }
 
-                        float currentX = leftMargin;
+                        // Increment valid row counter (for row numbers)
+                        validRowCount++;
+
+                        // Position for this row
+                        float rowX = leftMargin;
+
+                        // Draw row number column first
+                        RectangleF rowNumberRect = new RectangleF(rowX, yPosition, columnWidths[0], rowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            e.Graphics.DrawRectangle(Pens.Black, rowNumberRect.X, rowNumberRect.Y, rowNumberRect.Width, rowNumberRect.Height);
+                            e.Graphics.DrawString((rowNumberStart + validRowCount).ToString(), normalFont, Brushes.Black, rowNumberRect, sf);
+                        }
+                        rowX += columnWidths[0];
 
                         // Print each cell in the row
-                        for (int j = 0; j < columnDataProperties.Length; j++)
+                        for (int j = 1; j < columnNames.Length; j++) // Start from 1 to skip row number column
                         {
                             string cellValue = "";
                             try
                             {
-                                if (row.Cells[columnDataProperties[j]].Value != null &&
-                                    row.Cells[columnDataProperties[j]].Value != DBNull.Value)
+                                // Map column names to data property names
+                                string dataProperty = "";
+                                switch (j)
+                                {
+                                    case 1: dataProperty = "หมายเลขใบรับผ้า"; break;
+                                    case 2: dataProperty = "หมายเลขใบเสร็จ"; break;
+                                    case 3: dataProperty = "ชื่อลูกค้า"; break;
+                                    case 4: dataProperty = "เบอร์โทรศัพท์"; break;
+                                    case 5: dataProperty = "ราคารวมใบรับผ้า"; break;
+                                    case 6: dataProperty = "ราคารวมใบเสร็จ"; break;
+                                    case 7: dataProperty = "ส่วนลด"; break;
+                                    case 8: dataProperty = "ราคารวมหลังหักส่วนลด"; break;
+                                    case 9: dataProperty = "วันที่ออกใบรับผ้า"; break;
+                                    case 10: dataProperty = "วันที่ครบกำหนด"; break;
+                                    case 11: dataProperty = "สถานะ"; break;
+                                    case 12: dataProperty = "วันที่ลูกค้ามารับ"; break;
+                                }
+
+                                if (row.Cells[dataProperty].Value != null &&
+                                    row.Cells[dataProperty].Value != DBNull.Value)
                                 {
                                     // Format values based on column type
-                                    if (columnDataProperties[j] == "ราคารวมใบรับผ้า" ||
-                                        columnDataProperties[j] == "ราคารวมใบเสร็จ" ||
-                                        columnDataProperties[j] == "ส่วนลด" ||
-                                        columnDataProperties[j] == "ราคารวมหลังหักส่วนลด")
+                                    if (dataProperty == "ราคารวมใบรับผ้า" ||
+                                        dataProperty == "ราคารวมใบเสร็จ" ||
+                                        dataProperty == "ส่วนลด" ||
+                                        dataProperty == "ราคารวมหลังหักส่วนลด")
                                     {
-                                        decimal amount = Convert.ToDecimal(row.Cells[columnDataProperties[j]].Value);
-                                        cellValue = amount.ToString("N2"); // Simplified to save space
+                                        decimal amount = Convert.ToDecimal(row.Cells[dataProperty].Value);
+                                        cellValue = amount.ToString("N2"); // Shorter format
                                     }
-                                    else if (columnDataProperties[j] == "วันที่ออกใบรับผ้า" ||
-                                             columnDataProperties[j] == "วันที่ครบกำหนด" ||
-                                             columnDataProperties[j] == "วันที่ลูกค้ามารับ")
+                                    else if (dataProperty == "วันที่ออกใบรับผ้า" ||
+                                             dataProperty == "วันที่ครบกำหนด" ||
+                                             dataProperty == "วันที่ลูกค้ามารับ")
                                     {
-                                        if (row.Cells[columnDataProperties[j]].Value != DBNull.Value)
+                                        if (row.Cells[dataProperty].Value != DBNull.Value)
                                         {
-                                            DateTime date = Convert.ToDateTime(row.Cells[columnDataProperties[j]].Value);
+                                            DateTime date = Convert.ToDateTime(row.Cells[dataProperty].Value);
                                             cellValue = date.ToString("dd/MM/yy"); // Shorter date format
                                         }
                                     }
                                     else
                                     {
-                                        cellValue = row.Cells[columnDataProperties[j]].Value.ToString();
+                                        cellValue = row.Cells[dataProperty].Value.ToString();
                                     }
                                 }
                             }
@@ -1014,7 +1152,7 @@ namespace Laundry_Management.Laundry
                             }
 
                             // Draw the cell
-                            RectangleF cellRect = new RectangleF(currentX, yPosition, columnWidths[j], rowHeight);
+                            RectangleF cellRect = new RectangleF(rowX, yPosition, columnWidths[j], rowHeight);
 
                             using (StringFormat sf = new StringFormat())
                             {
@@ -1023,17 +1161,17 @@ namespace Laundry_Management.Laundry
                                 sf.Trimming = StringTrimming.EllipsisCharacter;
 
                                 // Apply special formatting for status and discount
-                                if (columnDataProperties[j] == "สถานะ" && !string.IsNullOrEmpty(cellValue))
+                                if (j == 11 && !string.IsNullOrEmpty(cellValue)) // Status column
                                 {
                                     using (SolidBrush statusBrush = new SolidBrush(cellValue == "มารับแล้ว" ? Color.Green : Color.Blue))
                                     {
                                         e.Graphics.DrawString(cellValue, normalFont, statusBrush, cellRect, sf);
                                     }
                                 }
-                                else if (columnDataProperties[j] == "ส่วนลด" && !string.IsNullOrEmpty(cellValue) &&
+                                else if (j == 7 && !string.IsNullOrEmpty(cellValue) && // Discount column
                                          cellValue != "-" && cellValue != "?" &&
-                                         row.Cells[columnDataProperties[j]].Value != null &&
-                                         Convert.ToDecimal(row.Cells[columnDataProperties[j]].Value) > 0)
+                                         row.Cells["ส่วนลด"].Value != null &&
+                                         Convert.ToDecimal(row.Cells["ส่วนลด"].Value) > 0)
                                 {
                                     using (SolidBrush discountBrush = new SolidBrush(Color.Red))
                                     {
@@ -1048,7 +1186,7 @@ namespace Laundry_Management.Laundry
                                 e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
                             }
 
-                            currentX += columnWidths[j];
+                            rowX += columnWidths[j];
                         }
 
                         yPosition += rowHeight;
@@ -1056,78 +1194,109 @@ namespace Laundry_Management.Laundry
                     }
 
                     // Determine if this is the last page
-                    bool isLastPage = endRow >= dgvOrders.Rows.Count || startRow + validRowsPrinted >= totalValidRows;
+                    isLastPage = endRow >= dgvOrders.Rows.Count || startRow + validRowsPrinted >= totalValidRows;
 
-                    // Add summary at the bottom if this is the last page
+                    // Draw the totals row right after the last data row on the last page
                     if (isLastPage)
                     {
-                        yPosition += 15;
+                        // Draw the total summary row immediately after the last data row
+                        float summaryRowY = yPosition; // No extra gap - put it right after the last row
 
-                        // Calculate totals for all valid rows
-                        decimal totalOrderAmount = 0m;
-                        decimal totalReceiptAmount = 0m;
-                        decimal totalDiscount = 0m;
-                        decimal totalAfterDiscount = 0m;
-
-                        foreach (DataGridViewRow row in dgvOrders.Rows)
+                        // Draw a total row with a highlighted background
+                        using (SolidBrush totalRowBrush = new SolidBrush(Color.FromArgb(245, 245, 220))) // Beige color
                         {
-                            if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
+                            // Draw a full-width rectangle for the total row
+                            RectangleF totalRowRect = new RectangleF(leftMargin, summaryRowY, availableWidth, totalRowHeight);
+                            e.Graphics.FillRectangle(totalRowBrush, totalRowRect);
+
+                            // Draw a border around the total row with thicker line
+                            using (Pen totalRowPen = new Pen(Color.Black, 1.5f))
                             {
-                                if (row.Cells["ราคารวมใบรับผ้า"].Value != null && row.Cells["ราคารวมใบรับผ้า"].Value != DBNull.Value)
-                                {
-                                    decimal amount;
-                                    if (decimal.TryParse(row.Cells["ราคารวมใบรับผ้า"].Value.ToString(), out amount))
-                                    {
-                                        totalOrderAmount += amount;
-                                    }
-                                }
-
-                                if (row.Cells["ราคารวมใบเสร็จ"].Value != null && row.Cells["ราคารวมใบเสร็จ"].Value != DBNull.Value)
-                                {
-                                    decimal amount;
-                                    if (decimal.TryParse(row.Cells["ราคารวมใบเสร็จ"].Value.ToString(), out amount))
-                                    {
-                                        totalReceiptAmount += amount;
-                                    }
-                                }
-
-                                if (row.Cells["ส่วนลด"].Value != null && row.Cells["ส่วนลด"].Value != DBNull.Value)
-                                {
-                                    decimal discount;
-                                    if (decimal.TryParse(row.Cells["ส่วนลด"].Value.ToString(), out discount))
-                                    {
-                                        totalDiscount += discount;
-                                    }
-                                }
-
-                                if (row.Cells["ราคารวมหลังหักส่วนลด"].Value != null && row.Cells["ราคารวมหลังหักส่วนลด"].Value != DBNull.Value)
-                                {
-                                    decimal netAmount;
-                                    if (decimal.TryParse(row.Cells["ราคารวมหลังหักส่วนลด"].Value.ToString(), out netAmount))
-                                    {
-                                        totalAfterDiscount += netAmount;
-                                    }
-                                }
+                                e.Graphics.DrawRectangle(totalRowPen, totalRowRect.X, totalRowRect.Y, totalRowRect.Width, totalRowRect.Height);
                             }
                         }
 
-                        // Print summary information
+                        // Now draw each cell of the total row
+                        float totalX = leftMargin;
+
+                        // Draw "รวม" label in first column
+                        RectangleF totalLabelRect = new RectangleF(totalX, summaryRowY, columnWidths[0], totalRowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            e.Graphics.DrawString("รวม", totalFont, Brushes.Black, totalLabelRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, totalLabelRect.X, totalLabelRect.Y, totalLabelRect.Width, totalLabelRect.Height);
+                        }
+                        totalX += columnWidths[0];
+
+                        // Skip columns 1-4 (keep them empty)
+                        for (int j = 1; j <= 4; j++)
+                        {
+                            RectangleF emptyRect = new RectangleF(totalX, summaryRowY, columnWidths[j], totalRowHeight);
+                            e.Graphics.DrawRectangle(Pens.Black, emptyRect.X, emptyRect.Y, emptyRect.Width, emptyRect.Height);
+                            totalX += columnWidths[j];
+                        }
+
+                        // Draw total order amount in column 5
+                        RectangleF totalOrderRect = new RectangleF(totalX, summaryRowY, columnWidths[5], totalRowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            e.Graphics.DrawString(totalOrderAmount.ToString("N2"), totalFont, Brushes.Black, totalOrderRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, totalOrderRect.X, totalOrderRect.Y, totalOrderRect.Width, totalOrderRect.Height);
+                        }
+                        totalX += columnWidths[5];
+
+                        // Draw total receipt amount in column 6
+                        RectangleF totalReceiptRect = new RectangleF(totalX, summaryRowY, columnWidths[6], totalRowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            e.Graphics.DrawString(totalReceiptAmount.ToString("N2"), totalFont, Brushes.Black, totalReceiptRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, totalReceiptRect.X, totalReceiptRect.Y, totalReceiptRect.Width, totalReceiptRect.Height);
+                        }
+                        totalX += columnWidths[6];
+
+                        // Draw total discount in column 7
+                        RectangleF totalDiscountRect = new RectangleF(totalX, summaryRowY, columnWidths[7], totalRowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            e.Graphics.DrawString(totalDiscount.ToString("N2"), totalFont, Brushes.Red, totalDiscountRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, totalDiscountRect.X, totalDiscountRect.Y, totalDiscountRect.Width, totalDiscountRect.Height);
+                        }
+                        totalX += columnWidths[7];
+
+                        // Draw total after discount in column 8
+                        RectangleF totalAfterDiscountRect = new RectangleF(totalX, summaryRowY, columnWidths[8], totalRowHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            e.Graphics.DrawString(totalAfterDiscount.ToString("N2"), totalFont, Brushes.Black, totalAfterDiscountRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, totalAfterDiscountRect.X, totalAfterDiscountRect.Y, totalAfterDiscountRect.Width, totalAfterDiscountRect.Height);
+                        }
+                        totalX += columnWidths[8];
+
+                        // Draw remaining empty cells
+                        for (int j = 9; j < columnNames.Length; j++)
+                        {
+                            RectangleF emptyRect = new RectangleF(totalX, summaryRowY, columnWidths[j], totalRowHeight);
+                            e.Graphics.DrawRectangle(Pens.Black, emptyRect.X, emptyRect.Y, emptyRect.Width, emptyRect.Height);
+                            totalX += columnWidths[j];
+                        }
+
+                        // Move position past the summary row
+                        yPosition = summaryRowY + totalRowHeight + 15;
+
+                        // Add summary text below the total row
                         string summaryText = $"จำนวนรายการทั้งหมด {totalValidRows} รายการ";
                         e.Graphics.DrawString(summaryText, normalFont, Brushes.Black, leftMargin, yPosition);
                         yPosition += normalFont.GetHeight() * 1.5f;
-
-                        string totalOrderText = $"ยอดรวมใบรับผ้า: {totalOrderAmount:N2} บาท";
-                        e.Graphics.DrawString(totalOrderText, headerFont, Brushes.Black, leftMargin, yPosition);
-                        yPosition += normalFont.GetHeight() * 1.2f;
-
-                        string totalReceiptText = $"ยอดรวมใบเสร็จ: {totalReceiptAmount:N2} บาท";
-                        e.Graphics.DrawString(totalReceiptText, headerFont, Brushes.Black, leftMargin, yPosition);
-                        yPosition += normalFont.GetHeight() * 1.2f;
-
-                        e.Graphics.DrawString($"ส่วนลดรวม: {totalDiscount:N2} บาท", headerFont, Brushes.Red, leftMargin, yPosition);
-                        yPosition += normalFont.GetHeight() * 1.2f;
-
-                        e.Graphics.DrawString($"ยอดรวมสุทธิ: {totalAfterDiscount:N2} บาท", headerFont, Brushes.Black, leftMargin, yPosition);
                     }
 
                     // Add page number at the bottom
