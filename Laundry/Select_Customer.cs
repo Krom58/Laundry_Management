@@ -18,6 +18,7 @@ namespace Laundry_Management.Laundry
         public string SelectedCustomerName { get; private set; }
         public string SelectedPhone { get; private set; }
         public decimal SelectedDiscount { get; private set; }
+        public int? SelectedCustomerId { get; private set; }
         public Select_Customer(List<Item> selectedItems)
         {
             InitializeComponent();
@@ -54,7 +55,7 @@ namespace Laundry_Management.Laundry
                 e.Handled = true;
 
                 // เรียกฟังก์ชันค้นหาเหมือนกับการกดปุ่ม
-                Search_Click(sender, EventArgs.Empty);
+                btnSearch_Click(sender, EventArgs.Empty);
             }
         }
         private void Select_Customer_Load(object sender, EventArgs e)
@@ -92,7 +93,7 @@ namespace Laundry_Management.Laundry
             }
         }
 
-        private void Search_Click(object sender, EventArgs e)
+        private void btnSearch_Click(object sender, EventArgs e)
         {
             string fullName = txtFullName.Text.Trim();
             string phone = txtPhone.Text.Trim();
@@ -155,6 +156,9 @@ namespace Laundry_Management.Laundry
             }
 
             // ดึงข้อมูลลูกค้าจากแถว
+            SelectedCustomerId = row.Cells["CustomerID"].Value != DBNull.Value
+                                ? (int?)Convert.ToInt32(row.Cells["CustomerID"].Value)
+                                : null;
             SelectedCustomerName = row.Cells["FullName"].Value.ToString();
             SelectedPhone = row.Cells["Phone"].Value.ToString();
             SelectedDiscount = row.Cells["Discount"].Value != DBNull.Value

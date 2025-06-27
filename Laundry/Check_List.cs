@@ -96,8 +96,9 @@ namespace Laundry_Management.Laundry
                         o.OrderID, 
                         r.CustomReceiptId as 'หมายเลขใบเสร็จ',
                         o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                        o.CustomerName as 'ชื่อลูกค้า', 
-                        o.Phone as 'เบอร์โทรศัพท์',
+                        o.CustomerId,
+                        c.FullName as 'ชื่อลูกค้า', 
+                        c.Phone as 'เบอร์โทรศัพท์',
                         o.GrandTotalPrice as 'ราคารวมใบรับผ้า',
                         r.TotalBeforeDiscount as 'ราคารวมใบเสร็จ',
                         r.Discount as 'ส่วนลด',
@@ -110,6 +111,7 @@ namespace Laundry_Management.Laundry
                         r.IsPickedUp as 'สถานะ', 
                         r.CustomerPickupDate as 'วันที่ลูกค้ามารับ'
                     FROM OrderHeader o
+                    LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
                     LEFT JOIN Receipt r ON o.OrderID = r.OrderID
                     WHERE 1=1
                     AND (r.ReceiptStatus IS NULL OR r.ReceiptStatus <> N'ยกเลิกการพิมพ์')
@@ -137,7 +139,7 @@ namespace Laundry_Management.Laundry
 
             if (!string.IsNullOrEmpty(customerName))
             {
-                filters.Add("o.CustomerName LIKE @CustomerName");
+                filters.Add("c.FullName LIKE @CustomerName");
                 parameters.Add(new SqlParameter("@CustomerName", "%" + customerName + "%"));
             }
 
@@ -160,6 +162,14 @@ namespace Laundry_Management.Laundry
                 DataTable dt = new DataTable();
                 adapter.Fill(dt);
                 dgvOrders.DataSource = dt;
+                if (dgvOrders.Columns["OrderID"] != null)
+                    dgvOrders.Columns["OrderID"].Visible = false;
+
+                if (dgvOrders.Columns["ReceiptID"] != null)
+                    dgvOrders.Columns["ReceiptID"].Visible = false;
+
+                if (dgvOrders.Columns["CustomerId"] != null)
+                    dgvOrders.Columns["CustomerId"].Visible = false;
             }
         }
 
@@ -224,7 +234,6 @@ namespace Laundry_Management.Laundry
 
         private void btnReprintOrder_Click(object sender, EventArgs e)
         {
-            // Check if a row is selected
             // Check if a row is selected
             if (dgvOrders.CurrentRow == null)
             {
@@ -1563,30 +1572,46 @@ namespace Laundry_Management.Laundry
                         try
                         {
                             // Update OrderHeader status
-                            string updateQuery = "UPDATE OrderHeader SET OrderStatus = @Status WHERE OrderID = @OrderID";
-                            using (SqlCommand cmd = new SqlCommand(updateQuery, conn, transaction))
+                            string updateOrderQuery = "UPDATE OrderHeader SET OrderStatus = @Status WHERE OrderID = @OrderID";
+                            using (SqlCommand cmd = new SqlCommand(updateOrderQuery, conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@Status", "รายการถูกยกเลิก");
                                 cmd.Parameters.AddWithValue("@OrderID", orderId);
                                 int rowsAffected = cmd.ExecuteNonQuery();
 
-                                if (rowsAffected > 0)
-                                {
-                                    transaction.Commit();
-                                    MessageBox.Show("ยกเลิกรายการเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                                    // Refresh the order list to reflect changes
-                                    string searchId = txtSearchId.Text.Trim();
-                                    string customerNameFilter = txtCustomerFilter.Text.Trim();
-                                    DateTime? createDate = dtpCreateDate.Checked ? (DateTime?)dtpCreateDate.Value.Date : null;
-                                    LoadOrders(searchId, customerNameFilter, createDate);
-                                }
-                                else
+                                if (rowsAffected <= 0)
                                 {
                                     transaction.Rollback();
                                     MessageBox.Show("ไม่สามารถยกเลิกรายการได้ กรุณาลองใหม่อีกครั้ง", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    return;
                                 }
                             }
+
+                            // Update all related OrderItem records to be canceled
+                            string updateItemsQuery = @"
+                        UPDATE OrderItem 
+                        SET IsCanceled = 1, 
+                            CancelReason = @CancelReason 
+                        WHERE OrderID = @OrderID 
+                        AND (IsCanceled = 0 OR IsCanceled IS NULL)";
+
+                            using (SqlCommand cmd = new SqlCommand(updateItemsQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@CancelReason", "ยกเลิกโดยการยกเลิกรายการทั้งหมด");
+                                cmd.Parameters.AddWithValue("@OrderID", orderId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Commit the transaction
+                            transaction.Commit();
+
+                            MessageBox.Show("ยกเลิกรายการเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                            // Refresh the order list to reflect changes
+                            string searchId = txtSearchId.Text.Trim();
+                            string customerNameFilter = txtCustomerFilter.Text.Trim();
+                            DateTime? createDate = dtpCreateDate.Checked ? (DateTime?)dtpCreateDate.Value.Date : null;
+                            LoadOrders(searchId, customerNameFilter, createDate);
                         }
                         catch (Exception ex)
                         {

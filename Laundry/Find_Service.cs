@@ -150,10 +150,8 @@ namespace Laundry_Management.Laundry
                 dgvOrders.Columns["TodayDiscount"].Visible = false;
             if (dgvOrders.Columns["IsTodayDiscountPercent"] != null)
                 dgvOrders.Columns["IsTodayDiscountPercent"].Visible = false;
-            //if (dgvOrders.Columns["CustomerName"] != null)
-            //    dgvOrders.Columns["CustomerName"].Visible = false;
-            //if (dgvOrders.Columns["Phone"] != null)
-            //    dgvOrders.Columns["Phone"].Visible = false;
+            if (dgvOrders.Columns["CustomerId"] != null)
+                dgvOrders.Columns["CustomerId"].Visible = false;
             if (dgvOrders.Columns["GrandTotalPrice"] != null)
                 dgvOrders.Columns["GrandTotalPrice"].Visible = false;
             if (dgvOrders.Columns["DiscountedTotal"] != null)
@@ -206,22 +204,22 @@ namespace Laundry_Management.Laundry
         {
             public int OrderID { get; set; }
             public string CustomOrderId { get; set; }
+            public int? CustomerId { get; set; } // Add CustomerId property
             public string CustomerName { get; set; }
             public string Phone { get; set; }
             public decimal Discount { get; set; }
             public decimal TodayDiscount { get; set; }
-            public bool IsTodayDiscountPercent { get; set; } // Add this property
+            public bool IsTodayDiscountPercent { get; set; }
             public DateTime OrderDate { get; set; }
             public DateTime PickupDate { get; set; }
             public decimal GrandTotalPrice { get; set; }
-            public decimal SubTotal { get; set; } // Price before VAT
-            public decimal VatAmount { get; set; } // VAT amount
+            public decimal SubTotal { get; set; }
+            public decimal VatAmount { get; set; }
             public decimal DiscountedTotal { get; set; }
             public int? ReceiptId { get; set; }
             public string CustomReceiptId { get; set; }
             public string ReceivedStatus { get; set; }
             public string PaymentMethod { get; set; }
-
         }
         public class OrderRepository
         {
@@ -255,15 +253,20 @@ namespace Laundry_Management.Laundry
                 {
                     cmd.Connection = cn;
                     var sb = new StringBuilder(@"
-SELECT OH.OrderID, OH.CustomOrderId, OH.Discount, OH.CustomerName, OH.Phone, OH.OrderDate,
-       OH.PickupDate, OH.GrandTotalPrice, OH.DiscountedTotal, R.ReceiptID, R.IsPickedUp, R.CustomReceiptId, OH.OrderStatus
-  FROM OrderHeader OH
-    LEFT JOIN Receipt R ON OH.OrderID = R.OrderID
- WHERE 1=1");
+SELECT OH.OrderID, OH.CustomOrderId, OH.CustomerId,
+       C.FullName as CustomerName, C.Phone, OH.Discount, 
+       OH.OrderDate, OH.PickupDate, OH.GrandTotalPrice, 
+       OH.DiscountedTotal, R.ReceiptID, R.IsPickedUp, 
+       R.CustomReceiptId, OH.OrderStatus
+FROM OrderHeader OH
+LEFT JOIN Customer C ON OH.CustomerId = C.CustomerID
+LEFT JOIN Receipt R ON OH.OrderID = R.OrderID
+WHERE 1=1
+  AND (R.ReceiptID IS NULL OR R.ReceiptStatus <> 'ยกเลิกการพิมพ์')");
 
                     if (!string.IsNullOrWhiteSpace(customerFilter))
                     {
-                        sb.Append(" AND OH.CustomerName LIKE @cust");
+                        sb.Append(" AND C.FullName LIKE @cust");
                         cmd.Parameters.AddWithValue("@cust", "%" + customerFilter + "%");
                     }
                     if (orderIdFilter.HasValue)
@@ -298,6 +301,7 @@ SELECT OH.OrderID, OH.CustomOrderId, OH.Discount, OH.CustomerName, OH.Phone, OH.
                             {
                                 OrderID = Convert.ToInt32(r["OrderID"]),
                                 CustomOrderId = r["CustomOrderId"] as string ?? "",
+                                CustomerId = r["CustomerId"] != DBNull.Value ? (int?)Convert.ToInt32(r["CustomerId"]) : null,
                                 CustomerName = r["CustomerName"] as string ?? "",
                                 Phone = r["Phone"] as string ?? "",
                                 Discount = r["Discount"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Discount"]),
@@ -350,19 +354,104 @@ SELECT OH.OrderID, OH.CustomOrderId, OH.Discount, OH.CustomerName, OH.Phone, OH.
             public void UpdateItemCancelled(int orderItemId, bool isCancelled, string cancelReason)
             {
                 using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
-                using (var cmd = new SqlCommand(
-                    @"UPDATE OrderItem 
-             SET IsCanceled   = @c, 
-                 CancelReason = @r 
-           WHERE OrderItemID = @id", cn))
                 {
-                    cmd.Parameters.AddWithValue("@c", isCancelled);
-                    cmd.Parameters.AddWithValue("@r", string.IsNullOrWhiteSpace(cancelReason)
-                                                      ? (object)DBNull.Value
-                                                      : cancelReason);
-                    cmd.Parameters.AddWithValue("@id", orderItemId);
                     cn.Open();
-                    cmd.ExecuteNonQuery();
+                    using (var tx = cn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Update the OrderItem
+                            using (var cmd = new SqlCommand(
+                                @"UPDATE OrderItem 
+                      SET IsCanceled = @c, 
+                          CancelReason = @r 
+                      WHERE OrderItemID = @id", cn, tx))
+                            {
+                                cmd.Parameters.AddWithValue("@c", isCancelled);
+                                cmd.Parameters.AddWithValue("@r", string.IsNullOrWhiteSpace(cancelReason)
+                                                                ? (object)DBNull.Value
+                                                                : cancelReason);
+                                cmd.Parameters.AddWithValue("@id", orderItemId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Find and update any associated ReceiptItems
+                            using (var cmdUpdateReceiptItems = new SqlCommand(
+                                @"UPDATE ReceiptItem 
+                      SET IsCanceled = @isCancelled
+                      WHERE OrderItemID = @orderItemId", cn, tx))
+                            {
+                                cmdUpdateReceiptItems.Parameters.AddWithValue("@isCancelled", isCancelled);
+                                cmdUpdateReceiptItems.Parameters.AddWithValue("@orderItemId", orderItemId);
+                                cmdUpdateReceiptItems.ExecuteNonQuery();
+                            }
+
+                            // Find receipts associated with this order item
+                            var receiptIds = new List<int>();
+                            using (var cmdFind = new SqlCommand(
+                                @"SELECT DISTINCT ReceiptID
+                      FROM ReceiptItem 
+                      WHERE OrderItemID = @orderItemId", cn, tx))
+                            {
+                                cmdFind.Parameters.AddWithValue("@orderItemId", orderItemId);
+
+                                using (var reader = cmdFind.ExecuteReader())
+                                {
+                                    while (reader.Read())
+                                    {
+                                        int receiptId = reader.GetInt32(0);
+                                        receiptIds.Add(receiptId);
+                                    }
+                                }
+                            }
+
+                            // For each found receipt, update its status and add history record
+                            foreach (var receiptId in receiptIds)
+                            {
+                                // Update Receipt status if all items are cancelled
+                                using (var cmdCheckAllCancelled = new SqlCommand(
+                                    @"SELECT COUNT(*) 
+                          FROM ReceiptItem 
+                          WHERE ReceiptID = @receiptId 
+                          AND IsCanceled = 0", cn, tx))
+                                {
+                                    cmdCheckAllCancelled.Parameters.AddWithValue("@receiptId", receiptId);
+                                    int nonCancelledCount = (int)cmdCheckAllCancelled.ExecuteScalar();
+
+                                    // If all items are cancelled, update receipt status
+                                    if (nonCancelledCount == 0)
+                                    {
+                                        using (var cmdUpdateReceipt = new SqlCommand(
+                                            @"UPDATE Receipt
+                                  SET ReceiptStatus = 'ยกเลิกการพิมพ์'
+                                  WHERE ReceiptID = @receiptId", cn, tx))
+                                        {
+                                            cmdUpdateReceipt.Parameters.AddWithValue("@receiptId", receiptId);
+                                            cmdUpdateReceipt.ExecuteNonQuery();
+                                        }
+
+                                        // Add record to history
+                                        using (var cmdHistory = new SqlCommand(
+                                            @"INSERT INTO ReceiptStatusHistory 
+                                  (ReceiptID, PreviousStatus, NewStatus, ChangeBy, ChangeDate)
+                                  SELECT @receiptId, 'พิมพ์เรียบร้อยแล้ว', 'ยกเลิกการพิมพ์', @changeBy, GETDATE()", cn, tx))
+                                        {
+                                            cmdHistory.Parameters.AddWithValue("@receiptId", receiptId);
+                                            cmdHistory.Parameters.AddWithValue("@changeBy", Environment.UserName);
+                                            cmdHistory.ExecuteNonQuery();
+                                        }
+                                    }
+                                }
+                            }
+
+                            tx.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            tx.Rollback();
+                            throw new Exception("ไม่สามารถอัพเดทสถานะได้: " + ex.Message);
+                        }
+                    }
                 }
             }
 
@@ -762,27 +851,45 @@ SELECT OH.OrderID, OH.CustomOrderId, OH.Discount, OH.CustomerName, OH.Phone, OH.
                             cn.Open();
                             using (var tx = cn.BeginTransaction())
                             {
-                                // อัพเดทสถานะของ Receipt เป็น "ยกเลิกการพิมพ์"
-                                using (var cmd1 = new SqlCommand(
-                                    "UPDATE Receipt SET ReceiptStatus = @status WHERE ReceiptID = @rid", cn, tx))
+                                try
                                 {
-                                    cmd1.Parameters.AddWithValue("@status", "ยกเลิกการพิมพ์");
-                                    cmd1.Parameters.AddWithValue("@rid", receiptId);
-                                    cmd1.ExecuteNonQuery();
-                                }
+                                    // 1. อัพเดทสถานะของ Receipt เป็น "ยกเลิกการพิมพ์"
+                                    using (var cmd1 = new SqlCommand(
+                                        "UPDATE Receipt SET ReceiptStatus = @status WHERE ReceiptID = @rid", cn, tx))
+                                    {
+                                        cmd1.Parameters.AddWithValue("@status", "ยกเลิกการพิมพ์");
+                                        cmd1.Parameters.AddWithValue("@rid", receiptId);
+                                        cmd1.ExecuteNonQuery();
+                                    }
 
-                                // บันทึกประวัติการเปลี่ยนสถานะ
-                                using (var cmd2 = new SqlCommand(
-                                    @"INSERT INTO ReceiptStatusHistory (ReceiptID, PreviousStatus, NewStatus, ChangeBy)
-                  VALUES (@rid, @prevStatus, @newStatus, @changeBy)", cn, tx))
-                                {
-                                    cmd2.Parameters.AddWithValue("@rid", receiptId);
-                                    cmd2.Parameters.AddWithValue("@prevStatus", "ออกใบเสร็จแล้ว");
-                                    cmd2.Parameters.AddWithValue("@newStatus", "ยกเลิกการพิมพ์");
-                                    cmd2.Parameters.AddWithValue("@changeBy", Environment.UserName);
-                                    cmd2.ExecuteNonQuery();
+                                    // 2. อัพเดท IsCanceled ของทุก ReceiptItem เป็น 1 (ยกเลิก)
+                                    using (var cmd2 = new SqlCommand(
+                                        "UPDATE ReceiptItem SET IsCanceled = 1 WHERE ReceiptID = @rid", cn, tx))
+                                    {
+                                        cmd2.Parameters.AddWithValue("@rid", receiptId);
+                                        cmd2.ExecuteNonQuery();
+                                    }
+
+                                    // 3. บันทึกประวัติการเปลี่ยนสถานะ
+                                    using (var cmd3 = new SqlCommand(
+                                        @"INSERT INTO ReceiptStatusHistory (ReceiptID, PreviousStatus, NewStatus, ChangeBy)
+                        VALUES (@rid, @prevStatus, @newStatus, @changeBy)", cn, tx))
+                                    {
+                                        cmd3.Parameters.AddWithValue("@rid", receiptId);
+                                        cmd3.Parameters.AddWithValue("@prevStatus", "ออกใบเสร็จแล้ว");
+                                        cmd3.Parameters.AddWithValue("@newStatus", "ยกเลิกการพิมพ์");
+                                        cmd3.Parameters.AddWithValue("@changeBy", Environment.UserName);
+                                        cmd3.ExecuteNonQuery();
+                                    }
+
+                                    tx.Commit();
                                 }
-                                tx.Commit();
+                                catch (Exception ex)
+                                {
+                                    tx.Rollback();
+                                    MessageBox.Show($"เกิดข้อผิดพลาดในการยกเลิกใบเสร็จ: {ex.Message}", "ข้อผิดพลาด",
+                                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                }
                             }
                         }
 
@@ -795,57 +902,12 @@ SELECT OH.OrderID, OH.CustomOrderId, OH.Discount, OH.CustomerName, OH.Phone, OH.
                             AppSettingsManager.UpdateSetting("NextReceiptId", (nextId - 1).ToString());
                         }
 
-                        // แจ้งว่ายกเลิกการออกใบเสร็จ
-                        MessageBox.Show("ยกเลิกการออกใบเสร็จ และบันทึกเป็นสถานะ 'ยกเลิกการพิมพ์'");
+                        // แก้ไขข้อความที่แสดงเมื่อยกเลิกการพิมพ์
+                        MessageBox.Show("ยกเลิกการพิมพ์ใบเสร็จเรียบร้อยแล้ว", "แจ้งเตือน",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
                 }
-
-                using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
-                {
-                    cn.Open();
-                    using (var tx = cn.BeginTransaction())
-                    {
-                        try
-                        {
-                            using (var cmd = new SqlCommand(
-                                @"UPDATE OrderHeader 
-                         SET OrderStatus = @status
-                         WHERE OrderID = @id", cn, tx))
-                            {
-                                cmd.Parameters.AddWithValue("@status", "ออกใบเสร็จแล้ว");
-                                cmd.Parameters.AddWithValue("@id", header.OrderID);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            // Update Receipt with VAT information
-                            using (var cmd = new SqlCommand(
-                                @"UPDATE Receipt 
-                         SET TotalBeforeDiscount = @subTotal,
-                             VAT = @vatAmount,
-                             TotalAfterDiscount = @netTotal,
-                             ReceiptStatus = @status
-                         WHERE ReceiptID = @rid", cn, tx))
-                            {
-                                cmd.Parameters.AddWithValue("@subTotal", subTotal);
-                                cmd.Parameters.AddWithValue("@vatAmount", vatAmount);
-                                cmd.Parameters.AddWithValue("@netTotal", netTotal);
-                                cmd.Parameters.AddWithValue("@status", "พิมพ์เรียบร้อยแล้ว");
-                                cmd.Parameters.AddWithValue("@rid", receiptId);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            tx.Commit();
-                        }
-                        catch (Exception ex)
-                        {
-                            tx.Rollback();
-                            throw new Exception("ไม่สามารถอัพเดทสถานะได้: " + ex.Message);
-                        }
-                    }
-                }
-
-                MessageBox.Show("พิมพ์และบันทึกใบเสร็จสำเร็จ");
 
                 // รีเฟรชข้อมูลในตารางเพื่อแสดงสถานะใหม่
                 // Inside btnPrintReceipt_Click method where it refreshes data at the end:

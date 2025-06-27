@@ -56,8 +56,9 @@ namespace Laundry_Management.Laundry
                         SELECT 
                             o.OrderID, 
                             o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                            o.CustomerName as 'ชื่อลูกค้า', 
-                            o.Phone as 'เบอร์โทรศัพท์',
+                            o.CustomerId,
+                            c.FullName as 'ชื่อลูกค้า', 
+                            c.Phone as 'เบอร์โทรศัพท์',
                             r.ReceiptID,
                             r.CustomReceiptId as 'หมายเลขใบเสร็จ',
                             o.OrderDate as 'วันที่ส่งผ้า',
@@ -65,6 +66,7 @@ namespace Laundry_Management.Laundry
                             r.IsPickedUp as 'สถานะ', 
                             r.CustomerPickupDate as 'วันที่มารับ'
                         FROM OrderHeader o
+                        LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
                         INNER JOIN Receipt r ON o.OrderID = r.OrderID
                         WHERE (r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว')
                         AND CAST(r.ReceiptDate AS DATE) = @TodayDate
@@ -86,6 +88,9 @@ namespace Laundry_Management.Laundry
 
                     if (dgvOrders.Columns["ReceiptID"] != null)
                         dgvOrders.Columns["ReceiptID"].Visible = false;
+
+                    if (dgvOrders.Columns["CustomerId"] != null)
+                        dgvOrders.Columns["CustomerId"].Visible = false;
                 }
             }
         }
@@ -105,8 +110,9 @@ namespace Laundry_Management.Laundry
                         SELECT 
                             o.OrderID,
                             o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                            o.CustomerName as 'ชื่อลูกค้า', 
-                            o.Phone as 'เบอร์โทรศัพท์', 
+                            o.CustomerId,
+                            c.FullName as 'ชื่อลูกค้า', 
+                            c.Phone as 'เบอร์โทรศัพท์', 
                             r.ReceiptID,
                             r.CustomReceiptId as 'หมายเลขใบเสร็จ',
                             o.OrderDate as 'วันที่ส่งผ้า',
@@ -114,6 +120,7 @@ namespace Laundry_Management.Laundry
                             r.IsPickedUp as 'สถานะ', 
                             r.CustomerPickupDate as 'วันที่มารับ'
                         FROM OrderHeader o
+                        LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
                         INNER JOIN Receipt r ON o.OrderID = r.OrderID
                         WHERE 1=1
                         AND o.OrderStatus = N'ออกใบเสร็จแล้ว' AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
@@ -161,7 +168,7 @@ namespace Laundry_Management.Laundry
 
             if (!string.IsNullOrEmpty(customerFilter))
             {
-                filters.Add("o.CustomerName LIKE @CustomerName");
+                filters.Add("c.FullName LIKE @CustomerName");
                 parameters.Add(new SqlParameter("@CustomerName", "%" + customerFilter + "%"));
             }
 
@@ -189,6 +196,9 @@ namespace Laundry_Management.Laundry
 
                 if (dgvOrders.Columns["ReceiptID"] != null)
                     dgvOrders.Columns["ReceiptID"].Visible = false;
+
+                if (dgvOrders.Columns["CustomerId"] != null)
+                    dgvOrders.Columns["CustomerId"].Visible = false;
             }
         }
 

@@ -399,6 +399,7 @@ namespace Laundry_Management
                 if (selectForm.ShowDialog(this) != DialogResult.OK)
                     return;
 
+                int? customerId = selectForm.SelectedCustomerId; // Get CustomerId
                 string customerName = selectForm.SelectedCustomerName;
                 string phone = selectForm.SelectedPhone;
                 decimal discount = selectForm.SelectedDiscount;
@@ -420,7 +421,7 @@ namespace Laundry_Management
                 {
                     // 1) Save Header → get orderId
                     orderId = SaveHeaderToDatabase(
-                        customerName, phone, discount,
+                        customerId, customerName, phone, discount,
                         grandTotal, discountedTotal,
                         orderDate, pickupDate, customOrderId);
 
@@ -540,23 +541,26 @@ namespace Laundry_Management
             return selectedItems;
         }
         private int SaveHeaderToDatabase(
-            string customerName, string phone, decimal discount,
-            decimal grandTotal, decimal discountedTotal,
-            DateTime orderDate, DateTime pickupDate, string customOrderId)
+    int? customerId, string customerName, string phone, decimal discount,
+    decimal grandTotal, decimal discountedTotal,
+    DateTime orderDate, DateTime pickupDate, string customOrderId)
         {
             int orderId = 0;
-            using (SqlConnection conn = DBconfig.GetConnection()) // Correctly declare 'conn'
+            using (SqlConnection conn = DBconfig.GetConnection())
             {
-                conn.Open(); // Use the declared 'conn'
+                conn.Open();
                 using (SqlCommand cmd = new SqlCommand(@"
-                INSERT INTO OrderHeader
-                  (CustomerName, Phone, Discount, GrandTotalPrice, DiscountedTotal, OrderDate, PickupDate, CustomOrderId, OrderStatus)
-                OUTPUT INSERTED.OrderID
-                VALUES
-                  (@cust,@phone,@disc,@grand,@discTot,@odt,@pdt,@customId,@status);", conn))
+        INSERT INTO OrderHeader
+          (CustomerId, Discount, GrandTotalPrice, DiscountedTotal, OrderDate, PickupDate, CustomOrderId, OrderStatus)
+        OUTPUT INSERTED.OrderID
+        VALUES
+          (@custId, @disc, @grand, @discTot, @odt, @pdt, @customId, @status);", conn))
                 {
-                    cmd.Parameters.AddWithValue("@cust", customerName);
-                    cmd.Parameters.AddWithValue("@phone", phone);
+                    if (customerId.HasValue)
+                        cmd.Parameters.AddWithValue("@custId", customerId.Value);
+                    else
+                        cmd.Parameters.AddWithValue("@custId", DBNull.Value);
+
                     cmd.Parameters.AddWithValue("@disc", discount);
                     cmd.Parameters.AddWithValue("@grand", grandTotal);
                     cmd.Parameters.AddWithValue("@discTot", discountedTotal);
