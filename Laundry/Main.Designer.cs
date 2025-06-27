@@ -45,9 +45,9 @@
             this.btnAdd_Type_Service.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnAdd_Type_Service.Location = new System.Drawing.Point(28, 12);
             this.btnAdd_Type_Service.Name = "btnAdd_Type_Service";
-            this.btnAdd_Type_Service.Size = new System.Drawing.Size(282, 109);
+            this.btnAdd_Type_Service.Size = new System.Drawing.Size(313, 109);
             this.btnAdd_Type_Service.TabIndex = 36;
-            this.btnAdd_Type_Service.Text = "เพิ่มประเภทการซัก";
+            this.btnAdd_Type_Service.Text = "เพิ่มประเภทการซัก X";
             this.btnAdd_Type_Service.UseVisualStyleBackColor = true;
             this.btnAdd_Type_Service.Click += new System.EventHandler(this.btnAdd_Type_Service_Click);
             // 
@@ -119,7 +119,7 @@
             this.btnSetting.Name = "btnSetting";
             this.btnSetting.Size = new System.Drawing.Size(282, 109);
             this.btnSetting.TabIndex = 42;
-            this.btnSetting.Text = "ตั้งค่า";
+            this.btnSetting.Text = "ตั้งค่า X";
             this.btnSetting.UseVisualStyleBackColor = true;
             this.btnSetting.Click += new System.EventHandler(this.btnSetting_Click);
             // 

@@ -178,6 +178,7 @@ namespace Laundry_Management
                 MessageBox.Show("ไม่พบข้อมูลราคา");
                 return;
             }
+
             string checkQuery = "SELECT COUNT(*) FROM SelectedItems WHERE ItemNumber = @itemNumber";
             using (SqlConnection connection = DBconfig.GetConnection())
             using (SqlCommand command = new SqlCommand(checkQuery, connection))
@@ -195,13 +196,41 @@ namespace Laundry_Management
             decimal unitPrice = 0;
             decimal.TryParse(priceValue, out unitPrice);
 
-            var itemForm = new Item(unitPrice, itemNumber, itemName, 1); // Default quantity set to 1
-            var result = itemForm.ShowDialog();
-
-            // Refresh dataGridView2 after adding a new item
-            if (result == DialogResult.OK)
+            // ตรวจสอบว่าเป็นรายการรหัส A00 หรือไม่
+            if (itemNumber == "A00")
             {
+                // ถ้าเป็นรหัส A00 ให้บันทึกลงฐานข้อมูลทันทีโดยกำหนดจำนวนเป็น 1 ชิ้น
+                int quantity = 1;
+                decimal totalAmount = unitPrice * quantity;
+
+                // บันทึกข้อมูลลงฐานข้อมูล
+                string insertQuery = "INSERT INTO SelectedItems (ItemNumber, ItemName, Quantity, TotalAmount) VALUES (@itemNumber, @itemName, @quantity, @totalAmount)";
+                using (SqlConnection connection = DBconfig.GetConnection())
+                using (SqlCommand command = new SqlCommand(insertQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@itemNumber", itemNumber);
+                    command.Parameters.AddWithValue("@itemName", itemName);
+                    command.Parameters.AddWithValue("@quantity", quantity);
+                    command.Parameters.AddWithValue("@totalAmount", totalAmount);
+
+                    connection.Open();
+                    command.ExecuteNonQuery();
+                }
+
+                // โหลดข้อมูลใหม่
                 LoadSelectedItems();
+            }
+            else
+            {
+                // สำหรับรายการอื่นๆ ที่ไม่ใช่ A00 ให้ทำงานตามปกติ
+                var itemForm = new Item(unitPrice, itemNumber, itemName, 1); // Default quantity set to 1
+                var result = itemForm.ShowDialog();
+
+                // Refresh dataGridView2 after adding a new item
+                if (result == DialogResult.OK)
+                {
+                    LoadSelectedItems();
+                }
             }
         }
 

@@ -65,6 +65,12 @@ namespace Laundry_Management.Laundry
             dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
 
             LoadCustomerData();
+
+            // เพิ่มการเคลียร์การเลือกอีกครั้งหลังจาก LoadCustomerData()
+            dataGridView1.ClearSelection();
+
+            // เพื่อให้แน่ใจว่าจะไม่มีเซลล์ใดถูกเลือก แม้จะมีโค้ดอื่นพยายามเลือกเซลล์
+            dataGridView1.CurrentCell = null;
         }
 
         private void btnCancle_Click(object sender, EventArgs e)
@@ -91,6 +97,9 @@ namespace Laundry_Management.Laundry
             {
                 dataGridView1.Columns["CustomerID"].Visible = false;
             }
+
+            // เคลียร์การเลือกทั้งหมด หลังจากโหลดข้อมูล
+            dataGridView1.ClearSelection();
         }
 
         private void btnSearch_Click(object sender, EventArgs e)
@@ -133,6 +142,9 @@ namespace Laundry_Management.Laundry
             {
                 dataGridView1.Columns["CustomerID"].Visible = false;
             }
+
+            // เคลียร์การเลือกทั้งหมดหลังจากค้นหา
+            dataGridView1.ClearSelection();
         }
 
         private void btnOk_Click(object sender, EventArgs e)

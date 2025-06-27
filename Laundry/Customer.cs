@@ -64,7 +64,8 @@ namespace Laundry_Management
                 }
             }
 
-            string query = "INSERT INTO Customer (FullName, Phone, Discount, Note) VALUES (@FullName, @Phone, @Discount, @Note)";
+            // เพิ่มฟิลด์ CreateDate ในการ INSERT
+            string query = "INSERT INTO Customer (FullName, Phone, Discount, Note, CreateDate) VALUES (@FullName, @Phone, @Discount, @Note, @CreateDate)";
 
             using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlCommand command = new SqlCommand(query, connection))
@@ -73,6 +74,7 @@ namespace Laundry_Management
                 command.Parameters.AddWithValue("@Phone", phone);
                 command.Parameters.AddWithValue("@Discount", (object)discount ?? DBNull.Value);
                 command.Parameters.AddWithValue("@Note", note);
+                command.Parameters.AddWithValue("@CreateDate", DateTime.Now); // เพิ่มวันที่ปัจจุบัน
 
                 connection.Open();
                 command.ExecuteNonQuery();
