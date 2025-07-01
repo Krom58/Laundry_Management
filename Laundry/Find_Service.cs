@@ -1104,7 +1104,7 @@ WHERE 1=1
             chkBaht.Checked = false;
 
             // ตั้งค่าเริ่มต้นให้ chkCash เป็น checked
-            chkCash.Checked = true;
+            chkCash.Checked = false;
             chkDebit.Checked = false;
             chkQRCode.Checked = false;
             SelectFirstRow();
