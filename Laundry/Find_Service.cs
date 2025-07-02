@@ -253,38 +253,61 @@ namespace Laundry_Management.Laundry
                 {
                     cmd.Connection = cn;
                     var sb = new StringBuilder(@"
-SELECT OH.OrderID, OH.CustomOrderId, OH.CustomerId,
-       C.FullName as CustomerName, C.Phone, OH.Discount, 
-       OH.OrderDate, OH.PickupDate, OH.GrandTotalPrice, 
-       OH.DiscountedTotal, R.ReceiptID, R.IsPickedUp, 
-       R.CustomReceiptId, OH.OrderStatus
+SELECT 
+    OH.OrderID, 
+    OH.CustomOrderId, 
+    OH.CustomerId,
+    C.FullName       AS CustomerName, 
+    C.Phone,
+    OH.Discount, 
+    OH.OrderDate, 
+    OH.PickupDate, 
+    OH.GrandTotalPrice, 
+    OH.DiscountedTotal, 
+    R.ReceiptID, 
+    R.IsPickedUp, 
+    R.CustomReceiptId, 
+    OH.OrderStatus
 FROM OrderHeader OH
-LEFT JOIN Customer C ON OH.CustomerId = C.CustomerID
-LEFT JOIN Receipt R ON OH.OrderID = R.OrderID
+LEFT JOIN Customer C 
+    ON OH.CustomerId = C.CustomerID
+-- กรอง ReceiptStatus ที่ไม่ใช่ 'ยกเลิกการพิมพ์' ใน ON ของ LEFT JOIN
+LEFT JOIN Receipt R 
+    ON OH.OrderID = R.OrderID
+   AND R.ReceiptStatus <> N'ยกเลิกการพิมพ์'
 WHERE 1=1
-  AND (R.ReceiptID IS NULL OR R.ReceiptStatus <> 'ยกเลิกการพิมพ์')");
+  -- กรอง OrderStatus ที่ไม่ใช่ 'รายการถูกยกเลิก'
+  AND (OH.OrderStatus IS NULL OR OH.OrderStatus <> N'รายการถูกยกเลิก')");
 
+                    // filter by customer name
                     if (!string.IsNullOrWhiteSpace(customerFilter))
                     {
                         sb.Append(" AND C.FullName LIKE @cust");
                         cmd.Parameters.AddWithValue("@cust", "%" + customerFilter + "%");
                     }
+
+                    // filter by OrderID
                     if (orderIdFilter.HasValue)
                     {
                         sb.Append(" AND OH.OrderID = @oid");
                         cmd.Parameters.AddWithValue("@oid", orderIdFilter.Value);
                     }
+
+                    // filter by OrderDate (cast to date)
                     if (createDateFilter.HasValue)
                     {
                         sb.Append(" AND CAST(OH.OrderDate AS DATE) = @cdate");
-                        cmd.Parameters.AddWithValue("@cdate", createDateFilter.Value);
+                        cmd.Parameters.AddWithValue("@cdate", createDateFilter.Value.Date);
                     }
+
+                    // filter by other status (if นอกเหนือจากรายการถูกยกเลิก)
                     if (!string.IsNullOrWhiteSpace(statusFilter))
                     {
                         sb.Append(" AND OH.OrderStatus = @status");
                         cmd.Parameters.AddWithValue("@status", statusFilter);
                     }
-                    // Add filter for CustomOrderId
+
+                    // filter by CustomOrderId
                     if (!string.IsNullOrWhiteSpace(customOrderIdFilter))
                     {
                         sb.Append(" AND OH.CustomOrderId LIKE @customId");
@@ -301,15 +324,29 @@ WHERE 1=1
                             {
                                 OrderID = Convert.ToInt32(r["OrderID"]),
                                 CustomOrderId = r["CustomOrderId"] as string ?? "",
-                                CustomerId = r["CustomerId"] != DBNull.Value ? (int?)Convert.ToInt32(r["CustomerId"]) : null,
+                                CustomerId = r["CustomerId"] != DBNull.Value
+                                                     ? (int?)Convert.ToInt32(r["CustomerId"])
+                                                     : null,
                                 CustomerName = r["CustomerName"] as string ?? "",
                                 Phone = r["Phone"] as string ?? "",
-                                Discount = r["Discount"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Discount"]),
-                                OrderDate = r["OrderDate"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(r["OrderDate"]),
-                                PickupDate = r["PickupDate"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(r["PickupDate"]),
-                                GrandTotalPrice = r["GrandTotalPrice"] == DBNull.Value ? 0m : Convert.ToDecimal(r["GrandTotalPrice"]),
-                                DiscountedTotal = r["DiscountedTotal"] == DBNull.Value ? 0m : Convert.ToDecimal(r["DiscountedTotal"]),
-                                ReceiptId = r["ReceiptID"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["ReceiptID"]),
+                                Discount = r["Discount"] == DBNull.Value
+                                                     ? 0m
+                                                     : Convert.ToDecimal(r["Discount"]),
+                                OrderDate = r["OrderDate"] == DBNull.Value
+                                                     ? DateTime.MinValue
+                                                     : Convert.ToDateTime(r["OrderDate"]),
+                                PickupDate = r["PickupDate"] == DBNull.Value
+                                                     ? DateTime.MinValue
+                                                     : Convert.ToDateTime(r["PickupDate"]),
+                                GrandTotalPrice = r["GrandTotalPrice"] == DBNull.Value
+                                                     ? 0m
+                                                     : Convert.ToDecimal(r["GrandTotalPrice"]),
+                                DiscountedTotal = r["DiscountedTotal"] == DBNull.Value
+                                                     ? 0m
+                                                     : Convert.ToDecimal(r["DiscountedTotal"]),
+                                ReceiptId = r["ReceiptID"] == DBNull.Value
+                                                     ? (int?)null
+                                                     : Convert.ToInt32(r["ReceiptID"]),
                                 ReceivedStatus = r["IsPickedUp"] as string ?? "",
                                 CustomReceiptId = r["CustomReceiptId"] as string ?? ""
                             });
@@ -873,13 +910,21 @@ WHERE 1=1
                                     // 3. บันทึกประวัติการเปลี่ยนสถานะ
                                     using (var cmd3 = new SqlCommand(
                                         @"INSERT INTO ReceiptStatusHistory (ReceiptID, PreviousStatus, NewStatus, ChangeBy)
-                        VALUES (@rid, @prevStatus, @newStatus, @changeBy)", cn, tx))
+                                VALUES (@rid, @prevStatus, @newStatus, @changeBy)", cn, tx))
                                     {
                                         cmd3.Parameters.AddWithValue("@rid", receiptId);
                                         cmd3.Parameters.AddWithValue("@prevStatus", "ออกใบเสร็จแล้ว");
                                         cmd3.Parameters.AddWithValue("@newStatus", "ยกเลิกการพิมพ์");
                                         cmd3.Parameters.AddWithValue("@changeBy", Environment.UserName);
                                         cmd3.ExecuteNonQuery();
+                                    }
+
+                                    // 4. เพิ่ม - อัพเดท OrderHeader กำหนดให้ IsReceiptPrinted เป็น 0
+                                    using (var cmd4 = new SqlCommand(
+                                        "UPDATE OrderHeader SET IsReceiptPrinted = 0 WHERE OrderID = @oid", cn, tx))
+                                    {
+                                        cmd4.Parameters.AddWithValue("@oid", header.OrderID);
+                                        cmd4.ExecuteNonQuery();
                                     }
 
                                     tx.Commit();
@@ -910,7 +955,6 @@ WHERE 1=1
                 }
 
                 // รีเฟรชข้อมูลในตารางเพื่อแสดงสถานะใหม่
-                // Inside btnPrintReceipt_Click method where it refreshes data at the end:
                 string cust = txtCustomerFilter.Text.Trim();
                 int? oid = null;
                 string customOrderId = null;
@@ -933,6 +977,31 @@ WHERE 1=1
             }
             catch (Exception ex)
             {
+                // เพิ่มการอัพเดท IsReceiptPrinted เป็น 0 เมื่อเกิดข้อผิดพลาด
+                try
+                {
+                    using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
+                    {
+                        cn.Open();
+                        using (var cmd = new SqlCommand(
+                            "UPDATE OrderHeader SET IsReceiptPrinted = 0 WHERE OrderID = @oid", cn))
+                        {
+                            cmd.Parameters.AddWithValue("@oid", header.OrderID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+                catch (Exception updateEx)
+                {
+                    MessageBox.Show(
+        $"ไม่สามารถอัพเดทสถานะ IsReceiptPrinted เป็น 0 ได้\n" +
+        $"สาเหตุ: {updateEx.Message}\n\n"
+        ,
+        "ข้อผิดพลาดในการอัพเดทสถานะ",
+        MessageBoxButtons.OK,
+        MessageBoxIcon.Warning);
+                }
+
                 MessageBox.Show("เกิดข้อผิดพลาดขณะบันทึก:\n" + ex.Message,
                                 "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }

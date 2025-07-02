@@ -92,31 +92,37 @@ namespace Laundry_Management.Laundry
         private void LoadOrders(string customId = null, string customerName = null, DateTime? createDate = null)
         {
             string query = @"
-                    SELECT 
-                        o.OrderID, 
-                        r.CustomReceiptId as 'หมายเลขใบเสร็จ',
-                        o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                        o.CustomerId,
-                        c.FullName as 'ชื่อลูกค้า', 
-                        c.Phone as 'เบอร์โทรศัพท์',
-                        o.GrandTotalPrice as 'ราคารวมใบรับผ้า',
-                        r.TotalBeforeDiscount as 'ราคารวมใบเสร็จ',
-                        r.Discount as 'ส่วนลด',
-                        r.TotalAfterDiscount as 'ราคารวมหลังหักส่วนลด',
-                        o.OrderDate as 'วันที่ออกใบรับผ้า',
-                        o.PickupDate as 'วันที่ครบกำหนด',
-                        r.ReceiptID, 
-                        r.ReceiptStatus as 'สถานะใบเสร็จ',
-                        r.PaymentMethod as 'วิธีการชำระเงิน',
-                        r.IsPickedUp as 'สถานะ', 
-                        r.CustomerPickupDate as 'วันที่ลูกค้ามารับ'
-                    FROM OrderHeader o
-                    LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
-                    LEFT JOIN Receipt r ON o.OrderID = r.OrderID
-                    WHERE 1=1
-                    AND (r.ReceiptStatus IS NULL OR r.ReceiptStatus <> N'ยกเลิกการพิมพ์')
-                    AND (o.OrderStatus <> N'รายการถูกยกเลิก' OR o.OrderStatus IS NULL)
-                ";
+SELECT 
+    o.OrderID, 
+    -- ถ้าต้องการให้ช่องหมายเลขใบเสร็จว่างเมื่อยกเลิก ก็ดีแล้วเพราะ r.CustomReceiptId จะเป็น NULL
+    r.CustomReceiptId     AS 'หมายเลขใบเสร็จ',
+    o.CustomOrderId       AS 'หมายเลขใบรับผ้า', 
+    o.CustomerId,
+    c.FullName            AS 'ชื่อลูกค้า', 
+    c.Phone               AS 'เบอร์โทรศัพท์',
+    o.GrandTotalPrice     AS 'ราคารวมใบรับผ้า',
+    r.TotalBeforeDiscount AS 'ราคารวมใบเสร็จ',
+    r.Discount            AS 'ส่วนลด',
+    r.TotalAfterDiscount  AS 'ราคารวมหลังหักส่วนลด',
+    o.OrderDate           AS 'วันที่ออกใบรับผ้า',
+    o.PickupDate          AS 'วันที่ครบกำหนด',
+    r.ReceiptID, 
+    r.ReceiptStatus       AS 'สถานะใบเสร็จ',
+    r.PaymentMethod       AS 'วิธีการชำระเงิน',
+    r.IsPickedUp          AS 'สถานะ', 
+    r.CustomerPickupDate  AS 'วันที่ลูกค้ามารับ'
+FROM OrderHeader o
+LEFT JOIN Customer c 
+    ON o.CustomerId = c.CustomerID
+-- ย้ายเงื่อนไขกรองใบเสร็จ “ไม่เอา ยกเลิกการพิมพ์” มาไว้ใน ON
+LEFT JOIN Receipt r 
+    ON o.OrderID = r.OrderID
+   AND r.ReceiptStatus <> N'ยกเลิกการพิมพ์'
+WHERE 
+    -- 1. ไม่เอา OrderStatus = 'รายการถูกยกเลิก'
+    (o.OrderStatus <> N'รายการถูกยกเลิก'
+    OR o.OrderStatus IS NULL)
+";
 
             var filters = new List<string>();
             var parameters = new List<SqlParameter>();
