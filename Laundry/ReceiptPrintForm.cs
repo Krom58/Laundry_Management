@@ -26,6 +26,12 @@ namespace Laundry_Management.Laundry
         private int _currentPage = 0;
         private int _totalPages = 1;
         private List<OrderItemDto> _remainingItems;
+
+        // Add variables to track which copy we're printing
+        private bool _isOriginalCopy = true;
+        private int _totalCopies = 2;
+        private int _currentCopy = 1;
+
         public ReceiptPrintForm()
         {
             InitializeComponent();
@@ -74,6 +80,7 @@ namespace Laundry_Management.Laundry
             // โหลดโลโก้
             LoadLogoImage();
         }
+
         private void SetA5PaperSize()
         {
             // A5 dimensions: 148 × 210 mm = 5.83 × 8.27 inches
@@ -108,6 +115,7 @@ namespace Laundry_Management.Laundry
             // Set in printer settings as well
             _printDocument.PrinterSettings.DefaultPageSettings.PaperSize = _printDocument.DefaultPageSettings.PaperSize;
         }
+
         private void LoadLogoImage()
         {
             try
@@ -131,6 +139,7 @@ namespace Laundry_Management.Laundry
                 _logoImage = CreateDummyLogo();
             }
         }
+
         private void RefreshPaymentMethodBeforePrinting()
         {
             if (_receiptId > 0)
@@ -140,8 +149,8 @@ namespace Laundry_Management.Laundry
                     conn.Open();
                     using (SqlCommand cmd = new SqlCommand(
                         @"SELECT r.PaymentMethod 
-                  FROM Receipt r
-                  WHERE r.ReceiptID = @rid", conn))
+                      FROM Receipt r
+                      WHERE r.ReceiptID = @rid", conn))
                     {
                         cmd.Parameters.AddWithValue("@rid", _receiptId);
                         var result = cmd.ExecuteScalar();
@@ -154,6 +163,7 @@ namespace Laundry_Management.Laundry
                 }
             }
         }
+
         private Bitmap CreateDummyLogo()
         {
             // สร้างรูปเปล่าที่มีข้อความ "LOGO" ไว้ใช้แทนในกรณีที่หารูปไม่เจอ
@@ -189,7 +199,7 @@ namespace Laundry_Management.Laundry
             float pageWidth = e.PageBounds.Width;
             float pageBottom = e.PageBounds.Bottom - 20; // Bottom of page with margin
 
-            // Initialize _remainingItems on first page
+            // Initialize _remainingItems on first page of each copy
             if (_currentPage == 0)
             {
                 _remainingItems = new List<OrderItemDto>(_items);
@@ -204,7 +214,7 @@ namespace Laundry_Management.Laundry
                 float y = topY;
                 float infoLineHeight = subF.GetHeight(g) * 1.2f;
 
-                // Draw header only on the first page
+                // Draw header only on the first page of each copy
                 if (_currentPage == 0)
                 {
                     // Add the logo at the top center
@@ -259,10 +269,26 @@ namespace Laundry_Management.Laundry
                     using (Font smallerTitleF = new Font("Tahoma", 8f, FontStyle.Bold))
                     {
                         string titleText = "ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ";
+
+                        // Add "ต้นฉบับ" or "สำเนา" label based on current copy
+                        string copyLabel = _isOriginalCopy ? "ต้นฉบับ" : "สำเนา";
+
                         SizeF titleSize = g.MeasureString(titleText, smallerTitleF);
-                        float titleY = titleBoxY + (titleBoxHeight - titleSize.Height) / 2;
+                        float titleY = titleBoxY + (titleBoxHeight - titleSize.Height) / 2 - 5; // Position title slightly higher
                         float titleX = titleBoxX + (titleBoxWidth - titleSize.Width) / 2; // Center horizontally
+
+                        // Draw the main title
                         g.DrawString(titleText, smallerTitleF, new SolidBrush(Color.FromArgb(0, 0, 102)), titleX, titleY);
+
+                        // Draw the copy label below the main title
+                        using (Font copyLabelFont = new Font("Tahoma", 7f, FontStyle.Bold))
+                        {
+                            SizeF copyLabelSize = g.MeasureString(copyLabel, copyLabelFont);
+                            float copyLabelX = titleBoxX + (titleBoxWidth - copyLabelSize.Width) / 2; // Center horizontally
+                            float copyLabelY = titleY + titleSize.Height + 2; // Position below the main title with a small gap
+
+                            g.DrawString(copyLabel, copyLabelFont, new SolidBrush(Color.FromArgb(0, 0, 102)), copyLabelX, copyLabelY);
+                        }
                     }
 
                     // 3. Customer/Receipt info boxes (side by side with adjusted dimensions)
@@ -333,8 +359,9 @@ namespace Laundry_Management.Laundry
                 }
                 else
                 {
-                    // For continuation pages, add a simple header
-                    string continuationHeader = $"ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ (ต่อ) - เลขที่ {_header.CustomReceiptId}";
+                    // For continuation pages, add a simple header with original/copy indicator
+                    string copyLabel = _isOriginalCopy ? "ต้นฉบับ" : "สำเนา";
+                    string continuationHeader = $"ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ ({copyLabel} - ต่อ) - เลขที่ {_header.CustomReceiptId}";
                     g.DrawString(continuationHeader, headerF, Brushes.Black, leftX, y);
                     y += headerF.GetHeight(g) * 1.5f;
                 }
@@ -399,16 +426,27 @@ namespace Laundry_Management.Laundry
                         rightX - pageTextSize.Width, pageBottom);
                 }
 
-                // Set HasMorePages based on whether we have more items to print
+                // Determine if we have more pages to print
                 if (hasMoreItems)
                 {
+                    // More items on the current copy
                     _currentPage++;
+                    e.HasMorePages = true;
+                }
+                else if (_currentCopy < _totalCopies)
+                {
+                    // We've finished the current copy, but need to print the next copy
+                    _currentCopy++;
+                    _currentPage = 0; // Reset page counter for the next copy
+                    _isOriginalCopy = !_isOriginalCopy; // Toggle between original and copy
                     e.HasMorePages = true;
                 }
                 else
                 {
-                    // Reset for next print job
+                    // We've printed all copies, reset for next print job
                     _currentPage = 0;
+                    _currentCopy = 1;
+                    _isOriginalCopy = true;
                     e.HasMorePages = false;
                 }
             }
@@ -417,6 +455,7 @@ namespace Laundry_Management.Laundry
         // Helper method to convert number to Thai text
         private string ThaiNumberToText(decimal number)
         {
+            // Existing ThaiNumberToText code...
             if (number == 0)
                 return "ศูนย์บาทถ้วน";
 
@@ -449,8 +488,10 @@ namespace Laundry_Management.Laundry
 
             return result;
         }
+
         private string ConvertIntegerToThaiText(string number)
         {
+            // Existing ConvertIntegerToThaiText code...
             // Thai digit names
             string[] digitNames = { "", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า" };
 
@@ -526,6 +567,11 @@ namespace Laundry_Management.Laundry
                 // Make sure A5 is set before showing dialog
                 SetA5PaperSize();
 
+                // Reset printing state variables
+                _currentPage = 0;
+                _currentCopy = 1;
+                _isOriginalCopy = true;
+
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     try
@@ -554,6 +600,7 @@ namespace Laundry_Management.Laundry
             }
             this.Close();
         }
+
         private void EnsureA5PaperSize()
         {
             // Get the current paper size
@@ -572,6 +619,7 @@ namespace Laundry_Management.Laundry
             // Ensure orientation is portrait
             _printDocument.DefaultPageSettings.Landscape = false;
         }
+
         private void UpdateReceiptPrintStatus(int receiptId, int orderId)
         {
             using (var connection = Laundry_Management.Laundry.DBconfig.GetConnection())
@@ -594,7 +642,7 @@ namespace Laundry_Management.Laundry
                         // บันทึกประวัติการเปลี่ยนสถานะ
                         using (var cmd = new SqlCommand(
                             @"INSERT INTO ReceiptStatusHistory (ReceiptID, PreviousStatus, NewStatus, ChangeBy)
-                                  VALUES (@rid, @prevStatus, @newStatus, @changeBy)",
+                                      VALUES (@rid, @prevStatus, @newStatus, @changeBy)",
                             connection, transaction))
                         {
                             cmd.Parameters.AddWithValue("@rid", receiptId);
@@ -626,301 +674,6 @@ namespace Laundry_Management.Laundry
             }
         }
 
-        private void DrawModifiedServiceTable(Graphics g, Font font, float leftX, ref float y, float rightX)
-        {
-            // Colors matching the printed output
-            Color tableHeaderBgColor = Color.FromArgb(200, 210, 245);
-            Color tableBorderColor = Color.FromArgb(100, 100, 200);
-            Color discountColor = Color.Red; // Color for discount text
-
-            // Define columns
-            int cols = 5;
-            float tableWidth = rightX - leftX;
-            float[] colWidthPercents = { 0.08f, 0.47f, 0.15f, 0.15f, 0.15f };
-            float[] colWidths = new float[cols];
-            float[] xs = new float[cols + 1];
-
-            xs[0] = leftX;
-            for (int i = 0; i < cols; i++)
-            {
-                colWidths[i] = tableWidth * colWidthPercents[i];
-                xs[i + 1] = xs[i] + colWidths[i];
-            }
-
-            float rowHeight = 20; // Row height for data rows
-            float headerRowHeight = 32; // Taller header row
-
-            // Border pen
-            Pen tablePen = new Pen(tableBorderColor, 0.5f);
-
-            // Calculate available space for the table
-            // Leave space for signature (approximately 30 units of height)
-            float availableHeight = 650 - y - 30;
-
-            // Items plus summary rows (subtotal, discount if any, total)
-            int totalDataRows = _items.Count;
-            int summaryRows = _header.TodayDiscount > 0 ? 3 : 2; // Include subtotal and total (+ discount if applicable)
-
-            // Calculate how many empty rows we need to fill the page
-            int maxEmptyRows = Math.Max(10, (int)((availableHeight - (headerRowHeight + totalDataRows * rowHeight)) / rowHeight) - summaryRows);
-
-            // Draw table header (taller for two rows of text)
-            g.FillRectangle(new SolidBrush(tableHeaderBgColor), leftX, y, tableWidth, headerRowHeight);
-            g.DrawRectangle(tablePen, leftX, y, tableWidth, headerRowHeight);
-
-            // Draw column dividers for header
-            for (int i = 1; i < cols; i++)
-            {
-                g.DrawLine(tablePen, xs[i], y, xs[i], y + headerRowHeight);
-            }
-
-            // Draw header text - center aligned in two rows
-            using (Font headerFont = new Font(font.FontFamily, font.Size, FontStyle.Bold))
-            {
-                string[] headers = { "ลำดับที่", "รายการ", "จำนวน", "หน่วยละ", "จำนวนเงิน" };
-                string[] subHeaders = { "Item", "Descriptions", "Quantity", "Unit price", "Amount" };
-
-                // Vertical spacing within header - adjusted for taller header
-                float thaiTextY = y + 5; // Increased padding from top
-                float engTextY = thaiTextY + headerFont.GetHeight(g) + 3; // More space between Thai and English text
-
-                for (int i = 0; i < cols; i++)
-                {
-                    float colCenter = xs[i] + colWidths[i] / 2;
-
-                    // Thai header on top row
-                    SizeF thaiHeaderSize = g.MeasureString(headers[i], headerFont);
-                    g.DrawString(headers[i], headerFont, Brushes.Black,
-                              colCenter - thaiHeaderSize.Width / 2, thaiTextY);
-
-                    // English header on bottom row
-                    SizeF engHeaderSize = g.MeasureString(subHeaders[i], font);
-                    g.DrawString(subHeaders[i], font, Brushes.Black,
-                              colCenter - engHeaderSize.Width / 2, engTextY);
-                }
-            }
-
-            y += headerRowHeight;
-            float tableStartY = y; // Remember where the data rows begin
-
-            // Draw item rows
-            int itemNumber = 1;
-            foreach (var item in _items)
-            {
-                // Draw row border - just horizontal lines
-                g.DrawLine(tablePen, leftX, y, rightX, y);
-                if (itemNumber == _items.Count)
-                {
-                    g.DrawLine(tablePen, leftX, y + rowHeight, rightX, y + rowHeight);
-                }
-
-                // Draw vertical dividers for the data row
-                g.DrawLine(tablePen, leftX, y, leftX, y + rowHeight);
-                for (int i = 1; i < cols; i++)
-                {
-                    g.DrawLine(tablePen, xs[i], y, xs[i], y + rowHeight);
-                }
-                g.DrawLine(tablePen, rightX, y, rightX, y + rowHeight);
-
-                // Item number (centered)
-                string itemNum = itemNumber.ToString();
-                SizeF numSize = g.MeasureString(itemNum, font);
-                g.DrawString(itemNum, font, Brushes.Black,
-                           xs[0] + (colWidths[0] - numSize.Width) / 2,
-                           y + (rowHeight - numSize.Height) / 2);
-
-                // Item name (left aligned)
-                g.DrawString(item.ItemName, font, Brushes.Black,
-                           xs[1] + 5, y + (rowHeight - font.GetHeight(g)) / 2);
-
-                // Quantity (centered) - align vertically with text
-                string qty = item.Quantity.ToString();
-                SizeF qtySize = g.MeasureString(qty, font);
-                float qtyMiddleY = y + (rowHeight - qtySize.Height) / 2;
-                g.DrawString(qty, font, Brushes.Black,
-                           xs[2] + (colWidths[2] - qtySize.Width) / 2, qtyMiddleY);
-
-                // Unit price (right aligned) - align vertically with text
-                var price = (item.TotalAmount / item.Quantity).ToString("N2");
-                SizeF priceSize = g.MeasureString(price, font);
-                float priceMiddleY = y + (rowHeight - priceSize.Height) / 2;
-                g.DrawString(price, font, Brushes.Black,
-                           xs[3] + colWidths[3] - priceSize.Width - 5, priceMiddleY);
-
-                // Total amount (right aligned) - align vertically with text
-                var amount = item.TotalAmount.ToString("N2");
-                SizeF amountSize = g.MeasureString(amount, font);
-                float amountMiddleY = y + (rowHeight - amountSize.Height) / 2;
-                g.DrawString(amount, font, Brushes.Black,
-                           xs[4] + colWidths[4] - amountSize.Width - 5, amountMiddleY);
-
-                y += rowHeight;
-                itemNumber++;
-            }
-
-            // Draw the empty rows section - just the outer frame without internal dividers
-            // Calculate height of empty section
-            float emptyRowsStartY = y;
-            float emptyRowsHeight = maxEmptyRows * rowHeight;
-
-            // Draw vertical borders of empty section
-            g.DrawLine(tablePen, leftX, emptyRowsStartY, leftX, emptyRowsStartY + emptyRowsHeight);
-            g.DrawLine(tablePen, rightX, emptyRowsStartY, rightX, emptyRowsStartY + emptyRowsHeight);
-
-            // Update y to account for empty rows
-            y += emptyRowsHeight;
-
-            // Draw the final horizontal line at the bottom of empty section
-            g.DrawLine(tablePen, leftX, y, rightX, y);
-
-            // ----------------------------------------------------------------------
-            // Draw summary section at the bottom - Modified to match the first image
-            // ----------------------------------------------------------------------
-
-            float summaryRowHeight = 22; // Slightly taller for summary rows
-
-            // 1. Subtotal row
-            float summaryRowStartY = y;
-
-            // Calculate horizontal line positions first - Fixed to declare thaiBahtLineY before it's used
-            float thaiBahtLineY = y + (summaryRows - 1) * summaryRowHeight;
-
-            // Draw the outer frame for the summary section
-            g.DrawLine(tablePen, leftX, y, rightX, y); // Top border
-            g.DrawLine(tablePen, leftX, y, leftX, y + (summaryRows * summaryRowHeight)); // Left border
-            g.DrawLine(tablePen, rightX, y, rightX, y + (summaryRows * summaryRowHeight)); // Right border
-            g.DrawLine(tablePen, leftX, y + (summaryRows * summaryRowHeight), rightX, y + (summaryRows * summaryRowHeight)); // Bottom border
-
-            // Draw vertical dividers - MODIFIED to keep all needed dividers
-            g.DrawLine(tablePen, xs[3], y, xs[3], thaiBahtLineY); // Divider for "ยอดรวม" and "ส่วนลด" rows only
-            g.DrawLine(tablePen, xs[4], y, xs[4], y + (summaryRows * summaryRowHeight)); // Divider before amount column
-
-            // Draw horizontal divider after first row
-            g.DrawLine(tablePen, xs[3], y + summaryRowHeight, rightX, y + summaryRowHeight);
-
-            // If discount exists, draw horizontal divider after second row
-            if (_header.TodayDiscount > 0)
-            {
-                g.DrawLine(tablePen, xs[3], y + (summaryRowHeight * 2), rightX, y + (summaryRowHeight * 2));
-            }
-
-            // Draw horizontal line at the bottom for the Thai baht text
-            g.DrawLine(tablePen, leftX, thaiBahtLineY, rightX, thaiBahtLineY);
-
-            // Subtotal value in top right columns
-            string subtotalLabel = "ยอดรวม";
-            string subtotalValue = _header.SubTotal.ToString("N2");
-            float verticalCenter = y + (summaryRowHeight - font.GetHeight(g)) / 2;
-
-            // Label in the 4th column
-            g.DrawString(subtotalLabel, font, Brushes.Black,
-                        xs[3] + 5, verticalCenter);
-
-            // Value in the 5th column (right aligned)
-            g.DrawString(subtotalValue, font, Brushes.Black,
-                       rightX - 5 - g.MeasureString(subtotalValue, font).Width, verticalCenter);
-
-            // 2. Discount row (if applicable)
-            if (_header.TodayDiscount > 0)
-            {
-                y += summaryRowHeight;
-                verticalCenter = y + (summaryRowHeight - font.GetHeight(g)) / 2;
-
-                string discountLabel = "ส่วนลด";
-                string discountValue;
-
-                if (_header.IsTodayDiscountPercent)
-                {
-                    // Calculate the actual discount amount if it's stored as a percentage
-                    decimal discountAmount = Math.Round(_header.SubTotal * _header.TodayDiscount / 100m, 2);
-                    discountValue = $"- {discountAmount:N2}";
-                }
-                else
-                {
-                    // For fixed amount discount, use the value directly
-                    discountValue = $"- {_header.TodayDiscount:N2}";
-                }
-
-                g.DrawString(discountLabel, font, Brushes.Red,
-                            xs[3] + 5, verticalCenter);
-                g.DrawString(discountValue, font, Brushes.Red,
-                           rightX - 5 - g.MeasureString(discountValue, font).Width, verticalCenter);
-            }
-
-            // 3. Total row with bold text - Bottom right section
-            y += summaryRowHeight;
-            verticalCenter = y + (summaryRowHeight - font.GetHeight(g)) / 2;
-
-            // Thai text at the bottom left (in the first 3 columns combined)
-            string thaiBaht = "ตัวอักษร       ( " + ThaiNumberToText(_header.DiscountedTotal) + " )";
-            float textStartX = leftX + 5; // Left margin for Thai text
-            g.DrawString(thaiBaht, font, Brushes.Black, textStartX, verticalCenter);
-
-            float paymentMethodY = verticalCenter + font.GetHeight(g) + 35; // Position below the Thai baht text
-            string paymentMethod = "ชำระโดย: ";
-
-            // Determine the payment method and highlight it
-            if (!string.IsNullOrEmpty(_header.PaymentMethod))
-            {
-                // Format the payment method display
-                if (_header.PaymentMethod.ToUpper().Contains("เงินสด"))
-                {
-                    paymentMethod += "☑ เงินสด   ☐ บัตรเครดิต   ☐ QR Code";
-                }
-                else if (_header.PaymentMethod.ToUpper().Contains("บัตรเครดิต"))
-                {
-                    paymentMethod += "☐ เงินสด   ☑ บัตรเครดิต   ☐ QR Code";
-                }
-                else if (_header.PaymentMethod.ToUpper().Contains("QR Code"))
-                {
-                    paymentMethod += "☐ เงินสด   ☐ บัตรเครดิต   ☑ QR Code";
-                }
-                else
-                {
-                    // For any other payment method or if none is specified
-                    paymentMethod += _header.PaymentMethod;
-                }
-            }
-            else
-            {
-                // If no payment method is provided
-                paymentMethod += "☐ เงินสด   ☐ บัตรเครดิต   ☐ QR Code";
-            }
-
-            g.DrawString(paymentMethod, font, Brushes.Black, textStartX, paymentMethodY);
-
-            // Total amount text and value
-            string totalLabel = "ราคาสุทธิ (รวมภาษีมูลค่าเพิ่ม)";
-            string totalValue = _header.DiscountedTotal.ToString("N2");
-
-            // Add a vertical divider in front of totalLabel (at column 2)
-            g.DrawLine(tablePen, xs[2], thaiBahtLineY, xs[2], y + summaryRowHeight); // Add vertical line only for last row
-
-            // Move the total label to column 3 (index 2)
-            float totalLabelX = xs[2] + 5; // Position at column 3 with small padding
-
-            // Draw the total label in column 3 (instead of column 4)
-            g.DrawString(totalLabel, font, Brushes.Black, totalLabelX, verticalCenter);
-
-            // Total value - right aligned in the last column
-            using (Font boldFont = new Font(font.FontFamily, font.Size, FontStyle.Bold))
-            {
-                // Right align the total amount
-                float totalValueWidth = g.MeasureString(totalValue, boldFont).Width;
-                float totalValueX = rightX - 5 - totalValueWidth;
-                g.DrawString(totalValue, boldFont, Brushes.Black, totalValueX, verticalCenter);
-
-                // Draw red underline ONLY under the total amount value
-                using (Pen redPen = new Pen(Color.Red, 2))
-                {
-                    g.DrawLine(redPen, totalValueX, y + summaryRowHeight - 2,
-                              totalValueX + totalValueWidth, y + summaryRowHeight - 2);
-                }
-            }
-
-            // Update final y position
-            y += summaryRowHeight;
-        }
         // Method for drawing signature line with increased space
         private void DrawSignatureLine(Graphics g, Font font, float rightX, float y)
         {
@@ -941,8 +694,10 @@ namespace Laundry_Management.Laundry
             float labelX = signatureX + (signatureLineWidth - labelSize.Width) / 2;
             g.DrawString(signatureLabel, font, Brushes.Black, labelX, signatureY + 5);
         }
+
         private bool DrawModifiedServiceTableWithPagination(Graphics g, Font font, float leftX, ref float y, float rightX, ref List<OrderItemDto> itemsForCurrentPage)
         {
+            // Existing DrawModifiedServiceTableWithPagination code...
             g.ResetClip();
             // Colors matching the printed output
             Color tableHeaderBgColor = Color.FromArgb(200, 210, 245);
