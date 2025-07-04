@@ -792,6 +792,18 @@ WHERE 1=1
                 return;
             }
 
+            // ถามผู้ใช้ว่าต้องการพิมพ์ต้นฉบับและสำเนาด้วยหรือไม่ ด้วยกล่องขนาดใหญ่
+            DialogResult printOption = ShowPrintOptionsDialog();
+
+            // ถ้าผู้ใช้กดยกเลิก
+            if (printOption == DialogResult.Cancel)
+            {
+                return;
+            }
+
+            // กำหนดค่าจากผลลัพธ์ของ dialog
+            bool printOriginalWithCopy = (printOption == DialogResult.Yes);
+
             // คำนวณ SUB TOTAL (ราคาก่อน VAT และก่อนส่วนลด)
             decimal subTotal = items.Sum(i => i.TotalAmount);
 
@@ -813,7 +825,7 @@ WHERE 1=1
                 }
                 discountAmount = Math.Round(subTotal * discountValue / 100, 2);
                 header.Discount = discountValue;
-                header.TodayDiscount = discountValue; // Add this line
+                header.TodayDiscount = discountValue;
                 header.IsTodayDiscountPercent = true;
             }
             else if (chkBaht.Checked)
@@ -837,13 +849,13 @@ WHERE 1=1
                     percentDiscount = (discountValue / subTotal) * 100;
                 }
                 header.Discount = percentDiscount;
-                header.TodayDiscount = discountValue; // Add this line
+                header.TodayDiscount = discountValue;
                 header.IsTodayDiscountPercent = false;
             }
             else
             {
                 header.Discount = 0;
-                header.TodayDiscount = 0; // Add this line
+                header.TodayDiscount = 0;
                 header.IsTodayDiscountPercent = true;
             }
 
@@ -856,29 +868,110 @@ WHERE 1=1
             header.VatAmount = vatAmount;             // VAT
             header.DiscountedTotal = netTotal;
 
-            // ดึงเลขที่ใบเสร็จใหม่จาก AppSettingsManager
-            string customReceiptId = AppSettingsManager.GetNextReceiptId();
-
+            string customReceiptId = string.Empty;
             int receiptId = -1;
+
             try
             {
-                // 1) สร้าง Receipt พร้อมกับ CustomReceiptId
-                receiptId = CreateReceiptWithCustomId(header.OrderID, customReceiptId);
-                foreach (var item in items)
+                // ดึงเลขที่ใบเสร็จใหม่จาก AppSettingsManager
+                customReceiptId = AppSettingsManager.GetNextReceiptId();
+
+                // แสดง progress dialog
+                using (var progressForm = new Form
                 {
-                    _repo.CreateReceiptItem(
-                        receiptId: receiptId,
-                        orderItemId: item.OrderItemID,
-                        quantity: item.Quantity,
-                        amount: item.TotalAmount
-                    );
+                    Text = "กำลังดำเนินการ",
+                    Size = new Size(300, 100),
+                    FormBorderStyle = FormBorderStyle.FixedDialog,
+                    StartPosition = FormStartPosition.CenterParent,
+                    ControlBox = false
+                })
+                {
+                    Label lblStatus = new Label
+                    {
+                        Text = "กำลังออกใบเสร็จ กรุณารอสักครู่...",
+                        AutoSize = false,
+                        TextAlign = ContentAlignment.MiddleCenter,
+                        Dock = DockStyle.Fill
+                    };
+                    progressForm.Controls.Add(lblStatus);
+
+                    // ใช้ backgroundWorker เพื่อให้ UI ไม่ค้าง
+                    BackgroundWorker worker = new BackgroundWorker();
+
+                    // ตัวแปรเก็บข้อผิดพลาด
+                    Exception workerException = null;
+                    Tuple<int, string> result = null;
+
+                    worker.DoWork += (s, args) =>
+                    {
+                        try
+                        {
+                            // 1) สร้าง Receipt พร้อมกับ CustomReceiptId
+                            int newReceiptId = CreateReceiptWithCustomId(header.OrderID, customReceiptId);
+
+                            foreach (var item in items)
+                            {
+                                _repo.CreateReceiptItem(
+                                    receiptId: newReceiptId,
+                                    orderItemId: item.OrderItemID,
+                                    quantity: item.Quantity,
+                                    amount: item.TotalAmount
+                                );
+                            }
+
+                            // ส่งผลลัพธ์กลับไป
+                            args.Result = new Tuple<int, string>(newReceiptId, customReceiptId);
+                        }
+                        catch (Exception ex)
+                        {
+                            // เก็บข้อผิดพลาด
+                            workerException = ex;
+                        }
+                    };
+
+                    worker.RunWorkerCompleted += (s, args) =>
+                    {
+                        if (args.Error != null)
+                        {
+                            workerException = args.Error;
+                        }
+                        else if (!args.Cancelled && args.Result != null)
+                        {
+                            result = args.Result as Tuple<int, string>;
+                        }
+
+                        // ปิดฟอร์ม progress
+                        progressForm.DialogResult = DialogResult.OK;
+                        progressForm.Close();
+                    };
+
+                    // เริ่ม background process
+                    worker.RunWorkerAsync();
+
+                    // แสดง progress dialog (จะรอจนกว่า worker จะทำงานเสร็จและปิดฟอร์ม)
+                    progressForm.ShowDialog();
+
+                    // ตรวจสอบว่ามีข้อผิดพลาดหรือไม่
+                    if (workerException != null)
+                    {
+                        throw workerException;
+                    }
+
+                    // ตรวจสอบผลลัพธ์
+                    if (result == null)
+                    {
+                        MessageBox.Show("ไม่สามารถสร้างใบเสร็จได้", "ข้อผิดพลาด",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    // ดึงค่าจากผลลัพธ์
+                    receiptId = result.Item1;
+
+                    // อัพเดทข้อมูลใน header เพื่อส่งไปให้ Print Form
+                    header.CustomReceiptId = customReceiptId;
                 }
-
-                // อัพเดทข้อมูลใน header เพื่อส่งไปให้ Print Form
-                header.CustomReceiptId = customReceiptId;
-
-                // 2) เปิดฟอร์ม ReceiptPrintForm พร้อม receiptId และข้อมูลที่ต้องการ
-                using (var rptForm = new ReceiptPrintForm(receiptId, header, items))
+                using (var rptForm = new ReceiptPrintForm(receiptId, header, items, printOriginalWithCopy))
                 {
                     rptForm.ShowDialog(this);
                     if (!rptForm.IsPrinted)
@@ -928,6 +1021,19 @@ WHERE 1=1
                                     }
 
                                     tx.Commit();
+
+                                    // คืนค่า ReceiptId เพื่อให้ใช้ซ้ำได้
+                                    string currentId = AppSettingsManager.GetSetting("NextReceiptId");
+                                    int nextId;
+                                    if (int.TryParse(currentId, out nextId) && nextId > 1)
+                                    {
+                                        // ตั้งค่า NextReceiptId ให้กลับไปเป็นค่าเดิม (ลดลง 1)
+                                        AppSettingsManager.UpdateSetting("NextReceiptId", (nextId - 1).ToString());
+                                    }
+
+                                    // แก้ไขข้อความที่แสดงเมื่อยกเลิกการพิมพ์
+                                    MessageBox.Show("ยกเลิกการพิมพ์ใบเสร็จเรียบร้อยแล้ว", "แจ้งเตือน",
+                                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                                 }
                                 catch (Exception ex)
                                 {
@@ -937,20 +1043,13 @@ WHERE 1=1
                                 }
                             }
                         }
-
-                        // คืนค่า ReceiptId เพื่อให้ใช้ซ้ำได้
-                        string currentId = AppSettingsManager.GetSetting("NextReceiptId");
-                        int nextId;
-                        if (int.TryParse(currentId, out nextId) && nextId > 1)
-                        {
-                            // ตั้งค่า NextReceiptId ให้กลับไปเป็นค่าเดิม (ลดลง 1)
-                            AppSettingsManager.UpdateSetting("NextReceiptId", (nextId - 1).ToString());
-                        }
-
-                        // แก้ไขข้อความที่แสดงเมื่อยกเลิกการพิมพ์
-                        MessageBox.Show("ยกเลิกการพิมพ์ใบเสร็จเรียบร้อยแล้ว", "แจ้งเตือน",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
+                    }
+                    else
+                    {
+                        // แสดงข้อความพิมพ์สำเร็จ
+                        MessageBox.Show($"พิมพ์ใบเสร็จเลขที่ {customReceiptId} เรียบร้อยแล้ว",
+                            "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
 
@@ -977,7 +1076,60 @@ WHERE 1=1
             }
             catch (Exception ex)
             {
-                // เพิ่มการอัพเดท IsReceiptPrinted เป็น 0 เมื่อเกิดข้อผิดพลาด
+                // แสดงข้อความผิดพลาด
+                MessageBox.Show($"เกิดข้อผิดพลาดในการออกใบเสร็จ: {ex.Message}",
+                    "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                // ถ้ามีการสร้างใบเสร็จแล้ว ให้ยกเลิกใบเสร็จ
+                if (receiptId > 0)
+                {
+                    try
+                    {
+                        using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
+                        {
+                            cn.Open();
+                            using (var tx = cn.BeginTransaction())
+                            {
+                                try
+                                {
+                                    // อัพเดทสถานะของ Receipt เป็น "ยกเลิกการพิมพ์"
+                                    using (var cmd = new SqlCommand(
+                                        "UPDATE Receipt SET ReceiptStatus = @status WHERE ReceiptID = @rid", cn, tx))
+                                    {
+                                        cmd.Parameters.AddWithValue("@status", "ยกเลิกการพิมพ์");
+                                        cmd.Parameters.AddWithValue("@rid", receiptId);
+                                        cmd.ExecuteNonQuery();
+                                    }
+
+                                    // อัพเดท OrderHeader
+                                    using (var cmd = new SqlCommand(
+                                        "UPDATE OrderHeader SET IsReceiptPrinted = 0 WHERE OrderID = @oid", cn, tx))
+                                    {
+                                        cmd.Parameters.AddWithValue("@oid", header.OrderID);
+                                        cmd.ExecuteNonQuery();
+                                    }
+
+                                    tx.Commit();
+                                }
+                                catch
+                                {
+                                    tx.Rollback();
+                                    throw;  // Re-throw to be caught by outer try-catch
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        MessageBox.Show(
+                            $"เกิดข้อผิดพลาดเพิ่มเติมในการยกเลิกใบเสร็จ:\n{cleanupEx.Message}",
+                            "ข้อผิดพลาดซ้ำซ้อน",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                    }
+                }
+
+                // อัพเดทสถานะ OrderHeader เป็น 0 เมื่อเกิดข้อผิดพลาด
                 try
                 {
                     using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
@@ -994,19 +1146,87 @@ WHERE 1=1
                 catch (Exception updateEx)
                 {
                     MessageBox.Show(
-        $"ไม่สามารถอัพเดทสถานะ IsReceiptPrinted เป็น 0 ได้\n" +
-        $"สาเหตุ: {updateEx.Message}\n\n"
-        ,
-        "ข้อผิดพลาดในการอัพเดทสถานะ",
-        MessageBoxButtons.OK,
-        MessageBoxIcon.Warning);
+                        $"ไม่สามารถอัพเดทสถานะ IsReceiptPrinted เป็น 0 ได้\n" +
+                        $"สาเหตุ: {updateEx.Message}",
+                        "ข้อผิดพลาดในการอัพเดทสถานะ",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
                 }
-
-                MessageBox.Show("เกิดข้อผิดพลาดขณะบันทึก:\n" + ex.Message,
-                                "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        // Method to show a dialog asking if the user wants to print copies
+        private DialogResult ShowPrintOptionsDialog()
+        {
+            // Create a new form
+            Form printOptionDialog = new Form
+            {
+                Width = 500,
+                Height = 250,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Text = "ตัวเลือกการพิมพ์"
+            };
 
+            // Create a label for the question
+            Label questionLabel = new Label
+            {
+                Text = "ต้องการพิมพ์สำเนาด้วยหรือไม่?",
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Angsana New", 24, FontStyle.Bold),
+                Width = 450,
+                Height = 80,
+                Location = new Point(25, 20)
+            };
+
+            // Create "Yes" button
+            Button yesButton = new Button
+            {
+                Text = "ใช่",
+                DialogResult = DialogResult.Yes,
+                Font = new Font("Angsana New", 20, FontStyle.Regular),
+                Width = 120,
+                Height = 60,
+                Location = new Point(50, 120)
+            };
+
+            // Create "No" button
+            Button noButton = new Button
+            {
+                Text = "ไม่",
+                DialogResult = DialogResult.No,
+                Font = new Font("Angsana New", 20, FontStyle.Regular),
+                Width = 120,
+                Height = 60,
+                Location = new Point(190, 120)
+            };
+
+            // Create "Cancel" button
+            Button cancelButton = new Button
+            {
+                Text = "ยกเลิก",
+                DialogResult = DialogResult.Cancel,
+                Font = new Font("Angsana New", 20, FontStyle.Regular),
+                Width = 120,
+                Height = 60,
+                Location = new Point(330, 120)
+            };
+
+            // Add controls to the form
+            printOptionDialog.Controls.Add(questionLabel);
+            printOptionDialog.Controls.Add(yesButton);
+            printOptionDialog.Controls.Add(noButton);
+            printOptionDialog.Controls.Add(cancelButton);
+
+            // Set default buttons
+            printOptionDialog.AcceptButton = yesButton;
+            printOptionDialog.CancelButton = cancelButton;
+
+            // Show the form and get the result
+            return printOptionDialog.ShowDialog(this);
+        }
         private void btnSearch_Click(object sender, EventArgs e)
         {
             string orderText = txtOrderId.Text.Trim();

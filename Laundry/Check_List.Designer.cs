@@ -47,6 +47,7 @@
             this.btnReprintOrder = new System.Windows.Forms.Button();
             this.btnReprintReceipt = new System.Windows.Forms.Button();
             this.btnCancle = new System.Windows.Forms.Button();
+            this.btnReprintReceiptWithCopy = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dgvOrders)).BeginInit();
             this.SuspendLayout();
             // 
@@ -241,7 +242,7 @@
             // 
             this.btnCancle.AutoSize = true;
             this.btnCancle.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnCancle.Location = new System.Drawing.Point(539, 244);
+            this.btnCancle.Location = new System.Drawing.Point(739, 244);
             this.btnCancle.Name = "btnCancle";
             this.btnCancle.Size = new System.Drawing.Size(155, 53);
             this.btnCancle.TabIndex = 70;
@@ -249,11 +250,24 @@
             this.btnCancle.UseVisualStyleBackColor = true;
             this.btnCancle.Click += new System.EventHandler(this.btnCancle_Click);
             // 
+            // btnReprintReceiptWithCopy
+            // 
+            this.btnReprintReceiptWithCopy.AutoSize = true;
+            this.btnReprintReceiptWithCopy.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnReprintReceiptWithCopy.Location = new System.Drawing.Point(464, 244);
+            this.btnReprintReceiptWithCopy.Name = "btnReprintReceiptWithCopy";
+            this.btnReprintReceiptWithCopy.Size = new System.Drawing.Size(227, 53);
+            this.btnReprintReceiptWithCopy.TabIndex = 71;
+            this.btnReprintReceiptWithCopy.Text = "พิมพ์สำเนาใบเสร็จใหม่";
+            this.btnReprintReceiptWithCopy.UseVisualStyleBackColor = true;
+            this.btnReprintReceiptWithCopy.Click += new System.EventHandler(this.btnReprintReceiptWithCopy_Click);
+            // 
             // Check_List
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.btnReprintReceiptWithCopy);
             this.Controls.Add(this.btnCancle);
             this.Controls.Add(this.btnReprintReceipt);
             this.Controls.Add(this.btnReprintOrder);
@@ -299,5 +313,6 @@
         private System.Windows.Forms.Button btnReprintOrder;
         private System.Windows.Forms.Button btnReprintReceipt;
         private System.Windows.Forms.Button btnCancle;
+        private System.Windows.Forms.Button btnReprintReceiptWithCopy;
     }
 }

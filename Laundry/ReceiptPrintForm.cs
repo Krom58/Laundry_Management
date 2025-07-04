@@ -31,19 +31,38 @@ namespace Laundry_Management.Laundry
         private bool _isOriginalCopy = true;
         private int _totalCopies = 2;
         private int _currentCopy = 1;
-
+        public bool PrintAsCopy
+        {
+            get { return !_isOriginalCopy; }
+            set { _isOriginalCopy = !value; }
+        }
         public ReceiptPrintForm()
         {
             InitializeComponent();
         }
 
-        public ReceiptPrintForm(int receiptId, OrderHeaderDto header, List<OrderItemDto> items)
+        public ReceiptPrintForm(int receiptId, OrderHeaderDto header, List<OrderItemDto> items, bool printOriginalWithCopy = false)
         {
             InitializeComponent();
 
             _receiptId = receiptId;
             _header = header;
             _items = items;
+
+            // Set print options based on the parameter
+            if (printOriginalWithCopy)
+            {
+                // Print both original and copy
+                _totalCopies = 2;
+                _isOriginalCopy = true; // Start with original
+            }
+            else
+            {
+                // Print just one copy 
+                _totalCopies = 1;
+                // IMPORTANT: Now we'll always show a label (either "ต้นฉบับ" or "สำเนา")
+                // instead of showing nothing when printing a single copy
+            }
 
             // เพิ่มการตรวจสอบและแก้ไขค่า PaymentMethod ตรงนี้
             if (_header != null && string.IsNullOrEmpty(_header.PaymentMethod))
@@ -80,7 +99,12 @@ namespace Laundry_Management.Laundry
             // โหลดโลโก้
             LoadLogoImage();
         }
-
+        private void ResetPrintingState()
+        {
+            _currentPage = 0;
+            _currentCopy = 1;
+            // _isOriginalCopy is not reset here as it's controlled by the PrintAsCopy property
+        }
         private void SetA5PaperSize()
         {
             // A5 dimensions: 148 × 210 mm = 5.83 × 8.27 inches
@@ -270,9 +294,6 @@ namespace Laundry_Management.Laundry
                     {
                         string titleText = "ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ";
 
-                        // Add "ต้นฉบับ" or "สำเนา" label based on current copy
-                        string copyLabel = _isOriginalCopy ? "ต้นฉบับ" : "สำเนา";
-
                         SizeF titleSize = g.MeasureString(titleText, smallerTitleF);
                         float titleY = titleBoxY + (titleBoxHeight - titleSize.Height) / 2 - 5; // Position title slightly higher
                         float titleX = titleBoxX + (titleBoxWidth - titleSize.Width) / 2; // Center horizontally
@@ -280,7 +301,10 @@ namespace Laundry_Management.Laundry
                         // Draw the main title
                         g.DrawString(titleText, smallerTitleF, new SolidBrush(Color.FromArgb(0, 0, 102)), titleX, titleY);
 
-                        // Draw the copy label below the main title
+                        // MODIFIED: Always draw the copy label - either "ต้นฉบับ" or "สำเนา"
+                        // This ensures the label always appears regardless of _totalCopies
+                        string copyLabel = _isOriginalCopy ? "ต้นฉบับ" : "สำเนา";
+
                         using (Font copyLabelFont = new Font("Tahoma", 7f, FontStyle.Bold))
                         {
                             SizeF copyLabelSize = g.MeasureString(copyLabel, copyLabelFont);
@@ -360,8 +384,18 @@ namespace Laundry_Management.Laundry
                 else
                 {
                     // For continuation pages, add a simple header with original/copy indicator
-                    string copyLabel = _isOriginalCopy ? "ต้นฉบับ" : "สำเนา";
-                    string continuationHeader = $"ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ ({copyLabel} - ต่อ) - เลขที่ {_header.CustomReceiptId}";
+                    string continuationHeader;
+
+                    if (_totalCopies > 1 || (_isOriginalCopy && _totalCopies == 1))
+                    {
+                        string copyLabel = _isOriginalCopy ? "ต้นฉบับ" : "สำเนา";
+                        continuationHeader = $"ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ ({copyLabel} - ต่อ) - เลขที่ {_header.CustomReceiptId}";
+                    }
+                    else
+                    {
+                        continuationHeader = $"ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ (ต่อ) - เลขที่ {_header.CustomReceiptId}";
+                    }
+
                     g.DrawString(continuationHeader, headerF, Brushes.Black, leftX, y);
                     y += headerF.GetHeight(g) * 1.5f;
                 }
@@ -568,9 +602,7 @@ namespace Laundry_Management.Laundry
                 SetA5PaperSize();
 
                 // Reset printing state variables
-                _currentPage = 0;
-                _currentCopy = 1;
-                _isOriginalCopy = true;
+                ResetPrintingState();
 
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {

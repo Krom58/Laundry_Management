@@ -449,15 +449,15 @@ WHERE
 
                     // Get receipt details including discount information and receipt date
                     string receiptQuery = @"
-                        SELECT 
-                            TotalBeforeDiscount, 
-                            TotalAfterDiscount, 
-                            VAT, 
-                            Discount, 
-                            PaymentMethod, 
-                            ReceiptDate
-                        FROM Receipt 
-                        WHERE ReceiptID = @ReceiptID";
+                SELECT 
+                    TotalBeforeDiscount, 
+                    TotalAfterDiscount, 
+                    VAT, 
+                    Discount, 
+                    PaymentMethod, 
+                    ReceiptDate
+                FROM Receipt 
+                WHERE ReceiptID = @ReceiptID";
 
                     using (SqlCommand cmd = new SqlCommand(receiptQuery, conn))
                     {
@@ -488,6 +488,12 @@ WHERE
 
                                 // Set SubTotal
                                 header.SubTotal = header.GrandTotalPrice;
+
+                                // Set PaymentMethod
+                                if (reader["PaymentMethod"] != DBNull.Value)
+                                {
+                                    header.PaymentMethod = reader["PaymentMethod"].ToString();
+                                }
 
                                 // IMPORTANT: Set the OrderDate to ReceiptDate for printing
                                 // This fixes the issue with the receipt date display
@@ -521,16 +527,16 @@ WHERE
                     // Get receipt items
                     List<Find_Service.OrderItemDto> items = new List<Find_Service.OrderItemDto>();
                     string itemsQuery = @"
-                        SELECT 
-                            ri.ReceiptItemID, 
-                            oi.ItemNumber, 
-                            oi.ItemName, 
-                            ri.Quantity, 
-                            ri.Amount, 
-                            oi.IsCanceled
-                        FROM ReceiptItem ri
-                        INNER JOIN OrderItem oi ON ri.OrderItemID = oi.OrderItemID
-                        WHERE ri.ReceiptID = @ReceiptID";
+                SELECT 
+                    ri.ReceiptItemID, 
+                    oi.ItemNumber, 
+                    oi.ItemName, 
+                    ri.Quantity, 
+                    ri.Amount, 
+                    ri.IsCanceled
+                FROM ReceiptItem ri
+                INNER JOIN OrderItem oi ON ri.OrderItemID = oi.OrderItemID
+                WHERE ri.ReceiptID = @ReceiptID";
 
                     using (SqlCommand cmd = new SqlCommand(itemsQuery, conn))
                     {
@@ -605,8 +611,9 @@ WHERE
                         }
                     }
 
-                    // Open ReceiptPrintForm to print the receipt
-                    using (var printForm = new ReceiptPrintForm(receiptId, header, items))
+                    // Open ReceiptPrintForm to print the receipt without making original+copy
+                    // Pass false for printOriginalWithCopy parameter
+                    using (var printForm = new ReceiptPrintForm(receiptId, header, items, false))
                     {
                         printForm.ShowDialog(this);
 
@@ -1623,6 +1630,240 @@ WHERE
                         {
                             transaction.Rollback();
                             throw new Exception("เกิดข้อผิดพลาดในการยกเลิกรายการ: " + ex.Message);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}\n\nStackTrace: {ex.StackTrace}",
+                    "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnReprintReceiptWithCopy_Click(object sender, EventArgs e)
+        {
+            // Check if a row is selected
+            if (dgvOrders.CurrentRow == null)
+            {
+                MessageBox.Show("กรุณาเลือกรายการที่ต้องการพิมพ์สำเนาใบเสร็จ", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // Check if the selected row has a receipt
+                var receiptIdObj = dgvOrders.CurrentRow.Cells["ReceiptID"].Value;
+                if (receiptIdObj == null || receiptIdObj == DBNull.Value)
+                {
+                    MessageBox.Show("รายการที่เลือกยังไม่มีใบเสร็จ กรุณาออกใบเสร็จก่อน", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                int receiptId = Convert.ToInt32(receiptIdObj);
+                int orderId = Convert.ToInt32(dgvOrders.CurrentRow.Cells["OrderID"].Value);
+
+                // ตรวจสอบสถานะใบเสร็จว่าเป็น "ยกเลิกการพิมพ์" หรือไม่
+                var receiptStatusObj = dgvOrders.CurrentRow.Cells["สถานะใบเสร็จ"].Value;
+                if (receiptStatusObj != null && receiptStatusObj != DBNull.Value &&
+                    receiptStatusObj.ToString() == "ยกเลิกการพิมพ์")
+                {
+                    MessageBox.Show("ไม่สามารถพิมพ์ใบเสร็จที่ถูกยกเลิกการพิมพ์ได้", "แจ้งเตือน",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Create OrderHeaderDto object with required data
+                var header = new Find_Service.OrderHeaderDto
+                {
+                    OrderID = orderId,
+                    CustomOrderId = dgvOrders.CurrentRow.Cells["หมายเลขใบรับผ้า"].Value?.ToString(),
+                    CustomerName = dgvOrders.CurrentRow.Cells["ชื่อลูกค้า"].Value?.ToString(),
+                    Phone = dgvOrders.CurrentRow.Cells["เบอร์โทรศัพท์"].Value?.ToString(),
+                    CustomReceiptId = dgvOrders.CurrentRow.Cells["หมายเลขใบเสร็จ"].Value?.ToString()
+                };
+
+                // Get additional information from the database
+                using (SqlConnection conn = DBconfig.GetConnection())
+                {
+                    conn.Open();
+
+                    // Get receipt details including discount information and receipt date
+                    string receiptQuery = @"
+                SELECT 
+                    TotalBeforeDiscount, 
+                    TotalAfterDiscount, 
+                    VAT, 
+                    Discount, 
+                    PaymentMethod, 
+                    ReceiptDate
+                FROM Receipt 
+                WHERE ReceiptID = @ReceiptID";
+
+                    using (SqlCommand cmd = new SqlCommand(receiptQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@ReceiptID", receiptId);
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                header.GrandTotalPrice = reader["TotalBeforeDiscount"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["TotalBeforeDiscount"]) : 0;
+                                header.DiscountedTotal = reader["TotalAfterDiscount"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["TotalAfterDiscount"]) : 0;
+                                header.VatAmount = reader["VAT"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["VAT"]) : 0;
+
+                                // Important: Get the discount value
+                                decimal discountAmount = reader["Discount"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["Discount"]) : 0;
+
+                                // Calculate discount percentage if needed
+                                if (header.GrandTotalPrice > 0)
+                                {
+                                    header.Discount = Math.Round((discountAmount / header.GrandTotalPrice) * 100, 2);
+                                    header.TodayDiscount = discountAmount;
+                                    // Setting this to false ensures the discount is treated as an amount rather than percentage
+                                    header.IsTodayDiscountPercent = false;
+                                }
+
+                                // Set SubTotal
+                                header.SubTotal = header.GrandTotalPrice;
+
+                                // Set PaymentMethod
+                                if (reader["PaymentMethod"] != DBNull.Value)
+                                {
+                                    header.PaymentMethod = reader["PaymentMethod"].ToString();
+                                }
+
+                                // IMPORTANT: Set the OrderDate to ReceiptDate for printing
+                                // This fixes the issue with the receipt date display
+                                if (reader["ReceiptDate"] != DBNull.Value)
+                                {
+                                    header.OrderDate = Convert.ToDateTime(reader["ReceiptDate"]);
+                                }
+                            }
+                            else
+                            {
+                                MessageBox.Show("ไม่พบข้อมูลใบเสร็จในระบบ", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                            }
+                        }
+                    }
+
+                    // Get order discount from OrderHeader as backup if needed
+                    string orderQuery = "SELECT Discount FROM OrderHeader WHERE OrderID = @OrderID";
+                    using (SqlCommand cmd = new SqlCommand(orderQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OrderID", orderId);
+                        var discountObj = cmd.ExecuteScalar();
+                        if (discountObj != null && discountObj != DBNull.Value && header.Discount == 0)
+                        {
+                            // Only use this as a fallback
+                            header.Discount = Convert.ToDecimal(discountObj);
+                            header.IsTodayDiscountPercent = true;
+                        }
+                    }
+
+                    // Get receipt items
+                    List<Find_Service.OrderItemDto> items = new List<Find_Service.OrderItemDto>();
+                    string itemsQuery = @"
+                SELECT 
+                    ri.ReceiptItemID, 
+                    oi.ItemNumber, 
+                    oi.ItemName, 
+                    ri.Quantity, 
+                    ri.Amount, 
+                    ri.IsCanceled
+                FROM ReceiptItem ri
+                INNER JOIN OrderItem oi ON ri.OrderItemID = oi.OrderItemID
+                WHERE ri.ReceiptID = @ReceiptID";
+
+                    using (SqlCommand cmd = new SqlCommand(itemsQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@ReceiptID", receiptId);
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                items.Add(new Find_Service.OrderItemDto
+                                {
+                                    OrderItemID = Convert.ToInt32(reader["ReceiptItemID"]),
+                                    ItemNumber = reader["ItemNumber"].ToString(),
+                                    ItemName = reader["ItemName"].ToString(),
+                                    Quantity = Convert.ToInt32(reader["Quantity"]),
+                                    TotalAmount = Convert.ToDecimal(reader["Amount"]),
+                                    IsCanceled = reader["IsCanceled"] != DBNull.Value && (bool)reader["IsCanceled"]
+                                });
+                            }
+                        }
+                    }
+
+                    if (items.Count == 0)
+                    {
+                        MessageBox.Show("ไม่พบรายการสินค้าในใบเสร็จ", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    // Create confirmation dialog
+                    using (Form confirmDialog = new Form())
+                    {
+                        confirmDialog.Text = "ยืนยันการพิมพ์สำเนาใบเสร็จ";
+                        confirmDialog.Size = new Size(500, 300);
+                        confirmDialog.StartPosition = FormStartPosition.CenterParent;
+                        confirmDialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                        confirmDialog.MaximizeBox = false;
+                        confirmDialog.MinimizeBox = false;
+
+                        Label lblMessage = new Label();
+                        lblMessage.Text = $"ยืนยันการพิมพ์สำเนาใบเสร็จ\nลูกค้า: {header.CustomerName}\nเลขที่ใบเสร็จ: {header.CustomReceiptId}";
+                        lblMessage.Font = new Font("Angsana New", 26, FontStyle.Bold);
+                        lblMessage.TextAlign = ContentAlignment.MiddleCenter;
+                        lblMessage.Dock = DockStyle.Top;
+                        lblMessage.Height = 150;
+
+                        Button btnConfirm = new Button();
+                        btnConfirm.Text = "ยืนยัน";
+                        btnConfirm.Font = new Font("Angsana New", 24);
+                        btnConfirm.Size = new Size(150, 60);
+                        btnConfirm.Location = new Point(80, 180);
+                        btnConfirm.DialogResult = DialogResult.Yes;
+
+                        Button btnCancel = new Button();
+                        btnCancel.Text = "ยกเลิก";
+                        btnCancel.Font = new Font("Angsana New", 24);
+                        btnCancel.Size = new Size(150, 60);
+                        btnCancel.Location = new Point(260, 180);
+                        btnCancel.DialogResult = DialogResult.Cancel;
+
+                        confirmDialog.Controls.Add(lblMessage);
+                        confirmDialog.Controls.Add(btnConfirm);
+                        confirmDialog.Controls.Add(btnCancel);
+                        confirmDialog.AcceptButton = btnConfirm;
+                        confirmDialog.CancelButton = btnCancel;
+
+                        // Show dialog and wait for response
+                        DialogResult result = confirmDialog.ShowDialog();
+
+                        // If not confirmed, cancel the operation
+                        if (result != DialogResult.Yes)
+                        {
+                            return;
+                        }
+                    }
+
+                    // Create a custom ReceiptPrintForm but modify its internal state
+                    using (var printForm = new ReceiptPrintForm(receiptId, header, items, false))
+                    {
+                        // Set it to print as "สำเนา" instead of "ต้นฉบับ"
+                        printForm.PrintAsCopy = true;
+
+                        printForm.ShowDialog(this);
+
+                        // No need to update any status as we're just reprinting
+                        if (printForm.IsPrinted)
+                        {
+                            MessageBox.Show("พิมพ์สำเนาใบเสร็จเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                     }
                 }
