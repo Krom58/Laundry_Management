@@ -367,7 +367,8 @@ namespace Laundry_Management.Laundry
 
                         // For date - using the same centering approach
                         string dateLabel = "วันที่ : ";
-                        string dateValue = $"{_header.OrderDate.Day:00}/{_header.OrderDate.Month:00}/{_header.OrderDate.Year + 543}";
+                        DateTime receiptDate = GetReceiptDate(_receiptId);
+                        string dateValue = $"{receiptDate.Day:00}/{receiptDate.Month:00}/{receiptDate.Year + 543}";
                         string fullDateText = dateLabel + dateValue;
 
                         // Calculate vertical spacing with proper positioning
@@ -485,7 +486,35 @@ namespace Laundry_Management.Laundry
                 }
             }
         }
+        private DateTime GetReceiptDate(int receiptId)
+        {
+            DateTime receiptDate = DateTime.Now; // Default to current date if not found
 
+            try
+            {
+                using (SqlConnection conn = DBconfig.GetConnection())
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(
+                        "SELECT ReceiptDate FROM Receipt WHERE ReceiptID = @rid", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@rid", receiptId);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            receiptDate = Convert.ToDateTime(result);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error or handle exception
+                Console.WriteLine("Error getting receipt date: " + ex.Message);
+            }
+
+            return receiptDate;
+        }
         // Helper method to convert number to Thai text
         private string ThaiNumberToText(decimal number)
         {

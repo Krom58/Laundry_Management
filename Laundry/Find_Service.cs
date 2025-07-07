@@ -17,7 +17,6 @@ namespace Laundry_Management.Laundry
         private readonly OrderRepository _repo = new OrderRepository();
         private List<OrderItemDto> _currentItems;
         private decimal _totalAmount;
-        private const decimal VAT_RATE = 0.07m;
         public Find_Service()
         {
             InitializeComponent();
@@ -630,23 +629,28 @@ WHERE 1=1
             // คำนวณราคาหลังหักส่วนลด
             CalculateDiscountedPrice();
         }
-        private void CalculateDiscountedPrice()
+        private decimal[] CalculateDiscountedPrice()
         {
+            decimal totalAmount = 0;
+            decimal discountAmount = 0;
+            decimal afterDiscount = 0;
+            decimal vatAmount = 0;
+            decimal paymentAmount = 0;
+
             if (_currentItems == null || !_currentItems.Any(i => !i.IsCanceled))
             {
                 lblTotal.Text = lblDiscount.Text = label10.Text = lblVat.Text = lblPaymentamount.Text = "0.00 บาท";
-                return;
+                return new decimal[] { 0, 0, 0, 0, 0 };
             }
 
             // 1. lblTotal = ราคารวม
-            decimal totalAmount = _currentItems
+            totalAmount = _currentItems
                 .Where(i => !i.IsCanceled)
                 .Sum(i => i.TotalAmount);
             lblTotal.Text = totalAmount.ToString("N2") + " บาท";
 
             // 2. ส่วนลด - ตรวจสอบประเภทส่วนลด (บาทหรือ%)
             decimal discountValue = 0;
-            decimal discountAmount = 0;
 
             if (decimal.TryParse(txtDiscount.Text, out discountValue) && discountValue > 0)
             {
@@ -679,16 +683,25 @@ WHERE 1=1
             lblDiscount.Text = discountAmount.ToString("N2") + " บาท";
 
             // 3. label10 = ยอดรวมหลังหักส่วนลด (lblTotal - lblDiscount)
-            decimal afterDiscount = Math.Round(totalAmount - discountAmount, 2);
+            afterDiscount = Math.Round(totalAmount - discountAmount, 2);
             label10.Text = afterDiscount.ToString("N2") + " บาท";
 
             // 4. lblVat = label10 * 7 / 100 (VAT 7% จากยอดหลังหักส่วนลด)
-            decimal vatAmount = Math.Round(afterDiscount / 1.07m * 0.07m, 2);
+            vatAmount = Math.Round(afterDiscount / 1.07m * 0.07m, 2);
             lblVat.Text = vatAmount.ToString("N2") + " บาท";
 
             // 5. lblPaymentamount = label10 + VAT
-            decimal paymentAmount = afterDiscount;
+            paymentAmount = afterDiscount; // รวม VAT แล้ว
             lblPaymentamount.Text = paymentAmount.ToString("N2") + " บาท";
+
+            // ส่งคืนค่าที่คำนวณแล้วเป็น array ของ decimal
+            return new decimal[] {
+                totalAmount,      // ยอดรวมทั้งหมดก่อนหักส่วนลด
+                discountAmount,   // จำนวนเงินส่วนลด (บาท)
+                afterDiscount,    // ยอดหลังหักส่วนลด
+                vatAmount,        // ภาษีมูลค่าเพิ่ม 7%
+                paymentAmount     // ยอดรวมที่ต้องชำระ
+            };
         }
         private void txtDiscount_TextChanged(object sender, EventArgs e)
         {
@@ -804,52 +817,31 @@ WHERE 1=1
             // กำหนดค่าจากผลลัพธ์ของ dialog
             bool printOriginalWithCopy = (printOption == DialogResult.Yes);
 
-            // คำนวณ SUB TOTAL (ราคาก่อน VAT และก่อนส่วนลด)
-            decimal subTotal = items.Sum(i => i.TotalAmount);
+            // เรียกใช้ CalculateDiscountedPrice เพื่อคำนวณค่าต่างๆ
+            decimal[] calculatedValues = CalculateDiscountedPrice();
+            decimal subTotal = calculatedValues[0];         // ยอดรวมทั้งหมด
+            decimal discountAmount = calculatedValues[1];   // จำนวนเงินส่วนลด (บาท)
+            decimal netTotal = calculatedValues[2];         // ยอดหลังหักส่วนลด
+            decimal vatAmount = calculatedValues[3];        // ภาษีมูลค่าเพิ่ม 7%
+            decimal paymentAmount = calculatedValues[4];    // ยอดรวมที่ต้องชำระ
 
-            // VAT = 7% ของยอดรวม
-            decimal vatAmount = Math.Round(subTotal * VAT_RATE, 2);
-
-            // ตัวแปรสำหรับเก็บค่าที่คำนวณ
-            decimal discountAmount = 0;        // จำนวนเงินส่วนลด
-            decimal netTotal;                  // ยอดรวมสุทธิ (subTotal - discountAmount)
-
-            // ตรวจสอบส่วนลด
+            // บันทึกค่าส่วนลดและข้อมูลอื่นๆ ใน header
             if (chkPercent.Checked)
             {
-                if (discountValue < 0 || discountValue > 100)
-                {
-                    MessageBox.Show("ส่วนลดเปอร์เซ็นต์ต้องอยู่ระหว่าง 0-100", "แจ้งเตือน",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-                discountAmount = Math.Round(subTotal * discountValue / 100, 2);
-                header.Discount = discountValue;
+                header.Discount = discountValue; // เก็บเป็นเปอร์เซ็นต์
                 header.TodayDiscount = discountValue;
                 header.IsTodayDiscountPercent = true;
             }
             else if (chkBaht.Checked)
             {
-                if (discountValue < 0)
-                {
-                    MessageBox.Show("ส่วนลดต้องไม่ติดลบ", "แจ้งเตือน",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-                if (discountValue > subTotal)
-                {
-                    MessageBox.Show("ส่วนลดต้องไม่เกินราคารวม", "แจ้งเตือน",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-                discountAmount = discountValue;
+                // คำนวณเป็นเปอร์เซ็นต์เพื่อเก็บใน Discount
                 decimal percentDiscount = 0;
                 if (subTotal > 0)
                 {
-                    percentDiscount = (discountValue / subTotal) * 100;
+                    percentDiscount = (discountAmount / subTotal) * 100;
                 }
                 header.Discount = percentDiscount;
-                header.TodayDiscount = discountValue;
+                header.TodayDiscount = discountAmount; // เก็บเป็นจำนวนเงิน
                 header.IsTodayDiscountPercent = false;
             }
             else
@@ -859,14 +851,11 @@ WHERE 1=1
                 header.IsTodayDiscountPercent = true;
             }
 
-            // ยอดรวมสุทธิ = ยอดรวม - ส่วนลด
-            netTotal = Math.Round(subTotal - discountAmount, 2);
-
             // อัพเดทข้อมูลใน header
-            header.GrandTotalPrice = subTotal;        // ยอดรวม (รวม VAT)
-            header.SubTotal = subTotal;               // ยอดรวม (ก่อนหักส่วนลด)
-            header.VatAmount = vatAmount;             // VAT
-            header.DiscountedTotal = netTotal;
+            header.GrandTotalPrice = subTotal;         // ยอดรวม (รวม VAT)
+            header.SubTotal = subTotal;                // ยอดรวม (ก่อนหักส่วนลด)
+            header.VatAmount = vatAmount;              // VAT
+            header.DiscountedTotal = netTotal;         // ยอดหลังหักส่วนลด
 
             string customReceiptId = string.Empty;
             int receiptId = -1;
@@ -906,8 +895,9 @@ WHERE 1=1
                     {
                         try
                         {
-                            // 1) สร้าง Receipt พร้อมกับ CustomReceiptId
-                            int newReceiptId = CreateReceiptWithCustomId(header.OrderID, customReceiptId);
+                            // ส่งค่าที่คำนวณแล้วไปยัง CreateReceiptWithCustomId
+                            int newReceiptId = CreateReceiptWithCustomId(header.OrderID, customReceiptId,
+                                subTotal, discountAmount, netTotal, vatAmount);
 
                             foreach (var item in items)
                             {
@@ -1255,62 +1245,19 @@ WHERE 1=1
         {
             this.Close();
         }
-        public int CreateReceiptWithCustomId(int orderId, string customReceiptId)
+        public int CreateReceiptWithCustomId(int orderId, string customReceiptId,
+            decimal subTotal, decimal discountAmount, decimal netTotal, decimal vatAmount)
         {
-            // 1) สร้างข้อมูลรายการที่ไม่ถูกยกเลิก
+            // ตรวจสอบรายการ
             var items = _currentItems.Where(i => !i.IsCanceled).ToList();
             if (!items.Any()) throw new InvalidOperationException("ไม่มีรายการสำหรับออกใบเสร็จ");
 
-            // 2) SUB TOTAL = ราคารวมทั้งหมด
-            decimal subTotal = items.Sum(i => i.TotalAmount);
-
-            // 3) VAT = 7% ของยอดรวม
-            decimal vatAmount = Math.Round(subTotal * VAT_RATE, 2);
-
-            // 4) คำนวณส่วนลด
-            decimal discountValue = 0;          // ค่าส่วนลดที่ผู้ใช้ป้อน (เปอร์เซ็นต์หรือบาท)
-            decimal discountAmount = 0;         // จำนวนเงินส่วนลด (เป็นบาทเสมอ)
-            bool isDiscountPercent = chkPercent.Checked;
-
-            // ดึงค่า OrderHeaderDto สำหรับอัพเดทข้อมูล
-            var header = dgvOrders.CurrentRow?.DataBoundItem as OrderHeaderDto;
-
-            // อ่านค่าส่วนลดจาก textbox
-            if (decimal.TryParse(txtDiscount.Text, out discountValue) && discountValue > 0)
-            {
-                if (isDiscountPercent)
-                {
-                    // คิดส่วนลดแบบ % (เปอร์เซ็นต์)
-                    discountAmount = Math.Round(subTotal * discountValue / 100m, 2);
-
-                    // อัพเดทข้อมูลใน header
-                    if (header != null)
-                    {
-                        header.TodayDiscount = discountValue;
-                    }
-                }
-                else
-                {
-                    // คิดส่วนลดแบบบาท (จำนวนเงินโดยตรง)
-                    discountAmount = Math.Min(discountValue, subTotal);
-
-                    // อัพเดทข้อมูลใน header
-                    if (header != null)
-                    {
-                        header.TodayDiscount = discountValue;
-                    }
-                }
-            }
-
-            // 5) ยอดรวมสุทธิ = ยอดรวม - ส่วนลด
-            decimal netTotal = Math.Round(subTotal - discountAmount, 2);
-
-            // 6) กำหนดวิธีการชำระเงิน
+            // กำหนดวิธีการชำระเงิน
             string paymentMethod = chkCash.Checked ? "เงินสด" :
                                    chkDebit.Checked ? "บัตรเครดิต" :
                                    "QR Code";
 
-            // 7) บันทึกลงฐานข้อมูล
+            // บันทึกลงฐานข้อมูล
             using (var cn = Laundry_Management.Laundry.DBconfig.GetConnection())
             {
                 cn.Open();

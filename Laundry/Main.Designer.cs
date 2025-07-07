@@ -37,6 +37,7 @@
             this.btnSetting = new System.Windows.Forms.Button();
             this.Report = new System.Windows.Forms.Button();
             this.Modify_Service = new System.Windows.Forms.Button();
+            this.Vat_Report = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnAdd_Type_Service
@@ -147,11 +148,24 @@
             this.Modify_Service.UseVisualStyleBackColor = true;
             this.Modify_Service.Click += new System.EventHandler(this.Modify_Service_Click);
             // 
+            // Vat_Report
+            // 
+            this.Vat_Report.AutoSize = true;
+            this.Vat_Report.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Vat_Report.Location = new System.Drawing.Point(28, 643);
+            this.Vat_Report.Name = "Vat_Report";
+            this.Vat_Report.Size = new System.Drawing.Size(289, 109);
+            this.Vat_Report.TabIndex = 45;
+            this.Vat_Report.Text = "รายงานภาษีขาย (6)";
+            this.Vat_Report.UseVisualStyleBackColor = true;
+            this.Vat_Report.Click += new System.EventHandler(this.Vat_Report_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.Vat_Report);
             this.Controls.Add(this.Modify_Service);
             this.Controls.Add(this.Report);
             this.Controls.Add(this.btnSetting);
@@ -180,5 +194,6 @@
         private System.Windows.Forms.Button btnSetting;
         private System.Windows.Forms.Button Report;
         private System.Windows.Forms.Button Modify_Service;
+        private System.Windows.Forms.Button Vat_Report;
     }
 }
