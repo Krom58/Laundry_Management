@@ -104,48 +104,42 @@ namespace Laundry_Management.Laundry
         {
             try
             {
-                // อัพเดทชื่อฟอร์มเพื่อแสดงวันที่กำลังดูรายงาน
-                this.Text = $"รายงานภาษีขาย - {dtpCreateDateFirst.Value.ToString("dd/MM/yyyy")} ถึง {dtpCreateDateLast.Value.ToString("dd/MM/yyyy")}";
+                this.Text = $"รายงานภาษีขาย - {dtpCreateDateFirst.Value:dd/MM/yyyy} ถึง {dtpCreateDateLast.Value:dd/MM/yyyy}";
 
                 using (SqlConnection connection = DBconfig.GetConnection())
                 {
                     reportData = new DataTable();
-                    reportData.Columns.Add("Date", typeof(DateTime));
-                    reportData.Columns.Add("Tax Inv. no", typeof(string));
-                    reportData.Columns.Add("Folio No.#", typeof(string));
-                    reportData.Columns.Add("Guest Name", typeof(string));
-                    reportData.Columns.Add("Tax ID", typeof(string));
-                    reportData.Columns.Add("Payment Description", typeof(string));
-                    reportData.Columns.Add("Vatable Amt.", typeof(decimal));
-                    reportData.Columns.Add("Vat 7%", typeof(decimal));
-                    reportData.Columns.Add("Total", typeof(decimal));
+                    reportData.Columns.Add("วันที่", typeof(DateTime));
+                    reportData.Columns.Add("เลขที่ใบเสร็จ", typeof(string));
+                    reportData.Columns.Add("ชื่อลูกค้า", typeof(string));
+                    reportData.Columns.Add("เลขประจำตัวIDลูกค้า", typeof(string));
+                    reportData.Columns.Add("รายละเอียดการชำระเงิน", typeof(string));
+                    reportData.Columns.Add("ยอดก่อนรวมภาษี", typeof(decimal));
+                    reportData.Columns.Add("ภาษี 7%", typeof(decimal));
+                    reportData.Columns.Add("ยอดรวม", typeof(decimal));
 
                     connection.Open();
-                    // Query to get receipt data with customer names from Order table
-                    // Only get receipts that have been printed/completed
                     string query = @"
-                            SELECT 
-                                CAST(r.ReceiptID AS int) AS 'Tax Inv. no',
-                                r.ReceiptDate AS 'Date',
-                                r.CustomReceiptId AS 'Folio No.#',
-                                ISNULL(o.CustomerID, '') AS 'Tax ID',
-                                ISNULL(c.FullName, '') AS 'Guest Name',
-                                r.PaymentMethod AS 'Payment Description',
-                                ISNULL(r.TotalAfterDiscount - r.VAT, 0) AS 'Vatable Amt.',
-                                ISNULL(r.VAT, 0) AS 'Vat 7%',
-                                ISNULL(r.TotalAfterDiscount, 0) AS 'Total'
-                            FROM Receipt r
-                            LEFT JOIN [OrderHeader] o ON r.OrderID = o.OrderID
-                            LEFT JOIN Customer c ON o.CustomerID = c.CustomerID
-                            WHERE r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว' 
-                            AND r.ReceiptDate BETWEEN @StartDate AND @EndDate
-                            ORDER BY r.ReceiptDate, r.ReceiptID";
+                SELECT 
+                    r.ReceiptDate AS 'วันที่',
+                    r.CustomReceiptId AS 'เลขที่ใบเสร็จ',
+                    ISNULL(o.CustomerID, '') AS 'เลขประจำตัวIDลูกค้า',
+                    ISNULL(c.FullName, '') AS 'ชื่อลูกค้า',
+                    r.PaymentMethod AS 'รายละเอียดการชำระเงิน',
+                    ISNULL(r.TotalAfterDiscount - r.VAT, 0) AS 'ยอดก่อนรวมภาษี',
+                    ISNULL(r.VAT, 0) AS 'ภาษี 7%',
+                    ISNULL(r.TotalAfterDiscount, 0) AS 'ยอดรวม'
+                FROM Receipt r
+                LEFT JOIN [OrderHeader] o ON r.OrderID = o.OrderID
+                LEFT JOIN Customer c ON o.CustomerID = c.CustomerID
+                WHERE r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว' 
+                AND r.ReceiptDate BETWEEN @StartDate AND @EndDate
+                ORDER BY r.ReceiptDate, r.ReceiptID";
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        // กำหนดเวลาให้ครอบคลุมทั้งวัน
-                        DateTime startDateTime = dtpCreateDateFirst.Value.Date; // เริ่มต้นที่ 00:00:00
-                        DateTime endDateTime = dtpCreateDateLast.Value.Date.AddDays(1).AddSeconds(-1); // สิ้นสุดที่ 23:59:59
+                        DateTime startDateTime = dtpCreateDateFirst.Value.Date;
+                        DateTime endDateTime = dtpCreateDateLast.Value.Date.AddDays(1).AddSeconds(-1);
 
                         command.Parameters.AddWithValue("@StartDate", startDateTime);
                         command.Parameters.AddWithValue("@EndDate", endDateTime);
@@ -155,30 +149,26 @@ namespace Laundry_Management.Laundry
                             while (reader.Read())
                             {
                                 DataRow row = reportData.NewRow();
-                                row["Date"] = reader["Date"];
-                                row["Tax Inv. no"] = reader["Tax Inv. no"].ToString();
-                                row["Folio No.#"] = reader["Folio No.#"].ToString();
-                                row["Guest Name"] = reader["Guest Name"].ToString();
-                                row["Tax ID"] = reader["Tax ID"].ToString();
-                                row["Payment Description"] = reader["Payment Description"].ToString();
-                                row["Vatable Amt."] = Convert.ToDecimal(reader["Vatable Amt."]);
-                                row["Vat 7%"] = Convert.ToDecimal(reader["Vat 7%"]);
-                                row["Total"] = Convert.ToDecimal(reader["Total"]);
+                                row["วันที่"] = reader["วันที่"];
+                                row["เลขที่ใบเสร็จ"] = reader["เลขที่ใบเสร็จ"].ToString();
+                                row["ชื่อลูกค้า"] = reader["ชื่อลูกค้า"].ToString();
+                                row["เลขประจำตัวIDลูกค้า"] = reader["เลขประจำตัวIDลูกค้า"].ToString();
+                                row["รายละเอียดการชำระเงิน"] = reader["รายละเอียดการชำระเงิน"].ToString();
+                                row["ยอดก่อนรวมภาษี"] = Convert.ToDecimal(reader["ยอดก่อนรวมภาษี"]);
+                                row["ภาษี 7%"] = Convert.ToDecimal(reader["ภาษี 7%"]);
+                                row["ยอดรวม"] = Convert.ToDecimal(reader["ยอดรวม"]);
                                 reportData.Rows.Add(row);
                             }
                         }
                     }
 
-                    // Get summary data
                     string summaryQuery = @"
-                            SELECT 
-                                SUM(ISNULL(r.TotalAfterDiscount - r.VAT, 0)) AS 'Vatable Amt.',
-                                0 AS 'Non Vat',
-                                SUM(ISNULL(r.VAT, 0)) AS 'Vat 7%',
-                                SUM(ISNULL(r.TotalAfterDiscount, 0)) AS 'Total'
-                            FROM Receipt r
-                            WHERE r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว' 
-                            AND r.ReceiptDate BETWEEN @StartDate AND @EndDate";
+        SELECT 
+            SUM(ISNULL(r.TotalAfterDiscount, 0)) AS 'ยอดรวม',
+            0 AS 'Non Vat'
+        FROM Receipt r
+        WHERE r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว' 
+        AND r.ReceiptDate BETWEEN @StartDate AND @EndDate";
 
                     using (SqlCommand command = new SqlCommand(summaryQuery, connection))
                     {
@@ -192,13 +182,29 @@ namespace Laundry_Management.Laundry
                         SqlDataAdapter adapter = new SqlDataAdapter(command);
                         summaryData = new DataTable();
                         adapter.Fill(summaryData);
+
+                        // คำนวณ VAT และยอดก่อนภาษีจากยอดรวม
+                        if (summaryData.Rows.Count > 0)
+                        {
+                            decimal totalAmount = Convert.ToDecimal(summaryData.Rows[0]["ยอดรวม"]);
+                            decimal vatAmount = Math.Round(totalAmount / 107m * 7m, 2); // คำนวณ VAT จากยอดรวมและปัดเป็น 2 ตำแหน่ง
+                            decimal vatableAmount = totalAmount - vatAmount; // คำนวณยอดก่อนภาษี
+
+                            // เพิ่มคอลัมน์หากไม่มีอยู่แล้ว
+                            if (!summaryData.Columns.Contains("ภาษี 7%"))
+                                summaryData.Columns.Add("ภาษี 7%", typeof(decimal));
+                            if (!summaryData.Columns.Contains("ยอดก่อนรวมภาษี"))
+                                summaryData.Columns.Add("ยอดก่อนรวมภาษี", typeof(decimal));
+
+                            // กำหนดค่า
+                            summaryData.Rows[0]["ภาษี 7%"] = vatAmount;
+                            summaryData.Rows[0]["ยอดก่อนรวมภาษี"] = vatableAmount;
+                        }
                     }
                 }
 
-                // Display data
                 DisplayReportData();
 
-                // Update the form title to include record count
                 if (reportData != null && reportData.Rows.Count > 0)
                 {
                     this.Text = $"{this.Text} - จำนวน {reportData.Rows.Count} รายการ";
@@ -206,7 +212,7 @@ namespace Laundry_Management.Laundry
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading report data: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message, "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -215,41 +221,51 @@ namespace Laundry_Management.Laundry
             if (reportData == null || reportData.Rows.Count == 0)
             {
                 dgvReport.DataSource = null;
-                MessageBox.Show("No data found for the selected date range.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("ไม่พบข้อมูลสำหรับช่วงวันที่ที่เลือก", "ข้อมูล", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            // Create a new DataTable that combines the report data and the summary
+            // สร้าง DataTable ใหม่เพื่อแสดงผล
             DataTable displayData = reportData.Copy();
 
-            // Add a summary row
-            if (summaryData != null && summaryData.Rows.Count > 0)
+            // คำนวณผลรวมสำหรับยอดรวมเท่านั้น
+            decimal sumTotal = 0;
+            foreach (DataRow row in reportData.Rows)
             {
-                DataRow summaryRow = displayData.NewRow();
-                summaryRow["Date"] = DBNull.Value;
-                summaryRow["Tax Inv. no"] = "";
-                summaryRow["Folio No.#"] = "";
-                summaryRow["Guest Name"] = "รวมทั้งสิ้น";
-                summaryRow["Tax ID"] = "";
-                summaryRow["Payment Description"] = "";
-                summaryRow["Vatable Amt."] = summaryData.Rows[0]["Vatable Amt."];
-                summaryRow["Vat 7%"] = summaryData.Rows[0]["Vat 7%"];
-                summaryRow["Total"] = summaryData.Rows[0]["Total"];
-                displayData.Rows.Add(summaryRow);
+                sumTotal += row.Field<decimal>("ยอดรวม");
             }
+
+            // คำนวณ VAT ตามสูตร ยอดรวม / 107 * 7
+            decimal sumVat = Math.Round(sumTotal / 107m * 7m, 2);
+            // คำนวณยอดก่อนรวมภาษีจากยอดรวมและภาษี
+            decimal sumVatable = sumTotal - sumVat;
+
+            // เพิ่มแถวสรุป
+            DataRow summaryRow = displayData.NewRow();
+            summaryRow["วันที่"] = DBNull.Value;
+            summaryRow["เลขที่ใบเสร็จ"] = "";
+            summaryRow["ชื่อลูกค้า"] = "รวมทั้งสิ้น";
+            summaryRow["เลขประจำตัวIDลูกค้า"] = "";
+            summaryRow["รายละเอียดการชำระเงิน"] = "";
+            summaryRow["ยอดก่อนรวมภาษี"] = sumVatable;
+            summaryRow["ภาษี 7%"] = sumVat;
+            summaryRow["ยอดรวม"] = sumTotal;
+            displayData.Rows.Add(summaryRow);
 
             dgvReport.DataSource = displayData;
 
-            // Format the numeric columns
+            // Format the numeric columns - ปรับปรุงการจัดรูปแบบของคอลัมน์ตัวเลข
             foreach (DataGridViewColumn column in dgvReport.Columns)
             {
-                if (column.Name == "Non Vat" || column.Name == "Vatable Amt." ||
-                    column.Name == "Vat 7%" || column.Name == "Total")
+                if (column.Name == "Non Vat" || column.Name == "ยอดก่อนรวมภาษี" ||
+                    column.Name == "ภาษี 7%" || column.Name == "ยอดรวม")
                 {
                     column.DefaultCellStyle.Format = "N2";
                     column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    // เพิ่ม padding ด้านขวาให้กับคอลัมน์ตัวเลข เพื่อให้ตัวเลขไม่ชิดขอบมากเกินไป
+                    column.DefaultCellStyle.Padding = new Padding(0, 0, 30, 0); // เพิ่มจาก 10 เป็น 30
                 }
-                else if (column.Name == "Date")
+                else if (column.Name == "วันที่")
                 {
                     column.DefaultCellStyle.Format = "dd/MM/yyyy";
                 }
@@ -263,28 +279,41 @@ namespace Laundry_Management.Laundry
                 dgvReport.Rows[lastRowIndex].DefaultCellStyle.Font = new Font(dgvReport.Font, FontStyle.Bold);
             }
 
-            // Apply proper column sizing for Thai text
-            // First force cells to use their content width
+            // ปรับขนาดคอลัมน์ให้เหมาะสมกับข้อมูล
             dgvReport.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.DisplayedCells);
 
-            // Set minimum widths for specific columns that may contain Thai text
-            dgvReport.Columns["Guest Name"].MinimumWidth = 200;
-            dgvReport.Columns["Payment Description"].MinimumWidth = 150;
+            // กำหนดความกว้างคอลัมน์แบบเฉพาะเจาะจง
+            dgvReport.Columns["ชื่อลูกค้า"].MinimumWidth = 200;
+            dgvReport.Columns["รายละเอียดการชำระเงิน"].MinimumWidth = 150;
 
-            // Ensure numeric columns have adequate width
-            if (dgvReport.Columns["Vatable Amt."] != null)
-                dgvReport.Columns["Vatable Amt."].MinimumWidth = 100;
-
-            if (dgvReport.Columns["Vat 7%"] != null)
-                dgvReport.Columns["Vat 7%"].MinimumWidth = 80;
-
-            if (dgvReport.Columns["Total"] != null)
-                dgvReport.Columns["Total"].MinimumWidth = 100;
-
-            // Apply padding to all columns for better readability
-            foreach (DataGridViewColumn col in dgvReport.Columns)
+            // กำหนดความกว้างคงที่สำหรับคอลัมน์ตัวเลขเพื่อให้มีพื้นที่เพียงพอและสวยงาม
+            if (dgvReport.Columns["ยอดก่อนรวมภาษี"] != null)
             {
-                col.Width += 20; // Add extra padding
+                dgvReport.Columns["ยอดก่อนรวมภาษี"].MinimumWidth = 120;
+                dgvReport.Columns["ยอดก่อนรวมภาษี"].Width = 120;
+            }
+
+            if (dgvReport.Columns["ภาษี 7%"] != null)
+            {
+                dgvReport.Columns["ภาษี 7%"].MinimumWidth = 100;
+                dgvReport.Columns["ภาษี 7%"].Width = 100;
+            }
+
+            if (dgvReport.Columns["ยอดรวม"] != null)
+            {
+                // Increase width to better accommodate the numeric values
+                dgvReport.Columns["ยอดรวม"].MinimumWidth = 150;
+                dgvReport.Columns["ยอดรวม"].Width = 150;
+
+                // Set AutoSizeMode to None to prevent auto-resizing
+                dgvReport.Columns["ยอดรวม"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+
+                // Format with thousand separators and ensure right alignment
+                dgvReport.Columns["ยอดรวม"].DefaultCellStyle.Format = "N2";
+                dgvReport.Columns["ยอดรวม"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                // Add more padding to ensure numbers aren't too close to the edge
+                dgvReport.Columns["ยอดรวม"].DefaultCellStyle.Padding = new Padding(0, 0, 35, 0); // เพิ่มจาก 25 เป็น 35
             }
         }
 
@@ -303,7 +332,7 @@ namespace Laundry_Management.Laundry
                 for (int i = 0; i < dgvReport.Rows.Count - 1; i++) // Skip the last row which is the summary
                 {
                     DataGridViewRow row = dgvReport.Rows[i];
-                    if (row.Cells["Tax Inv. no"].Value != null && !string.IsNullOrEmpty(row.Cells["Tax Inv. no"].Value.ToString()))
+                    if (row.Cells["เลขที่ใบเสร็จ"].Value != null && !string.IsNullOrEmpty(row.Cells["เลขที่ใบเสร็จ"].Value.ToString()))
                     {
                         hasValidRows = true;
                         break;
@@ -334,26 +363,24 @@ namespace Laundry_Management.Laundry
                         // Define columns to export with Thai headers
                         var columnNames = new List<string> {
                             "วันที่",
-                            "เลขที่ใบกำกับภาษี",
-                            "เลขที่ใบรับผ้า",
+                            "เลขที่ใบเสร็จ",
                             "ชื่อลูกค้า",
-                            "เลขประจำตัวผู้เสียภาษี",
+                            "เลขประจำตัวIDลูกค้า",
                             "รายละเอียดการชำระเงิน",
-                            "ยอดก่อนภาษี",
+                            "ยอดก่อนรวมภาษี",
                             "ภาษี 7%",
                             "ยอดรวม"
                         };
 
                         var columnProperties = new List<string> {
-                            "Date",
-                            "Tax Inv. no",
-                            "Folio No.#",
-                            "Guest Name",
-                            "Tax ID",
-                            "Payment Description",
-                            "Vatable Amt.",
-                            "Vat 7%",
-                            "Total"
+                            "วันที่",
+                            "เลขที่ใบเสร็จ",
+                            "ชื่อลูกค้า",
+                            "เลขประจำตัวIDลูกค้า",
+                            "รายละเอียดการชำระเงิน",
+                            "ยอดก่อนรวมภาษี",
+                            "ภาษี 7%",
+                            "ยอดรวม"
                         };
 
                         // Create a StringBuilder to build CSV content
@@ -365,9 +392,6 @@ namespace Laundry_Management.Laundry
                         // Add CSV header row with column names
                         csv.AppendLine(string.Join(",", columnNames.Select(name => $"\"{name}\"")));
 
-                        // Add data rows
-                        decimal totalVatableAmt = 0;
-                        decimal totalVat = 0;
                         decimal totalAmount = 0;
                         int validRowCount = 0;
 
@@ -375,12 +399,6 @@ namespace Laundry_Management.Laundry
                         for (int i = 0; i < dgvReport.Rows.Count - 1; i++) // Skip the last row (summary)
                         {
                             DataGridViewRow row = dgvReport.Rows[i];
-
-                            // Skip rows with no invoice number
-                            if (row.Cells["Tax Inv. no"].Value == null || string.IsNullOrEmpty(row.Cells["Tax Inv. no"].Value.ToString()))
-                            {
-                                continue;
-                            }
 
                             validRowCount++;
                             var rowValues = new List<string>();
@@ -393,27 +411,11 @@ namespace Laundry_Management.Laundry
                                 if (cell.Value != null && cell.Value != DBNull.Value)
                                 {
                                     // Format based on column type
-                                    if (columnProperties[j] == "Date" && cell.Value is DateTime date)
+                                    if (columnProperties[j] == "วันที่" && cell.Value is DateTime date)
                                     {
                                         cellValue = date.ToString("dd/MM/yyyy");
                                     }
-                                    else if (columnProperties[j] == "Vatable Amt.")
-                                    {
-                                        if (decimal.TryParse(cell.Value.ToString(), out decimal amount))
-                                        {
-                                            totalVatableAmt += amount;
-                                            cellValue = amount.ToString("0.00");
-                                        }
-                                    }
-                                    else if (columnProperties[j] == "Vat 7%")
-                                    {
-                                        if (decimal.TryParse(cell.Value.ToString(), out decimal amount))
-                                        {
-                                            totalVat += amount;
-                                            cellValue = amount.ToString("0.00");
-                                        }
-                                    }
-                                    else if (columnProperties[j] == "Total")
+                                    else if (columnProperties[j] == "ยอดรวม")
                                     {
                                         if (decimal.TryParse(cell.Value.ToString(), out decimal amount))
                                         {
@@ -427,7 +429,7 @@ namespace Laundry_Management.Laundry
                                     }
 
                                     // Preserve leading zeros for ID fields by forcing Excel to treat them as text
-                                    if (columnProperties[j] == "Tax Inv. no" || columnProperties[j] == "Folio No.#" || columnProperties[j] == "Tax ID")
+                                    if (columnProperties[j] == "เลขที่ใบเสร็จ" || columnProperties[j] == "เลขประจำตัวIDลูกค้า")
                                     {
                                         cellValue = $"=\"{cellValue}\"";
                                     }
@@ -442,7 +444,8 @@ namespace Laundry_Management.Laundry
 
                             csv.AppendLine(string.Join(",", rowValues));
                         }
-
+                        decimal totalVat = Math.Round(totalAmount / 107m * 7m, 2);
+                        decimal totalVatableAmt = totalAmount - totalVat;
                         // Add summary information
                         csv.AppendLine();
                         csv.AppendLine($"\"สรุปรายงานภาษีขาย\"");
@@ -573,8 +576,8 @@ namespace Laundry_Management.Laundry
                 currentY += companyFont.Height + 5;
             }
 
-            // Table dimensions calculation - needed to position registration number
-            int[] columnWidths = { 60, 80, 80, 150, 80, 100, 80, 60, 60 };
+            // Table dimensions calculation - update columnWidths array to match the 8 columns in your report
+            int[] columnWidths = { 60, 80, 120, 100, 100, 100, 80, 120 }; // Adjusted for 8 columns with wider ยอดรวม column
             int tableWidth = columnWidths.Sum();
             int tableRightEdge = leftMargin + tableWidth;
 
@@ -612,12 +615,11 @@ namespace Laundry_Management.Laundry
             // Table header - using the same columnWidths calculated earlier
             string[] headers = {
     "วันที่",
-    "เลขที่ID",
     "เลขที่ใบเสร็จ",
     "ชื่อลูกค้า",
     "เลขประจำตัวIDลูกค้า",
     "รายละเอียดการชำระเงิน",
-    "ยอดก่อนภาษี",
+    "ยอดก่อนรวมภาษี",
     "ภาษี 7%",
     "ยอดรวม"
 };
@@ -638,11 +640,11 @@ namespace Laundry_Management.Laundry
             {
                 // Draw the column header text
                 Rectangle cellRect = new Rectangle(columnX, currentY, columnWidths[i], headerHeight);
+                // Modified code to right-align the "ยอดก่อนรวมภาษี" column (column 5) in PrintDocument_PrintPage method
                 StringFormat cellFormat = new StringFormat
                 {
-                    Alignment = (i >= 6 && i <= 8) ? StringAlignment.Far : StringAlignment.Center,
+                    Alignment = (i >= 5 && i <= 7) ? StringAlignment.Far : StringAlignment.Center, // Include column 5 in right alignment
                     LineAlignment = StringAlignment.Center,
-                    // Enable text wrapping for multi-line headers
                     FormatFlags = StringFormatFlags.NoClip
                 };
 
@@ -703,7 +705,7 @@ namespace Laundry_Management.Laundry
                     // Set alignment based on column
                     StringFormat cellFormat = new StringFormat
                     {
-                        Alignment = (col >= 6 && col <= 8) ? StringAlignment.Far : StringAlignment.Near,
+                        Alignment = (col >= 5 && col <= 8) ? StringAlignment.Far : StringAlignment.Near,
                         LineAlignment = StringAlignment.Center
                     };
 

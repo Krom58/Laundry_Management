@@ -77,5 +77,11 @@ namespace Laundry_Management
             var Vat_ReportForm = new Vat_Report();
             Vat_ReportForm.ShowDialog();
         }
+
+        private void Service_Report_Click(object sender, EventArgs e)
+        {
+            var Service_ReportForm = new Service_Report();
+            Service_ReportForm.ShowDialog();
+        }
     }
 }

@@ -88,7 +88,79 @@ namespace Laundry_Management.Laundry
             if (dgvOrders.Columns["วันที่ลูกค้ามารับ"] != null)
                 dgvOrders.Columns["วันที่ลูกค้ามารับ"].HeaderText = "วันที่ลูกค้ามารับ";
         }
+        // New fields to handle canceled order printing
+        private bool _printCanceledOrdersMode = false;
+        private bool _canceledOrdersPrinted = false;
 
+        // Class to store canceled order information
+        private class CanceledOrderInfo
+        {
+            public int OrderID { get; set; }
+            public string CustomOrderId { get; set; }
+            public string CustomerName { get; set; }
+            public string Phone { get; set; }
+            public decimal GrandTotalPrice { get; set; }
+            public DateTime OrderDate { get; set; }
+            public string CancelReason { get; set; }
+            public DateTime CancelledDate { get; set; }
+        }
+        private List<CanceledOrderInfo> GetCanceledOrdersForDate(DateTime date)
+        {
+            var canceledOrders = new List<CanceledOrderInfo>();
+
+            // SQL query to get canceled orders with CancelReason and CancelledDate
+            string query = @"
+        SELECT 
+            o.OrderID,
+            o.CustomOrderId,
+            c.FullName AS CustomerName,
+            c.Phone,
+            o.GrandTotalPrice,
+            o.OrderDate,
+            o.CancelReason,
+            o.CancelledDate
+        FROM OrderHeader o
+        LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
+        WHERE o.OrderStatus = N'รายการถูกยกเลิก'
+        AND o.CancelReason IS NOT NULL
+        AND o.CancelledDate IS NOT NULL
+        AND CAST(o.CancelledDate AS DATE) = @Date";
+
+            try
+            {
+                using (SqlConnection conn = DBconfig.GetConnection())
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Date", date);
+                    conn.Open();
+
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            canceledOrders.Add(new CanceledOrderInfo
+                            {
+                                OrderID = Convert.ToInt32(reader["OrderID"]),
+                                CustomOrderId = reader["CustomOrderId"].ToString(),
+                                CustomerName = reader["CustomerName"] != DBNull.Value ? reader["CustomerName"].ToString() : "",
+                                Phone = reader["Phone"] != DBNull.Value ? reader["Phone"].ToString() : "",
+                                GrandTotalPrice = reader["GrandTotalPrice"] != DBNull.Value ? Convert.ToDecimal(reader["GrandTotalPrice"]) : 0,
+                                OrderDate = Convert.ToDateTime(reader["OrderDate"]),
+                                CancelReason = reader["CancelReason"].ToString(),
+                                CancelledDate = Convert.ToDateTime(reader["CancelledDate"])
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't stop the main report
+                _printErrorMessage = $"ไม่สามารถดึงข้อมูลรายการที่ยกเลิก: {ex.Message}";
+            }
+
+            return canceledOrders;
+        }
         private void LoadOrders(string customId = null, string customerName = null, DateTime? createDate = null)
         {
             string query = @"
@@ -721,17 +793,44 @@ WHERE
                     return;
                 }
 
+                // เตรียมข้อมูลรายการที่ถูกยกเลิก (ถ้ามี)
+                List<CanceledOrderInfo> canceledOrders = null;
+                if (dtpCreateDate.Checked)
+                {
+                    canceledOrders = GetCanceledOrdersForDate(dtpCreateDate.Value.Date);
+                }
+
                 // Create a PrintDocument object
                 PrintDocument printDoc = new PrintDocument();
                 printDoc.DocumentName = "รายงานข้อมูล";
+
+                // Store the canceledOrders in a class-level field to access it in the handlers
+                _currentCanceledOrders = canceledOrders;
 
                 // Set A4 paper size using our custom method (similar to Print_Service)
                 SetA4PaperSize(printDoc);
 
                 // Add handlers for print events
-                printDoc.PrintPage += PrintPage;
+                printDoc.PrintPage += (s, args) =>
+                {
+                    if (_printCanceledOrdersMode)
+                    {
+                        PrintCanceledOrdersPage(args, _currentCanceledOrders);
+                    }
+                    else
+                    {
+                        PrintPage(s, args);
+                    }
+                };
                 printDoc.EndPrint += PrintDoc_EndPrint;
-                printDoc.BeginPrint += (s, args) => { _currentPage = 0; _isPrintSuccessful = true; _printErrorMessage = ""; };
+                printDoc.BeginPrint += (s, args) =>
+                {
+                    _currentPage = 0;
+                    _isPrintSuccessful = true;
+                    _printErrorMessage = "";
+                    _printCanceledOrdersMode = false; // Start with regular report
+                    _canceledOrdersPrinted = false;
+                };
 
                 // Flag to track print status
                 _isPrintSuccessful = true;
@@ -777,6 +876,7 @@ WHERE
                 MessageBox.Show($"เกิดข้อผิดพลาดในการเตรียมพิมพ์: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        private List<CanceledOrderInfo> _currentCanceledOrders;
         private bool _isPrintSuccessful = false;
         private string _printErrorMessage = "";
         private int _currentPage = 0;
@@ -840,13 +940,16 @@ WHERE
                 currentX += columnWidths[i];
             }
         }
+        // Override the original PrintPage method to handle the page flow
         private void PrintPage(object sender, PrintPageEventArgs e)
         {
             try
             {
+                // Original print page implementation (unchanged)
                 // Change to portrait orientation
                 e.PageSettings.Landscape = false;
-
+                var printDoc = sender as PrintDocument;
+                var canceledOrders = _currentCanceledOrders;
                 // Adjust margins to better fit in portrait mode
                 float leftMargin = e.MarginBounds.Left - 30;
                 float topMargin = e.MarginBounds.Top;
@@ -1336,8 +1439,20 @@ WHERE
                     }
                     else
                     {
-                        _currentPage = 0;
-                        e.HasMorePages = false;
+                        // Check if we should print canceled orders after the normal report
+                        if (!_canceledOrdersPrinted && dtpCreateDate.Checked &&
+                            canceledOrders != null && canceledOrders.Count > 0)
+                        {
+                            _currentPage = 0;
+                            _printCanceledOrdersMode = true;
+                            e.HasMorePages = true;
+                        }
+                        else
+                        {
+                            _currentPage = 0;
+                            _printCanceledOrdersMode = false;
+                            e.HasMorePages = false;
+                        }
                     }
                 }
             }
@@ -1529,107 +1644,255 @@ WHERE
                     return;
                 }
 
-                // Show confirmation dialog
-                using (Form confirmDialog = new Form())
+                // Create cancellation reason dialog
+                using (Form reasonDialog = new Form())
                 {
-                    confirmDialog.Text = "ยืนยันการยกเลิกรายการ";
-                    confirmDialog.Size = new Size(500, 300);
-                    confirmDialog.StartPosition = FormStartPosition.CenterParent;
-                    confirmDialog.FormBorderStyle = FormBorderStyle.FixedDialog;
-                    confirmDialog.MaximizeBox = false;
-                    confirmDialog.MinimizeBox = false;
+                    reasonDialog.Text = "ระบุเหตุผลการยกเลิก";
+                    reasonDialog.Size = new Size(550, 350);
+                    reasonDialog.StartPosition = FormStartPosition.CenterParent;
+                    reasonDialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    reasonDialog.MaximizeBox = false;
+                    reasonDialog.MinimizeBox = false;
 
-                    Label lblMessage = new Label();
-                    lblMessage.Text = $"ยืนยันการยกเลิกรายการนี้?\nลูกค้า: {customerName}\nหมายเลขใบรับผ้า: {customOrderId}";
-                    lblMessage.Font = new Font("Angsana New", 26, FontStyle.Bold);
-                    lblMessage.TextAlign = ContentAlignment.MiddleCenter;
-                    lblMessage.Dock = DockStyle.Top;
-                    lblMessage.Height = 150;
+                    // Header label
+                    Label lblHeader = new Label();
+                    lblHeader.Text = $"กรุณาระบุเหตุผลในการยกเลิกรายการ\nลูกค้า: {customerName}\nหมายเลขใบรับผ้า: {customOrderId}";
+                    lblHeader.Font = new Font("Angsana New", 22, FontStyle.Bold);
+                    lblHeader.TextAlign = ContentAlignment.MiddleCenter;
+                    lblHeader.Dock = DockStyle.Top;
+                    lblHeader.Height = 120;
 
+                    // Reason label
+                    Label lblReason = new Label();
+                    lblReason.Text = "เหตุผลการยกเลิก:";
+                    lblReason.Font = new Font("Angsana New", 20, FontStyle.Regular);
+                    lblReason.Location = new Point(20, 130);
+                    lblReason.Size = new Size(150, 40);
+
+                    // Reason textbox
+                    TextBox txtReason = new TextBox();
+                    txtReason.Font = new Font("Angsana New", 18, FontStyle.Regular);
+                    txtReason.Location = new Point(170, 130);
+                    txtReason.Size = new Size(350, 40);
+                    txtReason.MaxLength = 250; // Limit text length
+
+                    // Error message label
+                    Label lblError = new Label();
+                    lblError.Text = "";
+                    lblError.ForeColor = Color.Red;
+                    lblError.Font = new Font("Angsana New", 16, FontStyle.Regular);
+                    lblError.Location = new Point(170, 170);
+                    lblError.Size = new Size(350, 30);
+                    lblError.Visible = false;
+
+                    // Confirm button
                     Button btnConfirm = new Button();
                     btnConfirm.Text = "ยืนยัน";
-                    btnConfirm.Font = new Font("Angsana New", 24);
+                    btnConfirm.Font = new Font("Angsana New", 20, FontStyle.Regular);
                     btnConfirm.Size = new Size(150, 60);
-                    btnConfirm.Location = new Point(80, 180);
-                    btnConfirm.DialogResult = DialogResult.Yes;
+                    btnConfirm.Location = new Point(120, 220);
+                    btnConfirm.DialogResult = DialogResult.None; // We'll set this manually after validation
 
+                    // Cancel button
                     Button btnCancel = new Button();
                     btnCancel.Text = "ยกเลิก";
-                    btnCancel.Font = new Font("Angsana New", 24);
+                    btnCancel.Font = new Font("Angsana New", 20, FontStyle.Regular);
                     btnCancel.Size = new Size(150, 60);
-                    btnCancel.Location = new Point(260, 180);
+                    btnCancel.Location = new Point(280, 220);
                     btnCancel.DialogResult = DialogResult.Cancel;
 
-                    confirmDialog.Controls.Add(lblMessage);
-                    confirmDialog.Controls.Add(btnConfirm);
-                    confirmDialog.Controls.Add(btnCancel);
-                    confirmDialog.AcceptButton = btnConfirm;
-                    confirmDialog.CancelButton = btnCancel;
+                    // Add controls to form
+                    reasonDialog.Controls.Add(lblHeader);
+                    reasonDialog.Controls.Add(lblReason);
+                    reasonDialog.Controls.Add(txtReason);
+                    reasonDialog.Controls.Add(lblError);
+                    reasonDialog.Controls.Add(btnConfirm);
+                    reasonDialog.Controls.Add(btnCancel);
+
+                    // Define special characters we want to ask about
+                    char[] specialChars = { '-', '+', ',' };
+
+                    // KeyPress event handler
+                    txtReason.KeyPress += (s, args) =>
+                    {
+                        // If it's one of the special characters
+                        if (specialChars.Contains(args.KeyChar))
+                        {
+                            // Prevent the default behavior (don't add the character yet)
+                            args.Handled = true;
+
+                            // Show confirmation dialog
+                            DialogResult result = MessageBox.Show(
+                                $"คุณต้องการใช้อักขระพิเศษ '{args.KeyChar}' ในเหตุผลการยกเลิกใช่หรือไม่?",
+                                "ยืนยันการใช้อักขระพิเศษ",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Question
+                            );
+
+                            // If user confirms, add the character programmatically
+                            if (result == DialogResult.Yes)
+                            {
+                                txtReason.Text = txtReason.Text.Insert(txtReason.SelectionStart, args.KeyChar.ToString());
+                                txtReason.SelectionStart = txtReason.SelectionStart + 1;
+                            }
+                        }
+                    };
+
+                    // Validation for empty input and special character confirmation
+                    btnConfirm.Click += (s, args) =>
+                    {
+                        string reason = txtReason.Text.Trim();
+
+                        // Check if reason is empty
+                        if (string.IsNullOrEmpty(reason))
+                        {
+                            lblError.Text = "กรุณาระบุเหตุผลการยกเลิก";
+                            lblError.Visible = true;
+                            txtReason.Focus();
+                            return;
+                        }
+
+                        // Check for special characters
+                        bool hasSpecialChars = reason.IndexOfAny(specialChars) >= 0;
+
+                        // If special characters exist, confirm once more
+                        if (hasSpecialChars)
+                        {
+                            string specialCharsFound = string.Join(" ", reason.Where(c => specialChars.Contains(c)).Distinct());
+                            DialogResult confirmResult = MessageBox.Show(
+                                $"เหตุผลของคุณมีอักขระพิเศษ: {specialCharsFound}\nยืนยันที่จะใช้เหตุผลนี้หรือไม่?",
+                                "ยืนยันการใช้อักขระพิเศษ",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Question
+                            );
+
+                            if (confirmResult != DialogResult.Yes)
+                            {
+                                return; // User chose not to use special characters
+                            }
+                        }
+
+                        // Validation passed
+                        lblError.Visible = false;
+                        reasonDialog.DialogResult = DialogResult.OK;
+                        reasonDialog.Close();
+                    };
 
                     // Show dialog and wait for response
-                    DialogResult result = confirmDialog.ShowDialog();
-
-                    // If not confirmed, cancel the operation
-                    if (result != DialogResult.Yes)
+                    if (reasonDialog.ShowDialog() != DialogResult.OK)
                     {
-                        return;
+                        return; // User canceled
                     }
-                }
 
-                // Update order status in database
-                using (SqlConnection conn = DBconfig.GetConnection())
-                {
-                    conn.Open();
-                    using (SqlTransaction transaction = conn.BeginTransaction())
+                    // Get the reason text
+                    string cancelReason = txtReason.Text.Trim();
+
+                    // Show final confirmation dialog
+                    using (Form confirmDialog = new Form())
                     {
-                        try
+                        confirmDialog.Text = "ยืนยันการยกเลิกรายการ";
+                        confirmDialog.Size = new Size(500, 300);
+                        confirmDialog.StartPosition = FormStartPosition.CenterParent;
+                        confirmDialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                        confirmDialog.MaximizeBox = false;
+                        confirmDialog.MinimizeBox = false;
+
+                        Label lblMessage = new Label();
+                        lblMessage.Text = $"ยืนยันการยกเลิกรายการนี้?\nลูกค้า: {customerName}\nหมายเลขใบรับผ้า: {customOrderId}\nเหตุผล: {cancelReason}";
+                        lblMessage.Font = new Font("Angsana New", 22, FontStyle.Bold);
+                        lblMessage.TextAlign = ContentAlignment.MiddleCenter;
+                        lblMessage.Dock = DockStyle.Top;
+                        lblMessage.Height = 180;
+
+                        Button btnConfirmFinal = new Button();
+                        btnConfirmFinal.Text = "ยืนยัน";
+                        btnConfirmFinal.Font = new Font("Angsana New", 20, FontStyle.Regular);
+                        btnConfirmFinal.Size = new Size(150, 60);
+                        btnConfirmFinal.Location = new Point(80, 200);
+                        btnConfirmFinal.DialogResult = DialogResult.Yes;
+
+                        Button btnCancelFinal = new Button();
+                        btnCancelFinal.Text = "ยกเลิก";
+                        btnCancelFinal.Font = new Font("Angsana New", 20, FontStyle.Regular);
+                        btnCancelFinal.Size = new Size(150, 60);
+                        btnCancelFinal.Location = new Point(260, 200);
+                        btnCancelFinal.DialogResult = DialogResult.Cancel;
+
+                        confirmDialog.Controls.Add(lblMessage);
+                        confirmDialog.Controls.Add(btnConfirmFinal);
+                        confirmDialog.Controls.Add(btnCancelFinal);
+                        confirmDialog.AcceptButton = btnConfirmFinal;
+                        confirmDialog.CancelButton = btnCancelFinal;
+
+                        // Show dialog and wait for response
+                        if (confirmDialog.ShowDialog() != DialogResult.Yes)
                         {
-                            // Update OrderHeader status
-                            string updateOrderQuery = "UPDATE OrderHeader SET OrderStatus = @Status WHERE OrderID = @OrderID";
-                            using (SqlCommand cmd = new SqlCommand(updateOrderQuery, conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("@Status", "รายการถูกยกเลิก");
-                                cmd.Parameters.AddWithValue("@OrderID", orderId);
-                                int rowsAffected = cmd.ExecuteNonQuery();
-
-                                if (rowsAffected <= 0)
-                                {
-                                    transaction.Rollback();
-                                    MessageBox.Show("ไม่สามารถยกเลิกรายการได้ กรุณาลองใหม่อีกครั้ง", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                    return;
-                                }
-                            }
-
-                            // Update all related OrderItem records to be canceled
-                            string updateItemsQuery = @"
-                        UPDATE OrderItem 
-                        SET IsCanceled = 1, 
-                            CancelReason = @CancelReason 
-                        WHERE OrderID = @OrderID 
-                        AND (IsCanceled = 0 OR IsCanceled IS NULL)";
-
-                            using (SqlCommand cmd = new SqlCommand(updateItemsQuery, conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("@CancelReason", "ยกเลิกโดยการยกเลิกรายการทั้งหมด");
-                                cmd.Parameters.AddWithValue("@OrderID", orderId);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            // Commit the transaction
-                            transaction.Commit();
-
-                            MessageBox.Show("ยกเลิกรายการเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                            // Refresh the order list to reflect changes
-                            string searchId = txtSearchId.Text.Trim();
-                            string customerNameFilter = txtCustomerFilter.Text.Trim();
-                            DateTime? createDate = dtpCreateDate.Checked ? (DateTime?)dtpCreateDate.Value.Date : null;
-                            LoadOrders(searchId, customerNameFilter, createDate);
+                            return; // User canceled
                         }
-                        catch (Exception ex)
+                    }
+
+                    // Update order status and reason in database
+                    using (SqlConnection conn = DBconfig.GetConnection())
+                    {
+                        conn.Open();
+                        using (SqlTransaction transaction = conn.BeginTransaction())
                         {
-                            transaction.Rollback();
-                            throw new Exception("เกิดข้อผิดพลาดในการยกเลิกรายการ: " + ex.Message);
+                            try
+                            {
+                                // Update OrderHeader status and add cancellation reason
+                                string updateOrderQuery = @"UPDATE OrderHeader 
+                                                          SET OrderStatus = @Status, 
+                                                              CancelReason = @CancelReason,
+                                                              CancelledDate = @CancelledDate
+                                                          WHERE OrderID = @OrderID";
+
+                                using (SqlCommand cmd = new SqlCommand(updateOrderQuery, conn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@Status", "รายการถูกยกเลิก");
+                                    cmd.Parameters.AddWithValue("@CancelReason", cancelReason);
+                                    cmd.Parameters.AddWithValue("@CancelledDate", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@OrderID", orderId);
+                                    int rowsAffected = cmd.ExecuteNonQuery();
+
+                                    if (rowsAffected <= 0)
+                                    {
+                                        transaction.Rollback();
+                                        MessageBox.Show("ไม่สามารถยกเลิกรายการได้ กรุณาลองใหม่อีกครั้ง", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                        return;
+                                    }
+                                }
+
+                                // Update all related OrderItem records to be canceled
+                                string updateItemsQuery = @"
+                                    UPDATE OrderItem 
+                                    SET IsCanceled = 1, 
+                                        CancelReason = @CancelReason 
+                                    WHERE OrderID = @OrderID 
+                                    AND (IsCanceled = 0 OR IsCanceled IS NULL)";
+
+                                using (SqlCommand cmd = new SqlCommand(updateItemsQuery, conn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@CancelReason", cancelReason);
+                                    cmd.Parameters.AddWithValue("@OrderID", orderId);
+                                    cmd.ExecuteNonQuery();
+                                }
+
+                                // Commit the transaction
+                                transaction.Commit();
+
+                                MessageBox.Show("ยกเลิกรายการเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                                // Refresh the order list to reflect changes
+                                string searchId = txtSearchId.Text.Trim();
+                                string customerNameFilter = txtCustomerFilter.Text.Trim();
+                                DateTime? createDate = dtpCreateDate.Checked ? (DateTime?)dtpCreateDate.Value.Date : null;
+                                LoadOrders(searchId, customerNameFilter, createDate);
+                            }
+                            catch (Exception ex)
+                            {
+                                transaction.Rollback();
+                                throw new Exception("เกิดข้อผิดพลาดในการยกเลิกรายการ: " + ex.Message);
+                            }
                         }
                     }
                 }
@@ -1872,6 +2135,229 @@ WHERE
             {
                 MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}\n\nStackTrace: {ex.StackTrace}",
                     "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        private void PrintCanceledOrdersPage(PrintPageEventArgs e, List<CanceledOrderInfo> canceledOrders)
+        {
+            // Mark that we've handled printing canceled orders
+            _canceledOrdersPrinted = true;
+
+            try
+            {
+                if (canceledOrders == null || canceledOrders.Count == 0)
+                {
+                    e.HasMorePages = false;
+                    return;
+                }
+
+                // Set up margins and available space
+                float leftMargin = e.MarginBounds.Left - 30;
+                float topMargin = e.MarginBounds.Top;
+                float rightMargin = e.MarginBounds.Right - 20;
+                float availableWidth = rightMargin - leftMargin;
+                float availableHeight = e.MarginBounds.Bottom - topMargin;
+
+                using (Font titleFont = new Font("Angsana New", 14, FontStyle.Bold))
+                using (Font headerFont = new Font("Angsana New", 11, FontStyle.Bold))
+                using (Font normalFont = new Font("Angsana New", 10))
+                using (Font boldFont = new Font("Angsana New", 10, FontStyle.Bold))
+                using (Font smallFont = new Font("Angsana New", 8))
+                {
+                    float yPosition = topMargin;
+
+                    // Draw title for canceled orders page
+                    string title = "รายงานรายการที่ถูกยกเลิกในวันที่ " + dtpCreateDate.Value.ToString("dd/MM/yyyy");
+                    float titleX = leftMargin + (availableWidth / 2) - (e.Graphics.MeasureString(title, titleFont).Width / 2);
+                    e.Graphics.DrawString(title, titleFont, Brushes.Black, titleX, yPosition);
+                    yPosition += titleFont.GetHeight() * 1.2f;
+
+                    // Draw separating line
+                    e.Graphics.DrawLine(new Pen(Color.Black, 1.5f), leftMargin, yPosition, leftMargin + availableWidth, yPosition);
+                    yPosition += 15;
+
+                    // Draw info text about canceled orders
+                    string infoText = $"รายการที่ถูกยกเลิกทั้งหมด: {canceledOrders.Count} รายการ";
+                    e.Graphics.DrawString(infoText, boldFont, Brushes.Black, leftMargin, yPosition);
+                    yPosition += boldFont.GetHeight() * 1.5f;
+
+                    // Define column widths for the canceled orders table
+                    // Adjust these percentages to fit your data
+                    float[] columnWidths = new float[]
+                    {
+                0.05f, // ลำดับ
+                0.10f, // หมายเลขใบรับผ้า
+                0.20f, // ชื่อลูกค้า
+                0.10f, // เบอร์โทร
+                0.15f, // ราคารวม
+                0.15f, // วันที่สร้างรายการ
+                0.25f  // เหตุผลการยกเลิก
+                    };
+
+                    // Calculate actual widths in pixels
+                    float[] colWidths = new float[columnWidths.Length];
+                    for (int i = 0; i < columnWidths.Length; i++)
+                    {
+                        colWidths[i] = availableWidth * columnWidths[i];
+                    }
+
+                    // Draw table headers for canceled orders
+                    string[] columnHeaders = new string[]
+                    {
+                "ลำดับ",
+                "เลขใบรับผ้า",
+                "ชื่อลูกค้า",
+                "เบอร์โทร",
+                "ราคารวม",
+                "วันที่สร้างรายการ",
+                "เหตุผลการยกเลิก"
+                    };
+
+                    float headerHeight = headerFont.GetHeight() * 1.5f;
+                    float headerX = leftMargin;
+
+                    // Draw header row
+                    for (int i = 0; i < columnHeaders.Length; i++)
+                    {
+                        RectangleF headerRect = new RectangleF(headerX, yPosition, colWidths[i], headerHeight);
+
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+
+                            // Fill with light gray background
+                            e.Graphics.FillRectangle(Brushes.LightGray, headerRect);
+                            e.Graphics.DrawRectangle(Pens.Black, headerRect.X, headerRect.Y, headerRect.Width, headerRect.Height);
+                            e.Graphics.DrawString(columnHeaders[i], headerFont, Brushes.Black, headerRect, sf);
+                        }
+
+                        headerX += colWidths[i];
+                    }
+
+                    yPosition += headerHeight;
+
+                    // Calculate rows per page
+                    float rowHeight = normalFont.GetHeight() * 1.5f;
+                    int rowsPerPage = (int)((availableHeight - (yPosition - topMargin) - 30) / rowHeight);
+                    rowsPerPage = Math.Max(1, rowsPerPage); // At least one row
+
+                    // Calculate start and end indexes for this page
+                    int startIndex = _currentPage * rowsPerPage;
+                    int endIndex = Math.Min(startIndex + rowsPerPage, canceledOrders.Count);
+
+                    // Calculate total pages for canceled orders
+                    int totalPages = (int)Math.Ceiling((double)canceledOrders.Count / rowsPerPage);
+
+                    // Draw data rows
+                    for (int i = startIndex; i < endIndex; i++)
+                    {
+                        CanceledOrderInfo order = canceledOrders[i];
+                        float rowX = leftMargin;
+
+                        // Draw row number
+                        RectangleF cellRect = new RectangleF(rowX, yPosition, colWidths[0], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
+                            e.Graphics.DrawString((i + 1).ToString(), normalFont, Brushes.Black, cellRect, sf);
+                        }
+                        rowX += colWidths[0];
+
+                        // Draw order ID
+                        cellRect = new RectangleF(rowX, yPosition, colWidths[1], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
+                            e.Graphics.DrawString(order.CustomOrderId, normalFont, Brushes.Black, cellRect, sf);
+                        }
+                        rowX += colWidths[1];
+
+                        // Draw customer name
+                        cellRect = new RectangleF(rowX, yPosition, colWidths[2], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
+                            e.Graphics.DrawString(order.CustomerName, normalFont, Brushes.Black, cellRect, sf);
+                        }
+                        rowX += colWidths[2];
+
+                        // Draw phone
+                        cellRect = new RectangleF(rowX, yPosition, colWidths[3], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
+                            e.Graphics.DrawString(order.Phone, normalFont, Brushes.Black, cellRect, sf);
+                        }
+                        rowX += colWidths[3];
+
+                        // Draw total price
+                        cellRect = new RectangleF(rowX, yPosition, colWidths[4], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
+                            e.Graphics.DrawString(order.GrandTotalPrice.ToString("N2"), normalFont, Brushes.Black, cellRect, sf);
+                        }
+                        rowX += colWidths[4];
+
+                        // Draw order date
+                        cellRect = new RectangleF(rowX, yPosition, colWidths[5], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
+                            e.Graphics.DrawString(order.OrderDate.ToString("dd/MM/yy HH:mm"), normalFont, Brushes.Black, cellRect, sf);
+                        }
+                        rowX += colWidths[5];
+
+                        // Draw cancel reason
+                        cellRect = new RectangleF(rowX, yPosition, colWidths[6], rowHeight);
+                        using (StringFormat sf = new StringFormat
+                        {
+                            // Change this line from 'Alignment = StringAlignment.Left' to:
+                            Alignment = StringAlignment.Near, // StringAlignment.Near is equivalent to left alignment
+                            LineAlignment = StringAlignment.Center,
+                            Trimming = StringTrimming.EllipsisCharacter
+                        })
+                        {
+                            sf.FormatFlags = StringFormatFlags.NoWrap;
+                            e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
+
+                            // Adjust padding for reason text
+                            cellRect.Inflate(-5, 0);
+                            e.Graphics.DrawString(order.CancelReason, normalFont, Brushes.Black, cellRect, sf);
+                        }
+
+                        yPosition += rowHeight;
+                    }
+
+                    // Add page number at the bottom
+                    string pageText = $"หน้า {_currentPage + 1} จาก {totalPages}";
+
+                    e.Graphics.DrawString(pageText, smallFont, Brushes.Black,
+                        rightMargin - e.Graphics.MeasureString(pageText, smallFont).Width,
+                        e.MarginBounds.Bottom + 10);
+
+                    // Check if we need more pages for canceled orders
+                    if (endIndex < canceledOrders.Count)
+                    {
+                        _currentPage++;
+                        e.HasMorePages = true;
+                    }
+                    else
+                    {
+                        _currentPage = 0;
+                        e.HasMorePages = false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _printErrorMessage = ex.Message;
+                using (Font errorFont = new Font("Angsana New", 14, FontStyle.Bold))
+                {
+                    string errorMsg = $"เกิดข้อผิดพลาดในการพิมพ์รายการที่ถูกยกเลิก: {ex.Message}";
+                    e.Graphics.DrawString(errorMsg, errorFont, Brushes.Red, e.MarginBounds.Left, e.MarginBounds.Top + 100);
+                }
+                e.HasMorePages = false;
             }
         }
     }
