@@ -19,6 +19,14 @@ namespace Laundry_Management.Laundry
         private Dictionary<int, OrderItemDto> _originalItems;
         private readonly OrderRepository _repo = new OrderRepository();
         private List<OrderItemDto> _currentItems;
+        private bool _changesSaved = false; // Track if changes are saved
+
+        // Add at class level with other fields
+        private int? _pendingCustomerId = null;
+        private string _pendingCustomerName = null;
+        private string _pendingPhone = null;
+        private decimal? _pendingDiscount = null;
+        private bool _hasCustomerChanges = false;
 
         public Modify_Service_Item()
         {
@@ -52,7 +60,8 @@ namespace Laundry_Management.Laundry
 
             // Add event handler for _modifiedItems changes
             _modifiedItems.ListChanged += ModifiedItems_ListChanged;
-
+            // Add this line to the constructor
+            this.FormClosing += Modify_Service_Item_FormClosing;
             // โหลดข้อมูลเริ่มต้น
             LoadOrders(null, null, today, null);
             SelectFirstRow();
@@ -122,16 +131,19 @@ namespace Laundry_Management.Laundry
         }
 
         private void LoadOrders(
-    string customerFilter = null,
-    int? orderIdFilter = null,
-    DateTime? createDateFilter = null,
-    string statusFilter = null)
+            string customerFilter = null,
+            int? orderIdFilter = null,
+            DateTime? createDateFilter = null,
+            string statusFilter = null)
         {
             // กำหนดขนาดอัตโนมัติให้กับ DataGridView
             dgvOrders.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dgvOrders.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
             dgvItems.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dgvItems.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+
+            // Reset the changes saved flag when loading new orders
+            _changesSaved = true;
 
             // โหลดข้อมูล Order ตามเงื่อนไขการค้นหา
             var allOrders = _repo.GetOrders(customerFilter, orderIdFilter, createDateFilter, statusFilter);
@@ -230,6 +242,10 @@ namespace Laundry_Management.Laundry
 
             try
             {
+                // Set the _changesSaved flag to true when switching to a different order
+                // because we're loading fresh data from the database
+                _changesSaved = true;
+                
                 int orderId = (int)dgvOrders.CurrentRow.Cells["OrderID"].Value;
                 var items = _repo.GetOrderItems(orderId);
 
@@ -509,15 +525,35 @@ namespace Laundry_Management.Laundry
 
                     if (!itemExists)
                     {
-                        // Ask for quantity using Item form
-                        var itemForm = new Item(price, itemNumber, itemName, 1);
+                        // Get the current order ID
+                        int orderId = (int)dgvOrders.CurrentRow.Cells["OrderID"].Value;
 
+                        // Create a temporary negative ID to identify new items
+                        // We'll use negative numbers that will be replaced with real IDs when saving to database
+                        int tempOrderItemId = -1;
+
+                        // If there are existing items in the modified list, decrement the temporary ID
+                        // to ensure each new item has a unique temporary ID
+                        if (_modifiedItems.Count > 0)
+                        {
+                            var existingTempIds = _modifiedItems
+                                .Where(i => i.OrderItemID < 0)
+                                .Select(i => i.OrderItemID)
+                                .ToList();
+
+                            if (existingTempIds.Any())
+                            {
+                                tempOrderItemId = existingTempIds.Min() - 1;
+                            }
+                        }
+
+                        var itemForm = new Item(price, tempOrderItemId, itemNumber, itemName, 1);
                         if (itemForm.ShowDialog() == DialogResult.OK)
                         {
-                            // Add to modified items list
+                            // Add to modified items list with temporary ID
                             _modifiedItems.Add(new OrderItemDto
                             {
-                                OrderItemID = 0, // New item (will be assigned by DB)
+                                OrderItemID = tempOrderItemId, // Temporary ID (negative)
                                 ItemNumber = itemNumber,
                                 ItemName = itemName,
                                 Quantity = itemForm.Quantity,
@@ -526,6 +562,7 @@ namespace Laundry_Management.Laundry
                                 CancelReason = ""
                             });
 
+                            // Update the grid to show the changes
                             UpdateModifiedItemsGrid();
                         }
                     }
@@ -554,8 +591,28 @@ namespace Laundry_Management.Laundry
 
                 if (confirmResult == DialogResult.Yes)
                 {
+                    // For existing items (positive OrderItemID), we track their deletion
+                    // but don't actually delete from the database yet
+                    if (itemToRemove.OrderItemID > 0)
+                    {
+                        // Keep track that this item has been "marked for deletion"
+                        // We'll only apply the deletion during Save
+                        if (_originalItems.ContainsKey(itemToRemove.OrderItemID))
+                        {
+                            // We don't remove from _originalItems, so we can restore it if needed
+                            // The item is just removed from _modifiedItems
+                        }
+                    }
+                    
+                    // Whether it's a new or existing item, remove it from the modified list
                     _modifiedItems.RemoveAt(selectedIndex);
+                    
+                    // Update the grid display and totals
                     UpdateModifiedItemsGrid();
+                    
+                    // Provide feedback to the user
+                    MessageBox.Show("รายการถูกลบออกจากรายการแล้ว (จะบันทึกเมื่อกดปุ่มบันทึก)", 
+                        "ลบรายการชั่วคราว", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
         }
@@ -631,11 +688,18 @@ namespace Laundry_Management.Laundry
                                 // คำนวณราคารวมใหม่
                                 decimal newTotalAmount = newPrice * item.Quantity;
 
-                                // อัพเดทราคาในรายการที่กำลังแก้ไข
+                                // อัพเดทราคาในรายการที่กำลังแก้ไข (แค่ในหน่วยความจำ)
                                 item.TotalAmount = newTotalAmount;
 
-                                // อัพเดทการแสดงผล
+                                // อัพเดทการแสดงผลในตาราง
                                 UpdateModifiedItemsGrid();
+
+                                // แสดงข้อความว่าการเปลี่ยนแปลงยังไม่ถูกบันทึก
+                                MessageBox.Show("แก้ไขราคาเรียบร้อย (จะบันทึกเมื่อกดปุ่มบันทึก)",
+                                    "แก้ไขชั่วคราว", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                
+                                // Mark changes as not saved
+                                _changesSaved = false;
                                 return;
                             }
                             else
@@ -652,18 +716,36 @@ namespace Laundry_Management.Laundry
                     }
                 }
 
-                // Open Item form for editing (สำหรับรายการปกติที่ไม่ใช่ A00)
-                var itemForm = new Item(unitPrice, item.ItemNumber, item.ItemName, item.Quantity);
+                // สำหรับรายการปกติที่ไม่ใช่ A00
+                // Create a new Item form but with a flag to prevent database updates
+                
+                var itemForm = new Item(unitPrice, item.OrderItemID, item.ItemNumber, item.ItemName, item.Quantity);
+                
+                // Important: Set these properties to control behavior
                 itemForm.IsEditMode = true;
+                itemForm.SourceForm = Item.CallingForm.ModifyServiceItem;
 
                 if (itemForm.ShowDialog() == DialogResult.OK)
                 {
-                    // Update the item
-                    item.Quantity = itemForm.Quantity;
-                    item.TotalAmount = unitPrice * itemForm.Quantity;
-
-                    // Update grid
+                    // Get the new quantity from the form
+                    int newQuantity = itemForm.Quantity;
+                    
+                    // Calculate new total amount
+                    decimal newTotalAmount = unitPrice * newQuantity;
+                    
+                    // Update the in-memory item only (don't update database yet)
+                    item.Quantity = newQuantity;
+                    item.TotalAmount = newTotalAmount;
+                    
+                    // Update the grid display
                     UpdateModifiedItemsGrid();
+                    
+                    // Mark changes as not saved
+                    _changesSaved = false;
+                    
+                    // Show message that changes will be saved later
+                    MessageBox.Show("แก้ไขจำนวนเรียบร้อย (จะบันทึกเมื่อกดปุ่มบันทึกและพิมพ์สำเร็จ)",
+                        "แก้ไขชั่วคราว", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
         }
@@ -695,46 +777,17 @@ namespace Laundry_Management.Laundry
             {
                 int orderId = (int)dgvOrders.CurrentRow.Cells["OrderID"].Value;
                 string customOrderId = dgvOrders.CurrentRow.Cells["CustomOrderId"].Value.ToString();
-                string customerName = dgvOrders.CurrentRow.Cells["CustomerName"].Value.ToString();
-                string phone = dgvOrders.CurrentRow.Cells["Phone"].Value.ToString();
-                decimal discount = Convert.ToDecimal(dgvOrders.CurrentRow.Cells["Discount"].Value);
+                
+                // Get customer information - use pending changes if available
+                string customerName = _hasCustomerChanges ? _pendingCustomerName : dgvOrders.CurrentRow.Cells["CustomerName"].Value.ToString();
+                string phone = _hasCustomerChanges ? _pendingPhone : dgvOrders.CurrentRow.Cells["Phone"].Value.ToString();
+                decimal discount = _hasCustomerChanges && _pendingDiscount.HasValue ? _pendingDiscount.Value : Convert.ToDecimal(dgvOrders.CurrentRow.Cells["Discount"].Value);
 
                 // Calculate grand total
                 decimal grandTotal = _modifiedItems.Sum(i => i.TotalAmount);
                 decimal discountedTotal = discount > 0
                     ? grandTotal - (grandTotal * (discount / 100m))
                     : grandTotal;
-
-                using (var cn = DBconfig.GetConnection())
-                {
-                    cn.Open();
-
-                    // Double-check that order still doesn't have a receipt before proceeding
-                    if (HasReceipt(orderId))
-                    {
-                        MessageBox.Show("ไม่สามารถแก้ไขรายการได้เนื่องจากมีการออกใบเสร็จแล้ว",
-                            "ไม่อนุญาตให้แก้ไข", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    using (var transaction = cn.BeginTransaction())
-                    {
-                        try
-                        {
-                            // Implementation of database operations...
-                            // (Existing code omitted for brevity)
-
-                            // Commit transaction
-                            transaction.Commit();
-                        }
-                        catch (Exception ex)
-                        {
-                            // Rollback on error
-                            transaction.Rollback();
-                            throw new Exception("เกิดข้อผิดพลาดในการปรับปรุงข้อมูล: " + ex.Message);
-                        }
-                    }
-                }
 
                 // Prepare for printing - Create the serviceItems list
                 var serviceItems = _modifiedItems
@@ -746,7 +799,7 @@ namespace Laundry_Management.Laundry
                     })
                     .ToList();
 
-                // Show print form
+                // Show print form first to ensure user wants to print
                 using (var printForm = new Print_Service(
                     customerName,
                     phone,
@@ -754,12 +807,200 @@ namespace Laundry_Management.Laundry
                     customOrderId,
                     serviceItems))
                 {
-                    printForm.ShowDialog();
+                    // If user cancels printing or printing fails, we won't save changes
+                    if (printForm.ShowDialog() != DialogResult.OK || !printForm.IsPrinted)
+                    {
+                        MessageBox.Show("การพิมพ์ถูกยกเลิก การแก้ไขจะไม่ถูกบันทึก", 
+                            "ยกเลิกการบันทึก", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    // Only proceed with database operations if printing was successful
+                    using (var cn = DBconfig.GetConnection())
+                    {
+                        cn.Open();
+
+                        // Double-check that order still doesn't have a receipt before proceeding
+                        if (HasReceipt(orderId))
+                        {
+                            MessageBox.Show("ไม่สามารถแก้ไขรายการได้เนื่องจากมีการออกใบเสร็จแล้ว",
+                                "ไม่อนุญาตให้แก้ไข", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        using (var transaction = cn.BeginTransaction())
+                        {
+                            try
+                            {
+                                // 1. Apply customer changes if there are any
+                                if (_hasCustomerChanges)
+                                {
+                                    using (var cmd = new SqlCommand(
+                                        @"UPDATE OrderHeader 
+                                          SET CustomerId = @customerId, 
+                                              Discount = @discount,
+                                              DiscountedTotal = GrandTotalPrice - (GrandTotalPrice * @discountRate)
+                                          WHERE OrderID = @orderId", cn, transaction))
+                                    {
+                                        if (_pendingCustomerId.HasValue)
+                                            cmd.Parameters.AddWithValue("@customerId", _pendingCustomerId.Value);
+                                        else
+                                            cmd.Parameters.AddWithValue("@customerId", DBNull.Value);
+
+                                        cmd.Parameters.AddWithValue("@discount", _pendingDiscount.Value);
+                                        cmd.Parameters.AddWithValue("@discountRate", _pendingDiscount.Value / 100m);
+                                        cmd.Parameters.AddWithValue("@orderId", orderId);
+                                        cmd.ExecuteNonQuery();
+                                    }
+                                }
+
+                                // 2. Handle deletions: Mark deleted items as canceled in the database
+                                foreach (var originalItem in _originalItems.Values)
+                                {
+                                    // If item exists in original but not in modified, it was deleted
+                                    if (!_modifiedItems.Any(m => m.OrderItemID == originalItem.OrderItemID))
+                                    {
+                                        using (var cmd = new SqlCommand(
+                                            @"UPDATE OrderItem
+                                              SET IsCanceled = 1, 
+                                                  CancelReason = N'ลบโดยผู้ใช้ในการแก้ไขรายการ'
+                                              WHERE OrderItemID = @id", cn, transaction))
+                                        {
+                                            cmd.Parameters.AddWithValue("@id", originalItem.OrderItemID);
+                                            cmd.ExecuteNonQuery();
+                                        }
+                                    }
+                                }
+
+                                // 3. Handle modifications to existing items
+                                foreach (var modifiedItem in _modifiedItems)
+                                {
+                                    // Only process existing items (positive IDs)
+                                    if (modifiedItem.OrderItemID > 0)
+                                    {
+                                        // Get the original item for comparison
+                                        if (_originalItems.TryGetValue(modifiedItem.OrderItemID, out var originalItem))
+                                        {
+                                            // Check if this item was actually modified
+                                            if (modifiedItem.Quantity != originalItem.Quantity ||
+                                                modifiedItem.TotalAmount != originalItem.TotalAmount ||
+                                                modifiedItem.IsCanceled != originalItem.IsCanceled)
+                                            {
+                                                // Update the item in the database
+                                                using (var cmd = new SqlCommand(
+                                                    @"UPDATE OrderItem
+                                                      SET Quantity = @qty,
+                                                          TotalAmount = @total,
+                                                          IsCanceled = @canceled,
+                                                          CancelReason = @reason
+                                                      WHERE OrderItemID = @id", cn, transaction))
+                                                {
+                                                    cmd.Parameters.AddWithValue("@qty", modifiedItem.Quantity);
+                                                    cmd.Parameters.AddWithValue("@total", modifiedItem.TotalAmount);
+                                                    cmd.Parameters.AddWithValue("@canceled", modifiedItem.IsCanceled);
+                                                    if (modifiedItem.IsCanceled)
+                                                        cmd.Parameters.AddWithValue("@reason", modifiedItem.CancelReason);
+                                                    else
+                                                        cmd.Parameters.AddWithValue("@reason", DBNull.Value);
+                                                    cmd.Parameters.AddWithValue("@id", modifiedItem.OrderItemID);
+                                                    cmd.ExecuteNonQuery();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 4. Handle new items (with negative temporary IDs)
+                                foreach (var newItem in _modifiedItems.Where(i => i.OrderItemID < 0))
+                                {
+                                    using (var cmd = new SqlCommand(
+                                        @"INSERT INTO OrderItem 
+                                          (OrderID, ItemNumber, ItemName, Quantity, TotalAmount, IsCanceled, CancelReason)
+                                          VALUES 
+                                          (@orderId, @itemNum, @itemName, @qty, @total, @canceled, @reason)", cn, transaction))
+                                    {
+                                        cmd.Parameters.AddWithValue("@orderId", orderId);
+                                        cmd.Parameters.AddWithValue("@itemNum", newItem.ItemNumber);
+                                        cmd.Parameters.AddWithValue("@itemName", newItem.ItemName);
+                                        cmd.Parameters.AddWithValue("@qty", newItem.Quantity);
+                                        cmd.Parameters.AddWithValue("@total", newItem.TotalAmount);
+                                        cmd.Parameters.AddWithValue("@canceled", newItem.IsCanceled);
+                                        if (newItem.IsCanceled)
+                                            cmd.Parameters.AddWithValue("@reason", newItem.CancelReason);
+                                        else
+                                            cmd.Parameters.AddWithValue("@reason", DBNull.Value);
+                                        cmd.ExecuteNonQuery();
+                                    }
+                                }
+
+                                // 5. Update order header with new totals
+                                using (var cmd = new SqlCommand(
+                                    @"UPDATE OrderHeader
+                                      SET GrandTotalPrice = @grand,
+                                          DiscountedTotal = @discounted
+                                      WHERE OrderID = @id", cn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@grand", grandTotal);
+                                    cmd.Parameters.AddWithValue("@discounted", discountedTotal);
+                                    cmd.Parameters.AddWithValue("@id", orderId);
+                                    cmd.ExecuteNonQuery();
+                                }
+
+                                // Commit all changes
+                                transaction.Commit();
+                            }
+                            catch (Exception ex)
+                            {
+                                // Rollback on error
+                                transaction.Rollback();
+                                throw new Exception("เกิดข้อผิดพลาดในการปรับปรุงข้อมูล: " + ex.Message);
+                            }
+                        }
+                    }
                 }
 
                 // Reload order items to refresh the display
                 var updatedItems = _repo.GetOrderItems(orderId);
-                dgvItems.DataSource = new BindingList<OrderItemDto>(updatedItems);
+                
+                // Reset the modified items and original items to match the updated data
+                _modifiedItems = new BindingList<OrderItemDto>();
+                _originalItems = new Dictionary<int, OrderItemDto>();
+                
+                foreach (var item in updatedItems)
+                {
+                    // Store original values
+                    _originalItems[item.OrderItemID] = new OrderItemDto
+                    {
+                        OrderItemID = item.OrderItemID,
+                        ItemNumber = item.ItemNumber,
+                        ItemName = item.ItemName,
+                        Quantity = item.Quantity,
+                        TotalAmount = item.TotalAmount,
+                        IsCanceled = item.IsCanceled,
+                        CancelReason = item.CancelReason
+                    };
+                    
+                    // Add non-canceled items to the modified list
+                    if (!item.IsCanceled)
+                    {
+                        _modifiedItems.Add(new OrderItemDto
+                        {
+                            OrderItemID = item.OrderItemID,
+                            ItemNumber = item.ItemNumber,
+                            ItemName = item.ItemName,
+                            Quantity = item.Quantity,
+                            TotalAmount = item.TotalAmount,
+                            IsCanceled = false,
+                            CancelReason = ""
+                        });
+                    }
+                }
+                
+                // Re-attach event handler
+                _modifiedItems.ListChanged += ModifiedItems_ListChanged;
+                
+                // Update data bindings
+                dgvItems.DataSource = _modifiedItems;
                 _currentItems = updatedItems;
 
                 // Refresh orders list
@@ -773,6 +1014,16 @@ namespace Laundry_Management.Laundry
 
                 LoadOrders(customerFilter, orderIdFilter, createDate, null);
 
+                // Reset customer change tracking
+                _hasCustomerChanges = false;
+                _pendingCustomerId = null;
+                _pendingCustomerName = null;
+                _pendingPhone = null;
+                _pendingDiscount = null;
+
+                // Mark changes as saved
+                _changesSaved = true;
+
                 MessageBox.Show("อัพเดทรายการสำเร็จ", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
@@ -781,6 +1032,7 @@ namespace Laundry_Management.Laundry
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
         private void UpdateOrderTotals(int orderId)
         {
             try
@@ -910,57 +1162,29 @@ namespace Laundry_Management.Laundry
                             return; // User canceled
                         }
 
-                        // Update the customer information in the database
-                        using (var cn = DBconfig.GetConnection())
-                        {
-                            cn.Open();
-                            using (var transaction = cn.BeginTransaction())
-                            {
-                                try
-                                {
-                                    // Update OrderHeader with new customer information
-                                    using (var cmd = new SqlCommand(
-                                        @"UPDATE OrderHeader 
-                                SET CustomerId = @customerId, 
-                                    Discount = @discount,
-                                    DiscountedTotal = GrandTotalPrice - (GrandTotalPrice * @discountRate)
-                                WHERE OrderID = @orderId", cn, transaction))
-                                    {
-                                        if (newCustomerId.HasValue)
-                                            cmd.Parameters.AddWithValue("@customerId", newCustomerId.Value);
-                                        else
-                                            cmd.Parameters.AddWithValue("@customerId", DBNull.Value);
+                        // Store the pending changes - not applying to database yet
+                        _pendingCustomerId = newCustomerId;
+                        _pendingCustomerName = newCustomerName;
+                        _pendingPhone = newPhone;
+                        _pendingDiscount = newDiscount;
+                        _hasCustomerChanges = true;
+                        
+                        // Update the current row in the grid with new values for display only
+                        dgvOrders.CurrentRow.Cells["CustomerName"].Value = newCustomerName;
+                        dgvOrders.CurrentRow.Cells["Phone"].Value = newPhone;
+                        dgvOrders.CurrentRow.Cells["Discount"].Value = newDiscount;
+                        dgvOrders.CurrentRow.Cells["CustomerId"].Value = newCustomerId.HasValue ? (object)newCustomerId.Value : DBNull.Value;
 
-                                        cmd.Parameters.AddWithValue("@discount", newDiscount);
-                                        cmd.Parameters.AddWithValue("@discountRate", newDiscount / 100m);
-                                        cmd.Parameters.AddWithValue("@orderId", orderId);
-                                        cmd.ExecuteNonQuery();
-                                    }
+                        // Recalculate discounted total for display only
+                        decimal grandTotal = Convert.ToDecimal(dgvOrders.CurrentRow.Cells["GrandTotalPrice"].Value);
+                        decimal newDiscountedTotal = grandTotal - (grandTotal * (newDiscount / 100m));
+                        dgvOrders.CurrentRow.Cells["DiscountedTotal"].Value = newDiscountedTotal;
 
-                                    // Commit the transaction
-                                    transaction.Commit();
+                        // Set the changes saved flag to false since we have pending changes
+                        _changesSaved = false;
 
-                                    // Update the current row in the grid with new values
-                                    dgvOrders.CurrentRow.Cells["CustomerName"].Value = newCustomerName;
-                                    dgvOrders.CurrentRow.Cells["Phone"].Value = newPhone;
-                                    dgvOrders.CurrentRow.Cells["Discount"].Value = newDiscount;
-                                    dgvOrders.CurrentRow.Cells["CustomerId"].Value = newCustomerId.HasValue ? (object)newCustomerId.Value : DBNull.Value;
-
-                                    // Recalculate discounted total
-                                    decimal grandTotal = Convert.ToDecimal(dgvOrders.CurrentRow.Cells["GrandTotalPrice"].Value);
-                                    decimal newDiscountedTotal = grandTotal - (grandTotal * (newDiscount / 100m));
-                                    dgvOrders.CurrentRow.Cells["DiscountedTotal"].Value = newDiscountedTotal;
-
-                                    MessageBox.Show("อัพเดทข้อมูลลูกค้าเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                }
-                                catch (Exception ex)
-                                {
-                                    // Rollback on error
-                                    transaction.Rollback();
-                                    throw new Exception("เกิดข้อผิดพลาดในการอัพเดทข้อมูลลูกค้า: " + ex.Message);
-                                }
-                            }
-                        }
+                        MessageBox.Show("ข้อมูลลูกค้าถูกเปลี่ยนแปลงแล้ว (จะบันทึกเมื่อกดปุ่มบันทึก)", 
+                            "เปลี่ยนแปลงชั่วคราว", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
             }
@@ -995,7 +1219,68 @@ namespace Laundry_Management.Laundry
         private void ModifiedItems_ListChanged(object sender, ListChangedEventArgs e)
         {
             UpdateTotalFromDataGridView();
+            _changesSaved = false; // Reset the saved flag when changes are made
         }
+        private void Modify_Service_Item_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            // If changes have already been saved, no need to check or show confirmation
+            if (_changesSaved)
+                return;
 
+            // Rest of your existing code to check for unsaved changes
+            bool hasChanges = false;
+
+            // Check for new items (temporary IDs)
+            if (_modifiedItems.Any(i => i.OrderItemID < 0))
+            {
+                hasChanges = true;
+            }
+            else
+            {
+                // Check for modified existing items
+                foreach (var modifiedItem in _modifiedItems)
+                {
+                    if (_originalItems.TryGetValue(modifiedItem.OrderItemID, out var originalItem))
+                    {
+                        // Compare item properties
+                        if (modifiedItem.Quantity != originalItem.Quantity ||
+                            modifiedItem.TotalAmount != originalItem.TotalAmount ||
+                            modifiedItem.IsCanceled != originalItem.IsCanceled)
+                        {
+                            hasChanges = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Check for removed items
+                if (!hasChanges)
+                {
+                    foreach (var originalItem in _originalItems.Values)
+                    {
+                        if (!_modifiedItems.Any(m => m.OrderItemID == originalItem.OrderItemID))
+                        {
+                            hasChanges = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // If there are unsaved changes, ask user for confirmation
+            if (hasChanges)
+            {
+                DialogResult result = MessageBox.Show(
+                    "มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก คุณต้องการออกโดยไม่บันทึกหรือไม่?",
+                    "ยืนยันการออก",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.No)
+                {
+                    e.Cancel = true; // Cancel the form closing
+                }
+            }
+        }
     }
 }

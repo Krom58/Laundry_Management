@@ -223,7 +223,7 @@ namespace Laundry_Management
             else
             {
                 // สำหรับรายการอื่นๆ ที่ไม่ใช่ A00 ให้ทำงานตามปกติ
-                var itemForm = new Item(unitPrice, itemNumber, itemName, 1); // Default quantity set to 1
+                var itemForm = new Item(unitPrice, 0, itemNumber, itemName, 1); // Default quantity set to 1
                 var result = itemForm.ShowDialog();
 
                 // Refresh dataGridView2 after adding a new item
@@ -313,8 +313,9 @@ namespace Laundry_Management
             decimal unitPrice = totalAmount / quantity;
 
             // ส่งข้อมูลเดิมไปให้ Item ฟอร์ม
-            var itemForm = new Item(unitPrice, itemNumber, itemName, quantity);
-            itemForm.IsEditMode = true; // เพิ่ม property นี้ใน Item.cs
+            var itemForm = new Item(unitPrice, 0, itemNumber, itemName, quantity);
+            itemForm.IsEditMode = true;
+            itemForm.SourceForm = Item.CallingForm.Service; // Specify the source form
 
             // เพิ่มเงื่อนไขสำหรับรหัสผ้า A00 เพื่อให้แก้ไขราคาได้
             if (itemNumber == "A00")

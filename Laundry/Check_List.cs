@@ -186,7 +186,6 @@ SELECT
 FROM OrderHeader o
 LEFT JOIN Customer c 
     ON o.CustomerId = c.CustomerID
--- ย้ายเงื่อนไขกรองใบเสร็จ “ไม่เอา ยกเลิกการพิมพ์” มาไว้ใน ON
 LEFT JOIN Receipt r 
     ON o.OrderID = r.OrderID
    AND r.ReceiptStatus <> N'ยกเลิกการพิมพ์'
@@ -223,8 +222,9 @@ WHERE
 
             if (createDate.HasValue)
             {
-                filters.Add("(CAST(r.ReceiptDate AS DATE) = @ReceiptDate OR (r.ReceiptDate IS NULL AND CAST(o.OrderDate AS DATE) = @ReceiptDate))");
-                parameters.Add(new SqlParameter("@ReceiptDate", createDate.Value));
+                // แก้ไขตรงนี้: ค้นหาเฉพาะจากวันที่ใบรับผ้า (OrderDate) เท่านั้น
+                filters.Add("CAST(o.OrderDate AS DATE) = @OrderDate");
+                parameters.Add(new SqlParameter("@OrderDate", createDate.Value));
             }
 
             if (filters.Count > 0)

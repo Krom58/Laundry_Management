@@ -13,18 +13,29 @@ namespace Laundry_Management
 {
     public partial class Item : Form
     {
+        // Define the enum for source form
+        public enum CallingForm
+        {
+            Service,
+            ModifyServiceItem
+        }
+
+        // Property to track which form called this Item form
+        public CallingForm SourceForm { get; set; } = CallingForm.Service; // Default to Service
+
         public string ItemNumber { get; set; } // Add this property
         public string ItemName { get; set; }   // Add this property
         public decimal TotalAmount { get; set; }
         public bool IsEditMode { get; set; }
         public int Quantity { get; set; }
+        public int OrderItemId { get; set; } // Added property to store OrderItemID
         private decimal unitPrice;
         private string itemNumber; // รหัสสินค้า (ถ้ามี)
         private string itemName;
         private int quantity;
         // เพิ่ม constructor รับราคาและรหัสสินค้า
 
-        public Item(decimal unitPrice, string itemNumber, string itemName, int quantity)
+        public Item(decimal unitPrice, int OrderItemId, string itemNumber, string itemName, int quantity)
         {
             InitializeComponent();
 
@@ -34,6 +45,7 @@ namespace Laundry_Management
             txtQuantity.TabIndex = 0;  // ให้ txtQuantity มี TabIndex เท่ากับ btnOk เพื่อให้ได้รับโฟกัสก่อน
 
             this.unitPrice = unitPrice;
+            this.OrderItemId = OrderItemId;
             this.itemNumber = itemNumber;
             this.itemName = itemName;
             this.quantity = quantity;
@@ -54,6 +66,7 @@ namespace Laundry_Management
             // ตั้งค่าให้ฟอร์มรับการกด Enter
             this.KeyPreview = true;
         }
+
         private void Item_KeyPress(object sender, KeyPressEventArgs e)
         {
             // ตรวจสอบว่ากด Enter หรือไม่
@@ -79,6 +92,7 @@ namespace Laundry_Management
                 ProcessQuantityAndClose();
             }
         }
+
         public Item()
         {
             InitializeComponent();
@@ -98,6 +112,7 @@ namespace Laundry_Management
         {
             ProcessQuantityAndClose();
         }
+
         private void ProcessQuantityAndClose()
         {
             if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
@@ -117,30 +132,40 @@ namespace Laundry_Management
 
             try
             {
+                // ตรวจสอบว่ามาจาก Modify_Service_Item หรือไม่
+                if (SourceForm == CallingForm.ModifyServiceItem)
+                {
+                    // ถ้ามาจาก Modify_Service_Item ไม่ต้องบันทึกลงฐานข้อมูล
+                    // แค่ส่งค่า Quantity และ TotalAmount กลับไปที่ฟอร์มหลัก
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+                    return;
+                }
+
+                // ถ้าไม่ได้มาจาก Modify_Service_Item ให้ทำงานตามปกติ
                 if (IsEditMode)
                 {
-                    // UPDATE เฉพาะแถวเดิม
+                    // มาจาก Service ให้อัพเดตที่ SelectedItems
                     string updateQuery = "UPDATE SelectedItems SET ItemName = @itemName, Quantity = @quantity, TotalAmount = @totalAmount WHERE ItemNumber = @itemNumber";
                     using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
                     using (SqlCommand command = new SqlCommand(updateQuery, connection))
                     {
-                        command.Parameters.AddWithValue("@itemNumber", itemNumber);
                         command.Parameters.AddWithValue("@itemName", itemName);
                         command.Parameters.AddWithValue("@quantity", quantity);
                         command.Parameters.AddWithValue("@totalAmount", totalAmount);
+                        command.Parameters.AddWithValue("@itemNumber", itemNumber);
                         connection.Open();
                         int rowsAffected = command.ExecuteNonQuery();
 
                         if (rowsAffected == 0)
                         {
-                            // ถ้าไม่มีการอัพเดทแถว อาจจะมีปัญหากับการค้นหาข้อมูล
-                            throw new Exception("ไม่สามารถอัพเดทข้อมูลได้ ไม่พบรายการที่ต้องการแก้ไข");
+                            throw new Exception("ไม่สามารถอัพเดทข้อมูลได้ ไม่พบรายการที่ต้องการแก้ไข (ItemNumber: " + itemNumber + ")");
                         }
                     }
                 }
                 else
                 {
-                    // INSERT เฉพาะกรณีเพิ่มใหม่
+                    // กรณีเพิ่มใหม่ ให้ทำเหมือนเดิม (เพิ่มที่ SelectedItems)
                     string insertQuery = "INSERT INTO SelectedItems (ItemNumber, ItemName, Quantity, TotalAmount) VALUES (@itemNumber, @itemName, @quantity, @totalamount)";
                     using (SqlConnection connection = Laundry_Management.Laundry.DBconfig.GetConnection())
                     using (SqlCommand command = new SqlCommand(insertQuery, connection))
@@ -168,6 +193,7 @@ namespace Laundry_Management
                 txtQuantity.SelectAll();
             }
         }
+
         private void btnCancle_Click(object sender, EventArgs e)
         {
             this.DialogResult = DialogResult.Cancel;
