@@ -327,6 +327,25 @@ WHERE
                 string customerName = dgvOrders.CurrentRow.Cells["ชื่อลูกค้า"].Value?.ToString();
                 string phone = dgvOrders.CurrentRow.Cells["เบอร์โทรศัพท์"].Value?.ToString();
 
+                // Check if order is canceled
+                using (SqlConnection conn = DBconfig.GetConnection())
+                {
+                    conn.Open();
+                    string checkOrderStatusQuery = "SELECT OrderStatus FROM OrderHeader WHERE OrderID = @OrderID";
+                    using (SqlCommand cmd = new SqlCommand(checkOrderStatusQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OrderID", orderId);
+                        string orderStatus = cmd.ExecuteScalar()?.ToString();
+
+                        if (orderStatus == "รายการถูกยกเลิก")
+                        {
+                            MessageBox.Show("ไม่สามารถพิมพ์รายการที่ถูกยกเลิกได้", "แจ้งเตือน",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                    }
+                }
+
                 // ตรวจสอบสถานะใบเสร็จว่าเป็น "ยกเลิกการพิมพ์" หรือไม่
                 var receiptStatusObj = dgvOrders.CurrentRow.Cells["สถานะใบเสร็จ"].Value;
                 if (receiptStatusObj != null && receiptStatusObj != DBNull.Value &&
@@ -344,7 +363,7 @@ WHERE
                     return;
                 }
 
-                // Retrieve order items and discount from database
+                // Retrieve order items and discount from database - Modified to exclude canceled items
                 List<Print_Service.ServiceItem> serviceItems = new List<Print_Service.ServiceItem>();
                 decimal discount = 0;
 
@@ -364,11 +383,13 @@ WHERE
                         }
                     }
 
-                    // Get order items
+                    // Get order items - Modified to exclude canceled items
                     string itemsQuery = @"
-                        SELECT ItemName, Quantity, TotalAmount 
-                        FROM OrderItem 
-                        WHERE OrderID = @OrderID";
+                SELECT ItemName, Quantity, TotalAmount 
+                FROM OrderItem 
+                WHERE OrderID = @OrderID 
+                AND (IsCanceled = 0 OR IsCanceled IS NULL)";  // Add condition to exclude canceled items
+
                     using (SqlCommand itemsCmd = new SqlCommand(itemsQuery, conn))
                     {
                         itemsCmd.Parameters.AddWithValue("@OrderID", orderId);
@@ -398,7 +419,8 @@ WHERE
                 // Check if we have items to print
                 if (serviceItems.Count == 0)
                 {
-                    MessageBox.Show("ไม่พบรายการสินค้าสำหรับการพิมพ์", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("ไม่พบรายการสินค้าที่สามารถพิมพ์ได้ (รายการอาจถูกยกเลิกทั้งหมด)",
+                        "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 
