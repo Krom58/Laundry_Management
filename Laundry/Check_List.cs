@@ -472,11 +472,13 @@ WHERE
                 }
 
                 // Open Print_Service form to print the order
+                // Pass the actual OrderID as string so LoadOrderDateFromDatabase can work properly
+                // The Print_Service class will automatically load and display the order creation date
                 using (var printForm = new Print_Service(
                     customerName,
                     phone,
                     discount / 100m, // Convert from percentage to decimal
-                    customOrderId,
+                    orderId.ToString(), // Pass OrderID as string for LoadOrderDateFromDatabase
                     serviceItems))
                 {
                     printForm.ShowDialog(this);
@@ -1347,13 +1349,10 @@ WHERE
                     if (isLastPage)
                     {
                         // Draw the total summary row immediately after the last data row
-                        float summaryRowY = yPosition; // No extra gap - put it right after the last row
-
-                        // Draw a total row with a highlighted background
                         using (SolidBrush totalRowBrush = new SolidBrush(Color.FromArgb(245, 245, 220))) // Beige color
                         {
                             // Draw a full-width rectangle for the total row
-                            RectangleF totalRowRect = new RectangleF(leftMargin, summaryRowY, availableWidth, totalRowHeight);
+                            RectangleF totalRowRect = new RectangleF(leftMargin, yPosition, availableWidth, totalRowHeight);
                             e.Graphics.FillRectangle(totalRowBrush, totalRowRect);
 
                             // Draw a border around the total row with thicker line
@@ -1367,7 +1366,7 @@ WHERE
                         float totalX = leftMargin;
 
                         // Draw "รวม" label in first column
-                        RectangleF totalLabelRect = new RectangleF(totalX, summaryRowY, columnWidths[0], totalRowHeight);
+                        RectangleF totalLabelRect = new RectangleF(totalX, yPosition, columnWidths[0], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
                             sf.Alignment = StringAlignment.Center;
@@ -1380,13 +1379,13 @@ WHERE
                         // Skip columns 1-4 (keep them empty)
                         for (int j = 1; j <= 4; j++)
                         {
-                            RectangleF emptyRect = new RectangleF(totalX, summaryRowY, columnWidths[j], totalRowHeight);
+                            RectangleF emptyRect = new RectangleF(totalX, yPosition, columnWidths[j], totalRowHeight);
                             e.Graphics.DrawRectangle(Pens.Black, emptyRect.X, emptyRect.Y, emptyRect.Width, emptyRect.Height);
                             totalX += columnWidths[j];
                         }
 
                         // Draw total order amount in column 5
-                        RectangleF totalOrderRect = new RectangleF(totalX, summaryRowY, columnWidths[5], totalRowHeight);
+                        RectangleF totalOrderRect = new RectangleF(totalX, yPosition, columnWidths[5], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
                             sf.Alignment = StringAlignment.Center;
@@ -1397,7 +1396,7 @@ WHERE
                         totalX += columnWidths[5];
 
                         // Draw total receipt amount in column 6
-                        RectangleF totalReceiptRect = new RectangleF(totalX, summaryRowY, columnWidths[6], totalRowHeight);
+                        RectangleF totalReceiptRect = new RectangleF(totalX, yPosition, columnWidths[6], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
                             sf.Alignment = StringAlignment.Center;
@@ -1408,7 +1407,7 @@ WHERE
                         totalX += columnWidths[6];
 
                         // Draw total discount in column 7
-                        RectangleF totalDiscountRect = new RectangleF(totalX, summaryRowY, columnWidths[7], totalRowHeight);
+                        RectangleF totalDiscountRect = new RectangleF(totalX, yPosition, columnWidths[7], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
                             sf.Alignment = StringAlignment.Center;
@@ -1419,7 +1418,7 @@ WHERE
                         totalX += columnWidths[7];
 
                         // Draw total after discount in column 8
-                        RectangleF totalAfterDiscountRect = new RectangleF(totalX, summaryRowY, columnWidths[8], totalRowHeight);
+                        RectangleF totalAfterDiscountRect = new RectangleF(totalX, yPosition, columnWidths[8], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
                             sf.Alignment = StringAlignment.Center;
@@ -1432,13 +1431,13 @@ WHERE
                         // Draw remaining empty cells
                         for (int j = 9; j < columnNames.Length; j++)
                         {
-                            RectangleF emptyRect = new RectangleF(totalX, summaryRowY, columnWidths[j], totalRowHeight);
+                            RectangleF emptyRect = new RectangleF(totalX, yPosition, columnWidths[j], totalRowHeight);
                             e.Graphics.DrawRectangle(Pens.Black, emptyRect.X, emptyRect.Y, emptyRect.Width, emptyRect.Height);
                             totalX += columnWidths[j];
                         }
 
                         // Move position past the summary row
-                        yPosition = summaryRowY + totalRowHeight + 15;
+                        yPosition = yPosition + totalRowHeight + 15;
 
                         // Add summary text below the total row
                         string summaryText = $"จำนวนรายการทั้งหมด {totalValidRows} รายการ";
@@ -2148,7 +2147,7 @@ WHERE
                         // No need to update any status as we're just reprinting
                         if (printForm.IsPrinted)
                         {
-                            MessageBox.Show("พิมพ์สำเนาใบเสร็จเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show("พิมพ์สำเนาใบเสร้จใหม่เรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                     }
                 }
