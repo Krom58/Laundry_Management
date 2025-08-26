@@ -478,7 +478,7 @@ WHERE
                     customerName,
                     phone,
                     discount / 100m, // Convert from percentage to decimal
-                    orderId.ToString(), // Pass OrderID as string for LoadOrderDateFromDatabase
+                    customOrderId, // Pass OrderID as string for LoadOrderDateFromDatabase
                     serviceItems))
                 {
                     printForm.ShowDialog(this);
