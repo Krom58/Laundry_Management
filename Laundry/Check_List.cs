@@ -363,38 +363,57 @@ WHERE
                     return;
                 }
 
-                // Retrieve order items and discount from database - Modified to exclude canceled items
+                // Get order details from database
+                decimal customerDiscount = 0;
                 List<Print_Service.ServiceItem> serviceItems = new List<Print_Service.ServiceItem>();
-                decimal discount = 0;
 
                 using (SqlConnection conn = DBconfig.GetConnection())
                 {
                     conn.Open();
 
-                    // Get discount from OrderHeader
-                    string discountQuery = "SELECT Discount FROM OrderHeader WHERE OrderID = @OrderID";
-                    using (SqlCommand discountCmd = new SqlCommand(discountQuery, conn))
+                    // Get order details including discount information
+                    string orderQuery = @"
+                SELECT 
+                    GrandTotalPrice,
+                    Discount
+                FROM OrderHeader 
+                WHERE OrderID = @OrderID";
+
+                    using (SqlCommand cmd = new SqlCommand(orderQuery, conn))
                     {
-                        discountCmd.Parameters.AddWithValue("@OrderID", orderId);
-                        var discountObj = discountCmd.ExecuteScalar();
-                        if (discountObj != null && discountObj != DBNull.Value)
+                        cmd.Parameters.AddWithValue("@OrderID", orderId);
+                        using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            discount = Convert.ToDecimal(discountObj);
+                            if (reader.Read())
+                            {
+                                // Get discount value
+                                if (reader["Discount"] != DBNull.Value)
+                                {
+                                    customerDiscount = Convert.ToDecimal(reader["Discount"]);
+                                }
+                            }
+                            else
+                            {
+                                MessageBox.Show("ไม่พบข้อมูลใบรับผ้าในระบบ", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                            }
                         }
                     }
 
-                    // Get order items - Modified to exclude canceled items
+                    // Get order items - exclude canceled items
                     string itemsQuery = @"
-                SELECT ItemName, Quantity, TotalAmount 
+                SELECT 
+                    ItemName, 
+                    Quantity, 
+                    TotalAmount
                 FROM OrderItem 
                 WHERE OrderID = @OrderID 
-                AND (IsCanceled = 0 OR IsCanceled IS NULL)";  // Add condition to exclude canceled items
+                AND (IsCanceled = 0 OR IsCanceled IS NULL)";
 
-                    using (SqlCommand itemsCmd = new SqlCommand(itemsQuery, conn))
+                    using (SqlCommand cmd = new SqlCommand(itemsQuery, conn))
                     {
-                        itemsCmd.Parameters.AddWithValue("@OrderID", orderId);
-
-                        using (SqlDataReader reader = itemsCmd.ExecuteReader())
+                        cmd.Parameters.AddWithValue("@OrderID", orderId);
+                        using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
                             {
@@ -402,91 +421,83 @@ WHERE
                                 int quantity = Convert.ToInt32(reader["Quantity"]);
                                 decimal totalAmount = Convert.ToDecimal(reader["TotalAmount"]);
 
-                                // Calculate price per item
-                                decimal price = quantity > 0 ? totalAmount / quantity : 0;
+                                // Calculate price per unit
+                                decimal pricePerUnit = quantity > 0 ? totalAmount / quantity : 0;
 
                                 serviceItems.Add(new Print_Service.ServiceItem
                                 {
                                     Name = itemName,
                                     Quantity = quantity,
-                                    Price = price
+                                    Price = pricePerUnit
                                 });
                             }
                         }
                     }
-                }
 
-                // Check if we have items to print
-                if (serviceItems.Count == 0)
-                {
-                    MessageBox.Show("ไม่พบรายการสินค้าที่สามารถพิมพ์ได้ (รายการอาจถูกยกเลิกทั้งหมด)",
-                        "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-
-                // Create confirmation dialog
-                using (Form confirmDialog = new Form())
-                {
-                    confirmDialog.Text = "ยืนยันการพิมพ์ซ้ำ";
-                    confirmDialog.Size = new Size(500, 300);
-                    confirmDialog.StartPosition = FormStartPosition.CenterParent;
-                    confirmDialog.FormBorderStyle = FormBorderStyle.FixedDialog;
-                    confirmDialog.MaximizeBox = false;
-                    confirmDialog.MinimizeBox = false;
-
-                    Label lblMessage = new Label();
-                    lblMessage.Text = $"ยืนยันการพิมพ์ใบรับผ้าอีกครั้ง\nลูกค้า: {customerName}\nหมายเลขใบรับผ้า: {customOrderId}";
-                    lblMessage.Font = new Font("Angsana New", 26, FontStyle.Bold);
-                    lblMessage.TextAlign = ContentAlignment.MiddleCenter;
-                    lblMessage.Dock = DockStyle.Top;
-                    lblMessage.Height = 150;
-
-                    Button btnConfirm = new Button();
-                    btnConfirm.Text = "ยืนยัน";
-                    btnConfirm.Font = new Font("Angsana New", 24);
-                    btnConfirm.Size = new Size(150, 60);
-                    btnConfirm.Location = new Point(80, 180);
-                    btnConfirm.DialogResult = DialogResult.Yes;
-
-                    Button btnCancel = new Button();
-                    btnCancel.Text = "ยกเลิก";
-                    btnCancel.Font = new Font("Angsana New", 24);
-                    btnCancel.Size = new Size(150, 60);
-                    btnCancel.Location = new Point(260, 180);
-                    btnCancel.DialogResult = DialogResult.Cancel;
-
-                    confirmDialog.Controls.Add(lblMessage);
-                    confirmDialog.Controls.Add(btnConfirm);
-                    confirmDialog.Controls.Add(btnCancel);
-                    confirmDialog.AcceptButton = btnConfirm;
-                    confirmDialog.CancelButton = btnCancel;
-
-                    // Show dialog and wait for response
-                    DialogResult result = confirmDialog.ShowDialog();
-
-                    // If not confirmed, cancel the operation
-                    if (result != DialogResult.Yes)
+                    if (serviceItems.Count == 0)
                     {
+                        MessageBox.Show("ไม่พบรายการสินค้าที่สามารถพิมพ์ได้ (รายการอาจถูกยกเลิกทั้งหมด)",
+                            "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;
                     }
-                }
 
-                // Open Print_Service form to print the order
-                // Pass the actual OrderID as string so LoadOrderDateFromDatabase can work properly
-                // The Print_Service class will automatically load and display the order creation date
-                using (var printForm = new Print_Service(
-                    customerName,
-                    phone,
-                    discount / 100m, // Convert from percentage to decimal
-                    customOrderId, // Pass OrderID as string for LoadOrderDateFromDatabase
-                    serviceItems))
-                {
-                    printForm.ShowDialog(this);
-
-                    // No need to update any status since we're just reprinting
-                    if (printForm.IsPrinted)
+                    // Create confirmation dialog
+                    using (Form confirmDialog = new Form())
                     {
-                        MessageBox.Show("พิมพ์ใบรับผ้าใหม่เรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        confirmDialog.Text = "ยืนยันการพิมพ์ซ้ำ";
+                        confirmDialog.Size = new Size(500, 300);
+                        confirmDialog.StartPosition = FormStartPosition.CenterParent;
+                        confirmDialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                        confirmDialog.MaximizeBox = false;
+                        confirmDialog.MinimizeBox = false;
+
+                        Label lblMessage = new Label();
+                        lblMessage.Text = $"ยืนยันการพิมพ์ใบรับผ้าอีกครั้ง\nลูกค้า: {customerName}\nหมายเลขใบรับผ้า: {customOrderId}";
+                        lblMessage.Font = new Font("Angsana New", 26, FontStyle.Bold);
+                        lblMessage.TextAlign = ContentAlignment.MiddleCenter;
+                        lblMessage.Dock = DockStyle.Top;
+                        lblMessage.Height = 150;
+
+                        Button btnConfirm = new Button();
+                        btnConfirm.Text = "ยืนยัน";
+                        btnConfirm.Font = new Font("Angsana New", 24);
+                        btnConfirm.Size = new Size(150, 60);
+                        btnConfirm.Location = new Point(80, 180);
+                        btnConfirm.DialogResult = DialogResult.Yes;
+
+                        Button btnCancel = new Button();
+                        btnCancel.Text = "ยกเลิก";
+                        btnCancel.Font = new Font("Angsana New", 24);
+                        btnCancel.Size = new Size(150, 60);
+                        btnCancel.Location = new Point(260, 180);
+                        btnCancel.DialogResult = DialogResult.Cancel;
+
+                        confirmDialog.Controls.Add(lblMessage);
+                        confirmDialog.Controls.Add(btnConfirm);
+                        confirmDialog.Controls.Add(btnCancel);
+                        confirmDialog.AcceptButton = btnConfirm;
+                        confirmDialog.CancelButton = btnCancel;
+
+                        // Show dialog and wait for response
+                        DialogResult result = confirmDialog.ShowDialog();
+
+                        // If not confirmed, cancel the operation
+                        if (result != DialogResult.Yes)
+                        {
+                            return;
+                        }
+                    }
+
+                    // Open Print_Service form with the order data
+                    using (var printForm = new Print_Service(customerName, phone ?? "", customerDiscount, customOrderId, orderId, serviceItems))
+                    {
+                        printForm.ShowDialog(this);
+
+                        // Check if printing was successful
+                        if (printForm.IsPrinted)
+                        {
+                            MessageBox.Show("พิมพ์ใบรับผ้าใหม่เรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
                     }
                 }
             }

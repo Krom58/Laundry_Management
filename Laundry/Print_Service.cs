@@ -24,7 +24,22 @@ namespace Laundry_Management.Laundry
             public decimal Price { get; set; }
         }
         public Print_Service(string customerName, string customerPhone, decimal customerDiscount,
-                         string orderId, List<ServiceItem> items)
+                     string customOrderId, int orderIdForDatabase, List<ServiceItem> items)
+: this()
+        {
+            _customerName = customerName;
+            _customerPhone = customerPhone;
+            _customerDiscount = customerDiscount;
+            _orderId = customOrderId; // ใช้ CustomOrderId สำหรับการแสดงผล
+            _items = items;
+
+            // ใช้ OrderID สำหรับดึงข้อมูลจากฐานข้อมูล
+            LoadOrderDateFromDatabase(orderIdForDatabase.ToString());
+        }
+
+        // Constructor เดิมยังคงไว้สำหรับใช้ในที่อื่น
+        public Print_Service(string customerName, string customerPhone, decimal customerDiscount,
+                             string orderId, List<ServiceItem> items)
         : this()
         {
             _customerName = customerName;
