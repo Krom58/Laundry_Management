@@ -335,8 +335,8 @@ namespace Laundry_Management.Laundry
                     printDoc.DefaultPageSettings.PaperSize = a4Size;
                 }
 
-                // Set landscape orientation for better fit of the table
-                printDoc.DefaultPageSettings.Landscape = true;
+                // Set portrait orientation for all pages
+                printDoc.DefaultPageSettings.Landscape = false;
 
                 // Set reasonable margins (10mm = ~40 hundredths of an inch)
                 printDoc.DefaultPageSettings.Margins = new Margins(40, 40, 40, 40);
@@ -401,7 +401,9 @@ namespace Laundry_Management.Laundry
         {
             try
             {
-                e.PageSettings.Landscape = true;
+                // Force portrait orientation for all pages
+                e.PageSettings.Landscape = false;
+
                 // Page settings
                 float leftMargin = e.MarginBounds.Left;
                 float topMargin = e.MarginBounds.Top;
@@ -412,10 +414,10 @@ namespace Laundry_Management.Laundry
 
                 // ปรับขนาดฟอนต์ให้เล็กลง
                 using (Font titleFont = new Font("Angsana New", 16, FontStyle.Bold))
-                using (Font headerFont = new Font("Angsana New", 12, FontStyle.Bold))
-                using (Font normalFont = new Font("Angsana New", 12))
-                using (Font smallFont = new Font("Angsana New", 10))
-                using (Font boldFont = new Font("Angsana New", 12, FontStyle.Bold)) // เพิ่มฟอนต์ตัวหนาสำหรับแถวรวม
+                using (Font headerFont = new Font("Angsana New", 11, FontStyle.Bold))
+                using (Font normalFont = new Font("Angsana New", 10))
+                using (Font smallFont = new Font("Angsana New", 9))
+                using (Font boldFont = new Font("Angsana New", 11, FontStyle.Bold)) // เพิ่มฟอนต์ตัวหนาสำหรับแถวรวม
                 {
                     // Draw the page header
                     float yPosition = topMargin;
@@ -480,16 +482,16 @@ namespace Laundry_Management.Laundry
                 "CreditAmount"
             };
 
-                    // Column width percentages - ปรับความกว้างคอลัมน์ให้เหมาะสมกับแนวตั้งและเพิ่มคอลัมน์ลำดับ
+                    // Column width percentages - ปรับความกว้างคอลัมน์ให้เหมาะสมกับแนวตั้ง
                     float[] columnWidthPercentages = new float[] {
                 0.05f, // ลำดับ
-                0.15f, // วันที่ออกใบเสร็จ
-                0.10f, // เลขที่ใบเสร็จ
-                0.10f, // เลขที่รายการ
-                0.11f, // ยอดรวมก่อนหักส่วนลด
+                0.14f, // วันที่ออกใบเสร็จ
+                0.09f, // เลขที่ใบเสร็จ
+                0.09f, // เลขที่รายการ
+                0.12f, // ยอดรวมก่อนหักส่วนลด
                 0.08f, // ส่วนลด
-                0.11f, // ยอดรวมหลังหักส่วนลด
-                0.10f, // ชำระด้วยเงินสด
+                0.12f, // ยอดรวมหลังหักส่วนลด
+                0.11f, // ชำระด้วยเงินสด
                 0.10f, // ชำระด้วย QR
                 0.10f  // ชำระด้วยบัตรเครดิต
             };
