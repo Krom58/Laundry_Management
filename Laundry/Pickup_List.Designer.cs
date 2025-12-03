@@ -52,7 +52,7 @@
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(12, 201);
+            this.label3.Location = new System.Drawing.Point(173, 199);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(59, 43);
             this.label3.TabIndex = 58;
@@ -102,7 +102,7 @@
             this.dtpCreateDate.CustomFormat = "dd/MM/yyyy";
             this.dtpCreateDate.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.dtpCreateDate.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            this.dtpCreateDate.Location = new System.Drawing.Point(77, 195);
+            this.dtpCreateDate.Location = new System.Drawing.Point(238, 193);
             this.dtpCreateDate.Name = "dtpCreateDate";
             this.dtpCreateDate.Size = new System.Drawing.Size(245, 51);
             this.dtpCreateDate.TabIndex = 53;
@@ -111,7 +111,7 @@
             // 
             this.btnSearch.AutoSize = true;
             this.btnSearch.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSearch.Location = new System.Drawing.Point(973, 196);
+            this.btnSearch.Location = new System.Drawing.Point(1257, 194);
             this.btnSearch.Name = "btnSearch";
             this.btnSearch.Size = new System.Drawing.Size(144, 53);
             this.btnSearch.TabIndex = 52;
@@ -171,7 +171,7 @@
             // 
             this.chkPickedup.AutoSize = true;
             this.chkPickedup.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkPickedup.Location = new System.Drawing.Point(789, 202);
+            this.chkPickedup.Location = new System.Drawing.Point(1073, 200);
             this.chkPickedup.Name = "chkPickedup";
             this.chkPickedup.Size = new System.Drawing.Size(121, 47);
             this.chkPickedup.TabIndex = 63;
@@ -182,7 +182,7 @@
             // 
             this.chkNotPickup.AutoSize = true;
             this.chkNotPickup.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkNotPickup.Location = new System.Drawing.Point(585, 202);
+            this.chkNotPickup.Location = new System.Drawing.Point(869, 200);
             this.chkNotPickup.Name = "chkNotPickup";
             this.chkNotPickup.Size = new System.Drawing.Size(130, 47);
             this.chkNotPickup.TabIndex = 62;
@@ -205,7 +205,7 @@
             // 
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(328, 201);
+            this.label4.Location = new System.Drawing.Point(489, 199);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(82, 43);
             this.label4.TabIndex = 66;
@@ -216,7 +216,7 @@
             this.dtpCreateDateEnd.CustomFormat = "dd/MM/yyyy";
             this.dtpCreateDateEnd.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.dtpCreateDateEnd.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            this.dtpCreateDateEnd.Location = new System.Drawing.Point(416, 195);
+            this.dtpCreateDateEnd.Location = new System.Drawing.Point(577, 193);
             this.dtpCreateDateEnd.Name = "dtpCreateDateEnd";
             this.dtpCreateDateEnd.Size = new System.Drawing.Size(245, 51);
             this.dtpCreateDateEnd.TabIndex = 65;

@@ -116,6 +116,7 @@
             // btnSetting
             // 
             this.btnSetting.AutoSize = true;
+            this.btnSetting.Enabled = false;
             this.btnSetting.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSetting.Location = new System.Drawing.Point(823, 12);
             this.btnSetting.Name = "btnSetting";
@@ -123,6 +124,7 @@
             this.btnSetting.TabIndex = 42;
             this.btnSetting.Text = "ตั้งค่า X";
             this.btnSetting.UseVisualStyleBackColor = true;
+            this.btnSetting.Visible = false;
             this.btnSetting.Click += new System.EventHandler(this.btnSetting_Click);
             // 
             // Report
