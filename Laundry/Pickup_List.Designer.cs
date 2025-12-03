@@ -43,6 +43,8 @@
             this.chkPickedup = new System.Windows.Forms.CheckBox();
             this.chkNotPickup = new System.Windows.Forms.CheckBox();
             this.btnCancel = new System.Windows.Forms.Button();
+            this.label4 = new System.Windows.Forms.Label();
+            this.dtpCreateDateEnd = new System.Windows.Forms.DateTimePicker();
             ((System.ComponentModel.ISupportInitialize)(this.dgvOrders)).BeginInit();
             this.SuspendLayout();
             // 
@@ -50,7 +52,7 @@
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(169, 201);
+            this.label3.Location = new System.Drawing.Point(12, 201);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(59, 43);
             this.label3.TabIndex = 58;
@@ -97,8 +99,10 @@
             // 
             // dtpCreateDate
             // 
+            this.dtpCreateDate.CustomFormat = "dd/MM/yyyy";
             this.dtpCreateDate.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.dtpCreateDate.Location = new System.Drawing.Point(234, 198);
+            this.dtpCreateDate.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
+            this.dtpCreateDate.Location = new System.Drawing.Point(77, 195);
             this.dtpCreateDate.Name = "dtpCreateDate";
             this.dtpCreateDate.Size = new System.Drawing.Size(245, 51);
             this.dtpCreateDate.TabIndex = 53;
@@ -197,11 +201,33 @@
             this.btnCancel.UseVisualStyleBackColor = true;
             this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
             // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label4.Location = new System.Drawing.Point(328, 201);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(82, 43);
+            this.label4.TabIndex = 66;
+            this.label4.Text = "ถึงวันที่";
+            // 
+            // dtpCreateDateEnd
+            // 
+            this.dtpCreateDateEnd.CustomFormat = "dd/MM/yyyy";
+            this.dtpCreateDateEnd.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.dtpCreateDateEnd.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
+            this.dtpCreateDateEnd.Location = new System.Drawing.Point(416, 195);
+            this.dtpCreateDateEnd.Name = "dtpCreateDateEnd";
+            this.dtpCreateDateEnd.Size = new System.Drawing.Size(245, 51);
+            this.dtpCreateDateEnd.TabIndex = 65;
+            // 
             // Pickup_List
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.label4);
+            this.Controls.Add(this.dtpCreateDateEnd);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.chkPickedup);
             this.Controls.Add(this.chkNotPickup);
@@ -238,5 +264,7 @@
         private System.Windows.Forms.CheckBox chkPickedup;
         private System.Windows.Forms.CheckBox chkNotPickup;
         private System.Windows.Forms.Button btnCancel;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.DateTimePicker dtpCreateDateEnd;
     }
 }

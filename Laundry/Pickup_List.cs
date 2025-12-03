@@ -13,6 +13,8 @@ namespace Laundry_Management.Laundry
 {
     public partial class Pickup_List : Form
     {
+        private bool _isInitializing = true;
+        
         public Pickup_List()
         {
             InitializeComponent();
@@ -25,8 +27,19 @@ namespace Laundry_Management.Laundry
             chkNotPickup.CheckedChanged += chkNotPickup_CheckedChanged;
             chkPickedup.CheckedChanged += chkPickedup_CheckedChanged;
 
-            // Add this line to register the dtpCreateDate ValueChanged event
-            dtpCreateDate.ValueChanged += dtpCreateDate_ValueChanged;
+            // Register event handlers for both date pickers
+            dtpCreateDate.ValueChanged += DtpCreateDate_ValueChanged;
+            dtpCreateDateEnd.ValueChanged += DtpCreateDate_ValueChanged;
+
+            // กำหนดรูปแบบวันที่และค่าเริ่มต้น
+            dtpCreateDate.Format = DateTimePickerFormat.Custom;
+            dtpCreateDate.CustomFormat = "dd/MM/yyyy";
+            dtpCreateDateEnd.Format = DateTimePickerFormat.Custom;
+            dtpCreateDateEnd.CustomFormat = "dd/MM/yyyy";
+            
+            // กำหนดค่าเริ่มต้นของวันที่
+            dtpCreateDate.Value = DateTime.Today;
+            dtpCreateDateEnd.Value = DateTime.Today;
 
             // Initialize the form
             LoadPickupOrders();
@@ -37,7 +50,29 @@ namespace Laundry_Management.Laundry
 
             // ตั้งค่าปุ่ม Search เป็น AcceptButton ของฟอร์ม
             this.AcceptButton = btnSearch;
+            
+            // เสร็จสิ้นการ initialize
+            _isInitializing = false;
         }
+        
+        private void DtpCreateDate_ValueChanged(object sender, EventArgs e)
+        {
+            // ข้ามการทำงานถ้ากำลัง initialize
+            if (_isInitializing) return;
+            
+            // ตรวจสอบว่าวันที่เริ่มต้นไม่มากกว่าวันที่สิ้นสุด
+            if (dtpCreateDate.Value > dtpCreateDateEnd.Value)
+            {
+                MessageBox.Show("วันที่เริ่มต้นต้องไม่มากกว่าวันที่สิ้นสุด", "ข้อผิดพลาด",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                dtpCreateDate.Value = dtpCreateDateEnd.Value;
+                return;
+            }
+            
+            // เรียกค้นหาอัตโนมัติเมื่อเปลี่ยนวันที่
+            btnSearch_Click(sender, EventArgs.Empty);
+        }
+        
         private void TxtSearch_KeyPress(object sender, KeyPressEventArgs e)
         {
             // ตรวจสอบว่ากด Enter หรือไม่ (รหัส ASCII 13)
@@ -104,7 +139,10 @@ namespace Laundry_Management.Laundry
         {
             string orderId = txtOrderId.Text.Trim();
             string customerFilter = txtCustomerFilter.Text.Trim();
-            DateTime? createDate = dtpCreateDate.Checked ? (DateTime?)dtpCreateDate.Value.Date : null;
+            
+            // ใช้วันที่จาก DateTimePicker ตลอดเวลา
+            DateTime startDate = dtpCreateDate.Value.Date;
+            DateTime endDate = dtpCreateDateEnd.Value.Date;
 
             var query = @"
                         SELECT 
@@ -172,11 +210,10 @@ namespace Laundry_Management.Laundry
                 parameters.Add(new SqlParameter("@CustomerName", "%" + customerFilter + "%"));
             }
 
-            if (createDate.HasValue)
-            {
-                filters.Add("CAST(r.ReceiptDate AS DATE) = @ReceiptDate");
-                parameters.Add(new SqlParameter("@ReceiptDate", createDate.Value));
-            }
+            // เพิ่มเงื่อนไขการค้นหาวันที่เป็นช่วง
+            filters.Add("CAST(r.ReceiptDate AS DATE) BETWEEN @StartDate AND @EndDate");
+            parameters.Add(new SqlParameter("@StartDate", startDate));
+            parameters.Add(new SqlParameter("@EndDate", endDate));
 
             if (filters.Count > 0)
             {
@@ -470,16 +507,6 @@ namespace Laundry_Management.Laundry
             {
                 MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}\n\nStackTrace: {ex.StackTrace}",
                     "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        // Add this method to handle the DateTimePicker ValueChanged event
-        private void dtpCreateDate_ValueChanged(object sender, EventArgs e)
-        {
-            // Only trigger search if the DateTimePicker is checked (date is selected)
-            if (dtpCreateDate.Checked)
-            {
-                // Call the existing search functionality
-                btnSearch_Click(sender, e);
             }
         }
     }
