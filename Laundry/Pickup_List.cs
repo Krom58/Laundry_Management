@@ -104,8 +104,9 @@ namespace Laundry_Management.Laundry
                         LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
                         INNER JOIN Receipt r ON o.OrderID = r.OrderID
                         WHERE (r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว')
-                        AND CAST(r.ReceiptDate AS DATE) = @TodayDate
+                        AND CAST(o.OrderDate AS DATE) = @TodayDate
                         AND o.OrderStatus = N'ออกใบเสร็จแล้ว' AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
+                        ORDER BY o.OrderDate ASC, r.ReceiptID ASC
                     ";
 
             using (SqlConnection conn = Laundry_Management.Laundry.DBconfig.GetConnection())
@@ -166,16 +167,28 @@ namespace Laundry_Management.Laundry
 
             var filters = new List<string>();
             var parameters = new List<SqlParameter>();
+            string orderByClause = "";
 
-            // ตรวจสอบ checkbox สถานะการรับผ้า
+            // ตรวจสอบ checkbox สถานะการรับผ้า และเลือกคอลัมน์วันที่ที่เหมาะสม
             if (chkNotPickup.Checked)
             {
                 filters.Add("(r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว')");
+                // ค้นหาตามวันที่ส่งผ้า (OrderDate) - นี่คือจุดที่แก้ไข
+                filters.Add("CAST(o.OrderDate AS DATE) BETWEEN @StartDate AND @EndDate");
+                // เรียงตามวันที่ส่งผ้า
+                orderByClause = " ORDER BY o.OrderDate ASC, r.ReceiptID ASC";
             }
             else if (chkPickedup.Checked)
             {
                 filters.Add("r.IsPickedUp = N'มารับแล้ว'");
+                // ค้นหาตามวันที่มารับผ้า (CustomerPickupDate)
+                filters.Add("CAST(r.CustomerPickupDate AS DATE) BETWEEN @StartDate AND @EndDate");
+                // เรียงตามวันที่มารับผ้า
+                orderByClause = " ORDER BY r.CustomerPickupDate ASC, r.ReceiptID ASC";
             }
+            
+            parameters.Add(new SqlParameter("@StartDate", startDate));
+            parameters.Add(new SqlParameter("@EndDate", endDate));
 
             if (!string.IsNullOrEmpty(orderId))
             {
@@ -210,15 +223,13 @@ namespace Laundry_Management.Laundry
                 parameters.Add(new SqlParameter("@CustomerName", "%" + customerFilter + "%"));
             }
 
-            // เพิ่มเงื่อนไขการค้นหาวันที่เป็นช่วง
-            filters.Add("CAST(r.ReceiptDate AS DATE) BETWEEN @StartDate AND @EndDate");
-            parameters.Add(new SqlParameter("@StartDate", startDate));
-            parameters.Add(new SqlParameter("@EndDate", endDate));
-
             if (filters.Count > 0)
             {
                 query += " AND " + string.Join(" AND ", filters);
             }
+            
+            // เพิ่ม ORDER BY clause
+            query += orderByClause;
 
             using (SqlConnection conn = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlCommand cmd = new SqlCommand(query, conn))
