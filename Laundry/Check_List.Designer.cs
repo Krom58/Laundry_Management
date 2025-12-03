@@ -35,7 +35,6 @@
             this.label2 = new System.Windows.Forms.Label();
             this.txtCustomerFilter = new System.Windows.Forms.TextBox();
             this.Back = new System.Windows.Forms.Button();
-            this.dtpCreateDate = new System.Windows.Forms.DateTimePicker();
             this.btnSearch = new System.Windows.Forms.Button();
             this.dgvOrders = new System.Windows.Forms.DataGridView();
             this.txtSearchId = new System.Windows.Forms.TextBox();
@@ -48,6 +47,9 @@
             this.btnReprintReceipt = new System.Windows.Forms.Button();
             this.btnCancle = new System.Windows.Forms.Button();
             this.btnReprintReceiptWithCopy = new System.Windows.Forms.Button();
+            this.label1 = new System.Windows.Forms.Label();
+            this.dtpEndDate = new System.Windows.Forms.DateTimePicker();
+            this.dtpStartDate = new System.Windows.Forms.DateTimePicker();
             ((System.ComponentModel.ISupportInitialize)(this.dgvOrders)).BeginInit();
             this.SuspendLayout();
             // 
@@ -104,19 +106,11 @@
             this.Back.UseVisualStyleBackColor = true;
             this.Back.Click += new System.EventHandler(this.Back_Click);
             // 
-            // dtpCreateDate
-            // 
-            this.dtpCreateDate.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.dtpCreateDate.Location = new System.Drawing.Point(239, 106);
-            this.dtpCreateDate.Name = "dtpCreateDate";
-            this.dtpCreateDate.Size = new System.Drawing.Size(245, 51);
-            this.dtpCreateDate.TabIndex = 53;
-            // 
             // btnSearch
             // 
             this.btnSearch.AutoSize = true;
             this.btnSearch.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSearch.Location = new System.Drawing.Point(909, 107);
+            this.btnSearch.Location = new System.Drawing.Point(1111, 107);
             this.btnSearch.Name = "btnSearch";
             this.btnSearch.Size = new System.Drawing.Size(144, 53);
             this.btnSearch.TabIndex = 52;
@@ -172,7 +166,7 @@
             // 
             this.chkCompleted.AutoSize = true;
             this.chkCompleted.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkCompleted.Location = new System.Drawing.Point(709, 111);
+            this.chkCompleted.Location = new System.Drawing.Point(962, 111);
             this.chkCompleted.Name = "chkCompleted";
             this.chkCompleted.Size = new System.Drawing.Size(121, 47);
             this.chkCompleted.TabIndex = 65;
@@ -183,7 +177,7 @@
             // 
             this.chkPending.AutoSize = true;
             this.chkPending.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkPending.Location = new System.Drawing.Point(539, 111);
+            this.chkPending.Location = new System.Drawing.Point(792, 111);
             this.chkPending.Name = "chkPending";
             this.chkPending.Size = new System.Drawing.Size(130, 47);
             this.chkPending.TabIndex = 64;
@@ -262,11 +256,44 @@
             this.btnReprintReceiptWithCopy.UseVisualStyleBackColor = true;
             this.btnReprintReceiptWithCopy.Click += new System.EventHandler(this.btnReprintReceiptWithCopy_Click);
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label1.Location = new System.Drawing.Point(438, 112);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(82, 43);
+            this.label1.TabIndex = 73;
+            this.label1.Text = "ถึงวันที่";
+            // 
+            // dtpEndDate
+            // 
+            this.dtpEndDate.CustomFormat = "dd/MM/yyyy";
+            this.dtpEndDate.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.dtpEndDate.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
+            this.dtpEndDate.Location = new System.Drawing.Point(526, 106);
+            this.dtpEndDate.Name = "dtpEndDate";
+            this.dtpEndDate.Size = new System.Drawing.Size(245, 51);
+            this.dtpEndDate.TabIndex = 72;
+            // 
+            // dtpStartDate
+            // 
+            this.dtpStartDate.CustomFormat = "dd/MM/yyyy";
+            this.dtpStartDate.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.dtpStartDate.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
+            this.dtpStartDate.Location = new System.Drawing.Point(187, 106);
+            this.dtpStartDate.Name = "dtpStartDate";
+            this.dtpStartDate.Size = new System.Drawing.Size(245, 51);
+            this.dtpStartDate.TabIndex = 74;
+            // 
             // Check_List
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.dtpStartDate);
+            this.Controls.Add(this.label1);
+            this.Controls.Add(this.dtpEndDate);
             this.Controls.Add(this.btnReprintReceiptWithCopy);
             this.Controls.Add(this.btnCancle);
             this.Controls.Add(this.btnReprintReceipt);
@@ -283,7 +310,6 @@
             this.Controls.Add(this.label2);
             this.Controls.Add(this.txtCustomerFilter);
             this.Controls.Add(this.Back);
-            this.Controls.Add(this.dtpCreateDate);
             this.Controls.Add(this.btnSearch);
             this.Name = "Check_List";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
@@ -301,7 +327,6 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TextBox txtCustomerFilter;
         private System.Windows.Forms.Button Back;
-        private System.Windows.Forms.DateTimePicker dtpCreateDate;
         private System.Windows.Forms.Button btnSearch;
         private System.Windows.Forms.DataGridView dgvOrders;
         private System.Windows.Forms.TextBox txtSearchId;
@@ -314,5 +339,8 @@
         private System.Windows.Forms.Button btnReprintReceipt;
         private System.Windows.Forms.Button btnCancle;
         private System.Windows.Forms.Button btnReprintReceiptWithCopy;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.DateTimePicker dtpEndDate;
+        private System.Windows.Forms.DateTimePicker dtpStartDate;
     }
 }

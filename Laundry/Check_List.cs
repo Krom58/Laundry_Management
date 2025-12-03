@@ -25,8 +25,9 @@ namespace Laundry_Management.Laundry
             chkCompleted.CheckedChanged += chkCompleted_CheckedChanged;
             chkPending.CheckedChanged += chkPending_CheckedChanged;
 
-            // Add this line to wire up the DateTimePicker ValueChanged event
-            dtpCreateDate.ValueChanged += dtpCreateDate_ValueChanged;
+            // Wire up DateTimePicker ValueChanged events
+            dtpStartDate.ValueChanged += dtpStartDate_ValueChanged;
+            dtpEndDate.ValueChanged += dtpEndDate_ValueChanged;
 
             txtSearchId.KeyPress += TxtSearch_KeyPress;
             txtCustomerFilter.KeyPress += TxtSearch_KeyPress;
@@ -35,12 +36,15 @@ namespace Laundry_Management.Laundry
             chkPending.Checked = false;
             chkCompleted.Checked = false;
 
-            // Set date picker to today and checked
-            dtpCreateDate.Value = DateTime.Today;
-            dtpCreateDate.Checked = true;
+            // Set date pickers to today
+            dtpStartDate.Value = DateTime.Today;
+            dtpStartDate.Checked = true;
+
+            dtpEndDate.Value = DateTime.Today;
+            dtpEndDate.Checked = true;
 
             // Load today's orders by default
-            LoadOrders(null, null, DateTime.Today);
+            LoadOrders(null, null, DateTime.Today, DateTime.Today);
 
             dgvOrders.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dgvOrders.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
@@ -161,12 +165,12 @@ namespace Laundry_Management.Laundry
 
             return canceledOrders;
         }
-        private void LoadOrders(string customId = null, string customerName = null, DateTime? createDate = null)
+        // แก้ไข LoadOrders method
+        private void LoadOrders(string customId = null, string customerName = null, DateTime? startDate = null, DateTime? endDate = null)
         {
             string query = @"
 SELECT 
     o.OrderID, 
-    -- ถ้าต้องการให้ช่องหมายเลขใบเสร็จว่างเมื่อยกเลิก ก็ดีแล้วเพราะ r.CustomReceiptId จะเป็น NULL
     r.CustomReceiptId     AS 'หมายเลขใบเสร็จ',
     o.CustomOrderId       AS 'หมายเลขใบรับผ้า', 
     o.CustomerId,
@@ -190,7 +194,6 @@ LEFT JOIN Receipt r
     ON o.OrderID = r.OrderID
    AND r.ReceiptStatus <> N'ยกเลิกการพิมพ์'
 WHERE 
-    -- 1. ไม่เอา OrderStatus = 'รายการถูกยกเลิก'
     (o.OrderStatus <> N'รายการถูกยกเลิก'
     OR o.OrderStatus IS NULL)
 ";
@@ -220,17 +223,31 @@ WHERE
                 parameters.Add(new SqlParameter("@CustomerName", "%" + customerName + "%"));
             }
 
-            if (createDate.HasValue)
+            // แก้ไขส่วนนี้: ใช้ช่วงวันที่แทนวันเดียว
+            if (startDate.HasValue && endDate.HasValue)
             {
-                // แก้ไขตรงนี้: ค้นหาเฉพาะจากวันที่ใบรับผ้า (OrderDate) เท่านั้น
-                filters.Add("CAST(o.OrderDate AS DATE) = @OrderDate");
-                parameters.Add(new SqlParameter("@OrderDate", createDate.Value));
+                filters.Add("CAST(o.OrderDate AS DATE) BETWEEN @StartDate AND @EndDate");
+                parameters.Add(new SqlParameter("@StartDate", startDate.Value.Date));
+                parameters.Add(new SqlParameter("@EndDate", endDate.Value.Date));
+            }
+            else if (startDate.HasValue)
+            {
+                filters.Add("CAST(o.OrderDate AS DATE) >= @StartDate");
+                parameters.Add(new SqlParameter("@StartDate", startDate.Value.Date));
+            }
+            else if (endDate.HasValue)
+            {
+                filters.Add("CAST(o.OrderDate AS DATE) <= @EndDate");
+                parameters.Add(new SqlParameter("@EndDate", endDate.Value.Date));
             }
 
             if (filters.Count > 0)
             {
                 query += " AND " + string.Join(" AND ", filters);
             }
+
+            // **เพิ่มการเรียงลำดับตามวันที่จากน้อยไปมาก (เก่าสุดไปใหม่สุด)**
+            query += " ORDER BY o.OrderDate ASC, o.OrderID ASC";
 
             using (SqlConnection conn = DBconfig.GetConnection())
             using (SqlCommand cmd = new SqlCommand(query, conn))
@@ -255,20 +272,27 @@ WHERE
         {
             string searchId = txtSearchId.Text.Trim();
             string customerName = txtCustomerFilter.Text.Trim();
-            DateTime? createDate = dtpCreateDate.Checked ? (DateTime?)dtpCreateDate.Value.Date : null;
+            DateTime? startDate = dtpStartDate.Checked ? (DateTime?)dtpStartDate.Value.Date : null;
+            DateTime? endDate = dtpEndDate.Checked ? (DateTime?)dtpEndDate.Value.Date : null;
 
-            LoadOrders(searchId, customerName, createDate);
+            LoadOrders(searchId, customerName, startDate, endDate);
         }
 
         private void btnClear_Click(object sender, EventArgs e)
         {
             txtSearchId.Clear();
             txtCustomerFilter.Clear();
-            dtpCreateDate.Checked = true;
-            dtpCreateDate.Value = DateTime.Today;
+
+            dtpStartDate.Checked = true;
+            dtpStartDate.Value = DateTime.Today;
+
+            dtpEndDate.Checked = true;
+            dtpEndDate.Value = DateTime.Today;
+
             chkPending.Checked = false;
             chkCompleted.Checked = false;
-            LoadOrders(null, null, DateTime.Today);
+
+            LoadOrders(null, null, DateTime.Today, DateTime.Today);
         }
 
         private void Back_Click(object sender, EventArgs e)
@@ -299,13 +323,36 @@ WHERE
             // ดำเนินการค้นหาอีกครั้ง
             btnSearch_Click(sender, e);
         }
-        // Add this method to handle the DateTimePicker ValueChanged event
-        private void dtpCreateDate_ValueChanged(object sender, EventArgs e)
+
+        // เพิ่ม event handler สำหรับวันที่สิ้นสุด
+        private void dtpStartDate_ValueChanged(object sender, EventArgs e)
         {
-            // Only trigger search if the DateTimePicker is checked (date is selected)
-            if (dtpCreateDate.Checked)
+            if (dtpStartDate.Checked)
             {
-                // Call the existing search functionality
+                // Validate: Start date should not be after end date
+                if (dtpEndDate.Checked && dtpStartDate.Value.Date > dtpEndDate.Value.Date)
+                {
+                    MessageBox.Show("วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด", "แจ้งเตือน",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    dtpStartDate.Value = dtpEndDate.Value;
+                    return;
+                }
+                btnSearch_Click(sender, e);
+            }
+        }
+
+        private void dtpEndDate_ValueChanged(object sender, EventArgs e)
+        {
+            if (dtpEndDate.Checked)
+            {
+                // Validate: End date should not be before start date
+                if (dtpStartDate.Checked && dtpEndDate.Value.Date < dtpStartDate.Value.Date)
+                {
+                    MessageBox.Show("วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น", "แจ้งเตือน",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    dtpEndDate.Value = dtpStartDate.Value;
+                    return;
+                }
                 btnSearch_Click(sender, e);
             }
         }
@@ -830,9 +877,9 @@ WHERE
 
                 // เตรียมข้อมูลรายการที่ถูกยกเลิก (ถ้ามี)
                 List<CanceledOrderInfo> canceledOrders = null;
-                if (dtpCreateDate.Checked)
+                if (dtpStartDate.Checked)
                 {
-                    canceledOrders = GetCanceledOrdersForDate(dtpCreateDate.Value.Date);
+                    canceledOrders = GetCanceledOrdersForDate(dtpStartDate.Value.Date);
                 }
 
                 // Create a PrintDocument object
@@ -1066,7 +1113,7 @@ WHERE
                     // Left-aligned date/time info using the new left margin
                     DateTime today = DateTime.Now;
                     string dateTimeInfo = $"พิมพ์เมื่อ: {today.Day}/{today.Month}/{today.Year} {today.ToString("HH:mm:ss")}";
-                    string filterInfo = dtpCreateDate.Checked ? $"วันที่: {dtpCreateDate.Value.ToString("dd/MM/yyyy")}" : "ทุกวันที่";
+                    string filterInfo = dtpStartDate.Checked ? $"วันที่: {dtpStartDate.Value.ToString("dd/MM/yyyy")}" : "ทุกวันที่";
                     filterInfo += chkPending.Checked ? ", สถานะ: ยังไม่มารับ" :
                                   chkCompleted.Checked ? ", สถานะ: มารับแล้ว" : ", ทุกสถานะ";
 
@@ -1472,7 +1519,7 @@ WHERE
                     else
                     {
                         // Check if we should print canceled orders after the normal report
-                        if (!_canceledOrdersPrinted && dtpCreateDate.Checked &&
+                        if (!_canceledOrdersPrinted && dtpStartDate.Checked &&
                             canceledOrders != null && canceledOrders.Count > 0)
                         {
                             _currentPage = 0;
@@ -1537,8 +1584,8 @@ WHERE
                     sfd.Title = "บันทึกไฟล์ข้อมูล";
 
                     // Get date string for default filename
-                    string dateStr = dtpCreateDate.Checked
-                        ? dtpCreateDate.Value.ToString("yyyy-MM-dd")
+                    string dateStr = dtpStartDate.Checked
+                        ? dtpStartDate.Value.ToString("yyyy-MM-dd")
                         : DateTime.Today.ToString("yyyy-MM-dd");
 
                     sfd.FileName = $"รายงานข้อมูลการรับผ้า_{dateStr}";
@@ -1630,8 +1677,8 @@ WHERE
                         csv.AppendLine($"\"พิมพ์เมื่อ: {DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")}\"");
 
                         // Add filter information
-                        string filterInfo = dtpCreateDate.Checked ?
-                            $"วันที่: {dtpCreateDate.Value.ToString("dd/MM/yyyy")}" : "ทุกวันที่";
+                        string filterInfo = dtpStartDate.Checked ?
+                            $"วันที่: {dtpStartDate.Value.ToString("dd/MM/yyyy")}" : "ทุกวันที่";
                         filterInfo += chkPending.Checked ? ", สถานะ: ยังไม่มารับ" :
                                      chkCompleted.Checked ? ", สถานะ: มารับแล้ว" : ", ทุกสถานะ";
                         csv.AppendLine($"\"กรอง: {filterInfo}\"");
@@ -1917,7 +1964,7 @@ WHERE
                                 // Refresh the order list to reflect changes
                                 string searchId = txtSearchId.Text.Trim();
                                 string customerNameFilter = txtCustomerFilter.Text.Trim();
-                                DateTime? createDate = dtpCreateDate.Checked ? (DateTime?)dtpCreateDate.Value.Date : null;
+                                DateTime? createDate = dtpStartDate.Checked ? (DateTime?)dtpStartDate.Value.Date : null;
                                 LoadOrders(searchId, customerNameFilter, createDate);
                             }
                             catch (Exception ex)
@@ -2198,7 +2245,7 @@ WHERE
                     float yPosition = topMargin;
 
                     // Draw title for canceled orders page
-                    string title = "รายงานรายการที่ถูกยกเลิกในวันที่ " + dtpCreateDate.Value.ToString("dd/MM/yyyy");
+                    string title = "รายงานรายการที่ถูกยกเลิกในวันที่ " + dtpStartDate.Value.ToString("dd/MM/yyyy");
                     float titleX = leftMargin + (availableWidth / 2) - (e.Graphics.MeasureString(title, titleFont).Width / 2);
                     e.Graphics.DrawString(title, titleFont, Brushes.Black, titleX, yPosition);
                     yPosition += titleFont.GetHeight() * 1.2f;

@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +15,9 @@ namespace Laundry_Management.Laundry
     public partial class Pickup_List : Form
     {
         private bool _isInitializing = true;
+        private bool _isPrintSuccessful = false;
+        private string _printErrorMessage = "";
+        private int _currentPage = 0;
         
         public Pickup_List()
         {
@@ -30,6 +34,10 @@ namespace Laundry_Management.Laundry
             // Register event handlers for both date pickers
             dtpCreateDate.ValueChanged += DtpCreateDate_ValueChanged;
             dtpCreateDateEnd.ValueChanged += DtpCreateDate_ValueChanged;
+
+            // เพิ่ม event handlers สำหรับปุ่มพิมพ์และ Excel
+            btnPrint.Click += btnPrint_Click;
+            btnExcel.Click += btnExcel_Click;
 
             // กำหนดรูปแบบวันที่และค่าเริ่มต้น
             dtpCreateDate.Format = DateTimePickerFormat.Custom;
@@ -518,6 +526,480 @@ namespace Laundry_Management.Laundry
             {
                 MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}\n\nStackTrace: {ex.StackTrace}",
                     "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnPrint_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (dgvOrders.Rows.Count == 0)
+                {
+                    MessageBox.Show("ไม่มีข้อมูลที่จะพิมพ์", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Check for valid data before printing
+                bool hasValidRows = false;
+                foreach (DataGridViewRow row in dgvOrders.Rows)
+                {
+                    if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
+                    {
+                        hasValidRows = true;
+                        break;
+                    }
+                }
+
+                if (!hasValidRows)
+                {
+                    MessageBox.Show("ไม่พบข้อมูลที่พร้อมพิมพ์ กรุณาตรวจสอบข้อมูล", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Create a PrintDocument object
+                PrintDocument printDoc = new PrintDocument();
+                printDoc.DocumentName = "รายงานการมารับผ้า";
+
+                // กำหนดขนาดกระดาษเป็น A4
+                SetA4PaperSize(printDoc);
+
+                // Add handlers for print events
+                printDoc.PrintPage += PrintPage;
+                printDoc.EndPrint += PrintDoc_EndPrint;
+                printDoc.BeginPrint += (s, args) =>
+                {
+                    _currentPage = 0;
+                    _isPrintSuccessful = true;
+                    _printErrorMessage = "";
+                };
+
+                // Flag to track print status
+                _isPrintSuccessful = true;
+                _printErrorMessage = "";
+
+                // Create a PrintDialog
+                using (PrintDialog printDialog = new PrintDialog())
+                {
+                    printDialog.Document = printDoc;
+                    printDialog.UseEXDialog = true;
+                    printDialog.AllowSomePages = false;
+
+                    // Show the print dialog
+                    if (printDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        try
+                        {
+                            // Show print status
+                            Cursor = Cursors.WaitCursor;
+
+                            // Double-check paper size is still A4 before printing
+                            EnsureA4PaperSize(printDoc);
+
+                            // Reset pagination variables before printing
+                            _currentPage = 0;
+                            printDoc.Print();
+                        }
+                        catch (Exception ex)
+                        {
+                            _isPrintSuccessful = false;
+                            _printErrorMessage = ex.Message;
+                            MessageBox.Show($"เกิดข้อผิดพลาดในการพิมพ์: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                        finally
+                        {
+                            Cursor = Cursors.Default;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"เกิดข้อผิดพลาดในการเตรียมพิมพ์: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void SetA4PaperSize(PrintDocument printDoc)
+        {
+            bool foundA4 = false;
+            foreach (PaperSize ps in printDoc.PrinterSettings.PaperSizes)
+            {
+                if (ps.Kind == PaperKind.A4)
+                {
+                    printDoc.DefaultPageSettings.PaperSize = ps;
+                    foundA4 = true;
+                    break;
+                }
+            }
+
+            if (!foundA4)
+            {
+                PaperSize a4Size = new PaperSize("A4", 827, 1169);
+                printDoc.DefaultPageSettings.PaperSize = a4Size;
+            }
+
+            printDoc.DefaultPageSettings.Landscape = false;
+            printDoc.DefaultPageSettings.Margins = new Margins(40, 40, 40, 40);
+        }
+
+        private void EnsureA4PaperSize(PrintDocument printDoc)
+        {
+            PaperSize currentSize = printDoc.DefaultPageSettings.PaperSize;
+            bool isA4Size = (Math.Abs(currentSize.Width - 827) < 10 && Math.Abs(currentSize.Height - 1169) < 10) ||
+                            (Math.Abs(currentSize.Height - 827) < 10 && Math.Abs(currentSize.Width - 1169) < 10);
+
+            if (!isA4Size)
+            {
+                printDoc.DefaultPageSettings.PaperSize = new PaperSize("A4", 827, 1169);
+            }
+
+            printDoc.DefaultPageSettings.Landscape = false;
+        }
+
+        private void PrintDoc_EndPrint(object sender, PrintEventArgs e)
+        {
+            if (_isPrintSuccessful)
+            {
+                MessageBox.Show("พิมพ์รายงานเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else if (!string.IsNullOrEmpty(_printErrorMessage))
+            {
+                MessageBox.Show($"การพิมพ์ไม่สำเร็จ: {_printErrorMessage}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void PrintPage(object sender, PrintPageEventArgs e)
+        {
+            try
+            {
+                e.PageSettings.Landscape = false;
+
+                float leftMargin = e.MarginBounds.Left;
+                float topMargin = e.MarginBounds.Top;
+                float rightMargin = e.MarginBounds.Right;
+                float bottomMargin = e.MarginBounds.Bottom;
+                float availableWidth = rightMargin - leftMargin;
+                float availableHeight = bottomMargin - topMargin;
+
+                using (Font titleFont = new Font("Angsana New", 16, FontStyle.Bold))
+                using (Font headerFont = new Font("Angsana New", 11, FontStyle.Bold))
+                using (Font normalFont = new Font("Angsana New", 10))
+                using (Font smallFont = new Font("Angsana New", 9))
+                {
+                    float yPosition = topMargin;
+
+                    // Title
+                    string title = "รายงานการมารับผ้า";
+                    float titleX = leftMargin + (availableWidth / 2) - (e.Graphics.MeasureString(title, titleFont).Width / 2);
+                    e.Graphics.DrawString(title, titleFont, Brushes.Black, titleX, yPosition);
+                    yPosition += titleFont.GetHeight();
+
+                    // Draw line
+                    e.Graphics.DrawLine(new Pen(Color.Black, 1.5f), leftMargin, yPosition, leftMargin + availableWidth, yPosition);
+                    yPosition += 10;
+
+                    // Date range info
+                    string dateRangeInfo = $"ช่วงวันที่: {dtpCreateDate.Value.ToString("dd/MM/yyyy")} ถึง {dtpCreateDateEnd.Value.ToString("dd/MM/yyyy")}";
+
+                    // Print date/time
+                    DateTime today = DateTime.Now;
+                    string dateTimeInfo = $"พิมพ์เมื่อ: {today.ToString("dd/MM/yyyy HH:mm:ss")}";
+                    e.Graphics.DrawString(dateTimeInfo, normalFont, Brushes.Black, leftMargin, yPosition);
+
+                    // Status filter info
+                    string statusInfo = chkNotPickup.Checked ? "สถานะ: ยังไม่มารับ" :
+                                       chkPickedup.Checked ? "สถานะ: มารับแล้ว" : "ทุกสถานะ";
+                    float statusX = rightMargin - e.Graphics.MeasureString(statusInfo, normalFont).Width;
+                    e.Graphics.DrawString(statusInfo, normalFont, Brushes.Black, statusX, yPosition);
+                    yPosition += normalFont.GetHeight() * 1.5f;
+
+                    // Column definitions
+                    string[] columnNames = new string[] {
+                        "ลำดับ",
+                        "หมายเลข\nใบรับผ้า",
+                        "หมายเลข\nใบเสร็จ",
+                        "ชื่อลูกค้า",
+                        "เบอร์โทร",
+                        "วันที่\nส่งผ้า",
+                        "วันที่\nครบกำหนด",
+                        "สถานะ",
+                        "วันที่\nมารับ"
+                    };
+
+                    float[] columnWidthPercentages = new float[] {
+                        0.06f, // ลำดับ
+                        0.12f, // หมายเลขใบรับผ้า
+                        0.12f, // หมายเลขใบเสร็จ
+                        0.16f, // ชื่อลูกค้า
+                        0.12f, // เบอร์โทร
+                        0.12f, // วันที่ส่งผ้า
+                        0.12f, // วันที่ครบกำหนด
+                        0.10f, // สถานะ
+                        0.12f  // วันที่มารับ
+                    };
+
+                    float[] columnWidths = new float[columnWidthPercentages.Length];
+                    for (int i = 0; i < columnWidthPercentages.Length; i++)
+                    {
+                        columnWidths[i] = availableWidth * columnWidthPercentages[i];
+                    }
+
+                    // Draw table header
+                    float headerHeight = headerFont.GetHeight() * 2.5f;
+                    float currentX = leftMargin;
+
+                    for (int i = 0; i < columnNames.Length; i++)
+                    {
+                        RectangleF headerRect = new RectangleF(currentX, yPosition, columnWidths[i], headerHeight);
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Center;
+                            sf.LineAlignment = StringAlignment.Center;
+                            sf.FormatFlags = StringFormatFlags.LineLimit | StringFormatFlags.NoClip;
+
+                            e.Graphics.FillRectangle(Brushes.LightGray, headerRect);
+                            e.Graphics.DrawRectangle(Pens.Black, headerRect.X, headerRect.Y, headerRect.Width, headerRect.Height);
+                            e.Graphics.DrawString(columnNames[i], headerFont, Brushes.Black, headerRect, sf);
+                        }
+                        currentX += columnWidths[i];
+                    }
+                    yPosition += headerHeight;
+
+                    // Calculate rows per page
+                    float rowHeight = normalFont.GetHeight() * 1.2f;
+                    int rowsPerPage = (int)((availableHeight - (yPosition - topMargin) - 40) / rowHeight);
+
+                    // Calculate row range for current page
+                    int startRow = _currentPage * rowsPerPage;
+                    int endRow = Math.Min(startRow + rowsPerPage, dgvOrders.Rows.Count);
+
+                    // Print data rows
+                    int sequenceNumber = startRow + 1;
+                    for (int i = startRow; i < endRow; i++)
+                    {
+                        DataGridViewRow row = dgvOrders.Rows[i];
+
+                        if (row.Cells["หมายเลขใบรับผ้า"].Value == null)
+                            continue;
+
+                        currentX = leftMargin;
+
+                        // Sequence number
+                        RectangleF seqRect = new RectangleF(currentX, yPosition, columnWidths[0], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            e.Graphics.DrawString(sequenceNumber.ToString(), normalFont, Brushes.Black, seqRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, seqRect.X, seqRect.Y, seqRect.Width, seqRect.Height);
+                        }
+                        currentX += columnWidths[0];
+
+                        // Data columns
+                        string[] dataColumns = new string[] {
+                            "หมายเลขใบรับผ้า",
+                            "หมายเลขใบเสร็จ",
+                            "ชื่อลูกค้า",
+                            "เบอร์โทรศัพท์",
+                            "วันที่ส่งผ้า",
+                            "วันที่ครบกำหนด",
+                            "สถานะ",
+                            "วันที่มารับ"
+                        };
+
+                        for (int j = 0; j < dataColumns.Length; j++)
+                        {
+                            string cellValue = "";
+                            try
+                            {
+                                if (row.Cells[dataColumns[j]].Value != null && row.Cells[dataColumns[j]].Value != DBNull.Value)
+                                {
+                                    if (dataColumns[j].Contains("วันที่"))
+                                    {
+                                        DateTime date = Convert.ToDateTime(row.Cells[dataColumns[j]].Value);
+                                        cellValue = date.ToString("dd/MM/yy");
+                                    }
+                                    else
+                                    {
+                                        cellValue = row.Cells[dataColumns[j]].Value.ToString();
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                cellValue = "-";
+                            }
+
+                            RectangleF cellRect = new RectangleF(currentX, yPosition, columnWidths[j + 1], rowHeight);
+                            using (StringFormat sf = new StringFormat())
+                            {
+                                sf.Alignment = StringAlignment.Center;
+                                sf.LineAlignment = StringAlignment.Center;
+                                sf.Trimming = StringTrimming.EllipsisCharacter;
+
+                                if (dataColumns[j] == "สถานะ" && !string.IsNullOrEmpty(cellValue))
+                                {
+                                    using (SolidBrush statusBrush = new SolidBrush(cellValue == "มารับแล้ว" ? Color.Green : Color.Blue))
+                                    {
+                                        e.Graphics.DrawString(cellValue, normalFont, statusBrush, cellRect, sf);
+                                    }
+                                }
+                                else
+                                {
+                                    e.Graphics.DrawString(cellValue, normalFont, Brushes.Black, cellRect, sf);
+                                }
+
+                                e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
+                            }
+                            currentX += columnWidths[j + 1];
+                        }
+
+                        yPosition += rowHeight;
+                        sequenceNumber++;
+                    }
+
+                    // Page number
+                    int totalValidRows = dgvOrders.Rows.Cast<DataGridViewRow>().Count(r =>
+                        r.Cells["หมายเลขใบรับผ้า"].Value != null);
+                    int totalPages = (int)Math.Ceiling((double)totalValidRows / rowsPerPage);
+                    if (totalPages == 0) totalPages = 1;
+
+                    string pageText = $"หน้า {_currentPage + 1} จาก {totalPages}";
+                    e.Graphics.DrawString(pageText, smallFont, Brushes.Black,
+                        rightMargin - e.Graphics.MeasureString(pageText, smallFont).Width, bottomMargin);
+
+                    // Check if more pages needed
+                    if (endRow < dgvOrders.Rows.Count)
+                    {
+                        _currentPage++;
+                        e.HasMorePages = true;
+                    }
+                    else
+                    {
+                        _currentPage = 0;
+                        e.HasMorePages = false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _isPrintSuccessful = false;
+                _printErrorMessage = ex.Message;
+                using (Font errorFont = new Font("Angsana New", 14, FontStyle.Bold))
+                {
+                    string errorMsg = $"เกิดข้อผิดพลาดในการพิมพ์: {ex.Message}";
+                    e.Graphics.DrawString(errorMsg, errorFont, Brushes.Red, e.MarginBounds.Left, e.MarginBounds.Top + 100);
+                }
+                e.HasMorePages = false;
+            }
+        }
+
+        private void btnExcel_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (dgvOrders.Rows.Count == 0)
+                {
+                    MessageBox.Show("ไม่มีข้อมูลที่จะส่งออก", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Check for valid data
+                bool hasValidRows = false;
+                foreach (DataGridViewRow row in dgvOrders.Rows)
+                {
+                    if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
+                    {
+                        hasValidRows = true;
+                        break;
+                    }
+                }
+
+                if (!hasValidRows)
+                {
+                    MessageBox.Show("ไม่พบข้อมูลที่พร้อมส่งออก กรุณาตรวจสอบข้อมูล", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                using (SaveFileDialog sfd = new SaveFileDialog())
+                {
+                    sfd.Filter = "CSV Files|*.csv|Excel Files|*.xls";
+                    sfd.Title = "บันทึกไฟล์ข้อมูล";
+
+                    string dateStr = dtpCreateDate.Value.ToString("yyyy-MM-dd") + "_ถึง_" + dtpCreateDateEnd.Value.ToString("yyyy-MM-dd");
+                    sfd.FileName = $"รายงานการมารับผ้า_{dateStr}";
+
+                    if (sfd.ShowDialog() == DialogResult.OK)
+                    {
+                        Cursor = Cursors.WaitCursor;
+
+                        var columnNames = new List<string> {
+                            "หมายเลขใบรับผ้า", "หมายเลขใบเสร็จ", "ชื่อลูกค้า", "เบอร์โทรศัพท์",
+                            "วันที่ส่งผ้า", "วันที่ครบกำหนด", "สถานะ", "วันที่มารับ"
+                        };
+
+                        StringBuilder csv = new StringBuilder();
+                        csv.Append("\uFEFF"); // UTF-8 BOM
+
+                        // Header row
+                        csv.AppendLine(string.Join(",", columnNames.Select(name => $"\"{name}\"")));
+
+                        // Data rows
+                        int validRowCount = 0;
+                        foreach (DataGridViewRow row in dgvOrders.Rows)
+                        {
+                            if (row.Cells["หมายเลขใบรับผ้า"].Value == null)
+                                continue;
+
+                            validRowCount++;
+                            var rowValues = new List<string>();
+
+                            foreach (string col in columnNames)
+                            {
+                                string value = "";
+                                if (row.Cells[col].Value != null && row.Cells[col].Value != DBNull.Value)
+                                {
+                                    if (col.Contains("วันที่") && row.Cells[col].Value is DateTime date)
+                                    {
+                                        value = date.ToString("dd/MM/yyyy HH:mm");
+                                    }
+                                    else
+                                    {
+                                        value = row.Cells[col].Value.ToString();
+                                    }
+
+                                    if (col == "เบอร์โทรศัพท์" || col == "หมายเลขใบรับผ้า" || col == "หมายเลขใบเสร็จ")
+                                    {
+                                        value = $"=\"{value}\"";
+                                    }
+
+                                    value = value.Replace("\"", "\"\"");
+                                }
+                                rowValues.Add($"\"{value}\"");
+                            }
+                            csv.AppendLine(string.Join(",", rowValues));
+                        }
+
+                        // Summary
+                        csv.AppendLine();
+                        csv.AppendLine($"\"จำนวนรายการทั้งหมด {validRowCount} รายการ\"");
+                        csv.AppendLine();
+                        csv.AppendLine("\"รายงานการมารับผ้า\"");
+                        csv.AppendLine($"\"พิมพ์เมื่อ: {DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")}\"");
+
+                        string filterInfo = "ช่วงวันที่: " + dtpCreateDate.Value.ToString("dd/MM/yyyy") + " ถึง " + dtpCreateDateEnd.Value.ToString("dd/MM/yyyy");
+                        filterInfo += chkNotPickup.Checked ? ", สถานะ: ยังไม่มารับ" :
+                                     chkPickedup.Checked ? ", สถานะ: มารับแล้ว" : ", ทุกสถานะ";
+                        csv.AppendLine($"\"กรอง: {filterInfo}\"");
+
+                        System.IO.File.WriteAllText(sfd.FileName, csv.ToString());
+
+                        Cursor = Cursors.Default;
+                        MessageBox.Show("ส่งออกข้อมูลเรียบร้อยแล้ว", "สำเร็จ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Cursor = Cursors.Default;
+                MessageBox.Show($"เกิดข้อผิดพลาดในการส่งออกข้อมูล: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
