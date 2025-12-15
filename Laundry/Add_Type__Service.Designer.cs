@@ -28,8 +28,8 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle11 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle12 = new System.Windows.Forms.DataGridViewCellStyle();
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
             this.ItemName = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
@@ -49,28 +49,32 @@
             this.Search = new System.Windows.Forms.Button();
             this.chkNotUse = new System.Windows.Forms.CheckBox();
             this.chkUsing = new System.Windows.Forms.CheckBox();
+            this.btnFirstPage = new System.Windows.Forms.Button();
+            this.btnNextPage = new System.Windows.Forms.Button();
+            this.btnPreviousPage = new System.Windows.Forms.Button();
+            this.btnLastPage = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.SuspendLayout();
             // 
             // dataGridView1
             // 
-            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle11.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle11.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle11.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle11.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle11.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle11.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle11.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle11;
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle12.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle12.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle12.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle12.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle12.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle12.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle12.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle12;
             this.dataGridView1.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.dataGridView1.Location = new System.Drawing.Point(0, 336);
             this.dataGridView1.Name = "dataGridView1";
@@ -81,7 +85,7 @@
             // ItemName
             // 
             this.ItemName.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.ItemName.Location = new System.Drawing.Point(134, 117);
+            this.ItemName.Location = new System.Drawing.Point(130, 12);
             this.ItemName.Name = "ItemName";
             this.ItemName.Size = new System.Drawing.Size(516, 51);
             this.ItemName.TabIndex = 2;
@@ -90,7 +94,7 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(12, 120);
+            this.label1.Location = new System.Drawing.Point(8, 15);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(116, 43);
             this.label1.TabIndex = 3;
@@ -100,7 +104,7 @@
             // 
             this.ServiceType.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ServiceType.FormattingEnabled = true;
-            this.ServiceType.Location = new System.Drawing.Point(820, 117);
+            this.ServiceType.Location = new System.Drawing.Point(816, 12);
             this.ServiceType.Name = "ServiceType";
             this.ServiceType.Size = new System.Drawing.Size(406, 51);
             this.ServiceType.TabIndex = 4;
@@ -109,7 +113,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(667, 120);
+            this.label2.Location = new System.Drawing.Point(663, 15);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(147, 43);
             this.label2.TabIndex = 5;
@@ -131,7 +135,7 @@
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(1257, 120);
+            this.label3.Location = new System.Drawing.Point(1253, 15);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(51, 43);
             this.label3.TabIndex = 7;
@@ -141,7 +145,7 @@
             // 
             this.Gender.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Gender.FormattingEnabled = true;
-            this.Gender.Location = new System.Drawing.Point(1314, 117);
+            this.Gender.Location = new System.Drawing.Point(1310, 12);
             this.Gender.Name = "Gender";
             this.Gender.Size = new System.Drawing.Size(406, 51);
             this.Gender.TabIndex = 8;
@@ -150,7 +154,7 @@
             // 
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(67, 218);
+            this.label4.Location = new System.Drawing.Point(63, 113);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(61, 43);
             this.label4.TabIndex = 10;
@@ -159,7 +163,7 @@
             // Price
             // 
             this.Price.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Price.Location = new System.Drawing.Point(134, 215);
+            this.Price.Location = new System.Drawing.Point(130, 110);
             this.Price.Name = "Price";
             this.Price.Size = new System.Drawing.Size(142, 51);
             this.Price.TabIndex = 11;
@@ -168,7 +172,7 @@
             // 
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label5.Location = new System.Drawing.Point(282, 218);
+            this.label5.Location = new System.Drawing.Point(278, 113);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(56, 43);
             this.label5.TabIndex = 12;
@@ -178,7 +182,7 @@
             // 
             this.Save.AutoSize = true;
             this.Save.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Save.Location = new System.Drawing.Point(1748, 277);
+            this.Save.Location = new System.Drawing.Point(1748, 108);
             this.Save.Name = "Save";
             this.Save.Size = new System.Drawing.Size(144, 53);
             this.Save.TabIndex = 13;
@@ -191,7 +195,7 @@
             this.Delete.AutoSize = true;
             this.Delete.Enabled = false;
             this.Delete.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Delete.Location = new System.Drawing.Point(1401, 277);
+            this.Delete.Location = new System.Drawing.Point(1401, 108);
             this.Delete.Name = "Delete";
             this.Delete.Size = new System.Drawing.Size(144, 53);
             this.Delete.TabIndex = 17;
@@ -203,7 +207,7 @@
             // ItemNumber
             // 
             this.ItemNumber.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.ItemNumber.Location = new System.Drawing.Point(609, 215);
+            this.ItemNumber.Location = new System.Drawing.Point(605, 110);
             this.ItemNumber.Name = "ItemNumber";
             this.ItemNumber.Size = new System.Drawing.Size(142, 51);
             this.ItemNumber.TabIndex = 19;
@@ -212,7 +216,7 @@
             // 
             this.label7.AutoSize = true;
             this.label7.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label7.Location = new System.Drawing.Point(441, 218);
+            this.label7.Location = new System.Drawing.Point(437, 113);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(162, 43);
             this.label7.TabIndex = 18;
@@ -222,7 +226,7 @@
             // 
             this.btnModify.AutoSize = true;
             this.btnModify.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnModify.Location = new System.Drawing.Point(1576, 277);
+            this.btnModify.Location = new System.Drawing.Point(1576, 108);
             this.btnModify.Name = "btnModify";
             this.btnModify.Size = new System.Drawing.Size(144, 53);
             this.btnModify.TabIndex = 43;
@@ -234,7 +238,7 @@
             // 
             this.Search.AutoSize = true;
             this.Search.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Search.Location = new System.Drawing.Point(1102, 213);
+            this.Search.Location = new System.Drawing.Point(1102, 108);
             this.Search.Name = "Search";
             this.Search.Size = new System.Drawing.Size(144, 53);
             this.Search.TabIndex = 44;
@@ -246,7 +250,7 @@
             // 
             this.chkNotUse.AutoSize = true;
             this.chkNotUse.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkNotUse.Location = new System.Drawing.Point(957, 217);
+            this.chkNotUse.Location = new System.Drawing.Point(953, 112);
             this.chkNotUse.Name = "chkNotUse";
             this.chkNotUse.Size = new System.Drawing.Size(119, 47);
             this.chkNotUse.TabIndex = 52;
@@ -257,18 +261,70 @@
             // 
             this.chkUsing.AutoSize = true;
             this.chkUsing.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkUsing.Location = new System.Drawing.Point(820, 217);
+            this.chkUsing.Location = new System.Drawing.Point(816, 112);
             this.chkUsing.Name = "chkUsing";
             this.chkUsing.Size = new System.Drawing.Size(95, 47);
             this.chkUsing.TabIndex = 51;
             this.chkUsing.Text = "ใช้งาน";
             this.chkUsing.UseVisualStyleBackColor = true;
             // 
+            // btnFirstPage
+            // 
+            this.btnFirstPage.AutoSize = true;
+            this.btnFirstPage.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnFirstPage.Location = new System.Drawing.Point(1227, 218);
+            this.btnFirstPage.Name = "btnFirstPage";
+            this.btnFirstPage.Size = new System.Drawing.Size(144, 53);
+            this.btnFirstPage.TabIndex = 56;
+            this.btnFirstPage.Text = "หน้าแรก";
+            this.btnFirstPage.UseVisualStyleBackColor = true;
+            this.btnFirstPage.Click += new System.EventHandler(this.btnFirstPage_Click);
+            // 
+            // btnNextPage
+            // 
+            this.btnNextPage.AutoSize = true;
+            this.btnNextPage.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnNextPage.Location = new System.Drawing.Point(1576, 218);
+            this.btnNextPage.Name = "btnNextPage";
+            this.btnNextPage.Size = new System.Drawing.Size(144, 53);
+            this.btnNextPage.TabIndex = 55;
+            this.btnNextPage.Text = "ถัดไป";
+            this.btnNextPage.UseVisualStyleBackColor = true;
+            this.btnNextPage.Click += new System.EventHandler(this.btnNextPage_Click);
+            // 
+            // btnPreviousPage
+            // 
+            this.btnPreviousPage.AutoSize = true;
+            this.btnPreviousPage.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnPreviousPage.Location = new System.Drawing.Point(1401, 218);
+            this.btnPreviousPage.Name = "btnPreviousPage";
+            this.btnPreviousPage.Size = new System.Drawing.Size(144, 53);
+            this.btnPreviousPage.TabIndex = 54;
+            this.btnPreviousPage.Text = "ก่อนหน้า";
+            this.btnPreviousPage.UseVisualStyleBackColor = true;
+            this.btnPreviousPage.Click += new System.EventHandler(this.btnPreviousPage_Click);
+            // 
+            // btnLastPage
+            // 
+            this.btnLastPage.AutoSize = true;
+            this.btnLastPage.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnLastPage.Location = new System.Drawing.Point(1748, 218);
+            this.btnLastPage.Name = "btnLastPage";
+            this.btnLastPage.Size = new System.Drawing.Size(144, 53);
+            this.btnLastPage.TabIndex = 53;
+            this.btnLastPage.Text = "หน้าสุดท้าย";
+            this.btnLastPage.UseVisualStyleBackColor = true;
+            this.btnLastPage.Click += new System.EventHandler(this.btnLastPage_Click);
+            // 
             // Add_Type__Service
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.btnFirstPage);
+            this.Controls.Add(this.btnNextPage);
+            this.Controls.Add(this.btnPreviousPage);
+            this.Controls.Add(this.btnLastPage);
             this.Controls.Add(this.chkNotUse);
             this.Controls.Add(this.chkUsing);
             this.Controls.Add(this.Search);
@@ -318,6 +374,10 @@
         private System.Windows.Forms.Button Search;
         private System.Windows.Forms.CheckBox chkNotUse;
         private System.Windows.Forms.CheckBox chkUsing;
+        private System.Windows.Forms.Button btnFirstPage;
+        private System.Windows.Forms.Button btnNextPage;
+        private System.Windows.Forms.Button btnPreviousPage;
+        private System.Windows.Forms.Button btnLastPage;
     }
 }
 

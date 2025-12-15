@@ -134,6 +134,12 @@
     <Compile Include="Laundry\Modify_Type_Service.Designer.cs">
       <DependentUpon>Modify_Type_Service.cs</DependentUpon>
     </Compile>
+    <Compile Include="Laundry\OverallReport.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Laundry\OverallReport.Designer.cs">
+      <DependentUpon>OverallReport.cs</DependentUpon>
+    </Compile>
     <Compile Include="Laundry\Pickup_List.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -228,6 +234,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Laundry\Modify_Type_Service.resx">
       <DependentUpon>Modify_Type_Service.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Laundry\OverallReport.resx">
+      <DependentUpon>OverallReport.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Laundry\Pickup_List.resx">
       <DependentUpon>Pickup_List.cs</DependentUpon>

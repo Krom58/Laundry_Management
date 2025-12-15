@@ -28,8 +28,8 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle17 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle18 = new System.Windows.Forms.DataGridViewCellStyle();
             this.label3 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.txtCustomerFilter = new System.Windows.Forms.TextBox();
@@ -47,6 +47,10 @@
             this.dtpCreateDateEnd = new System.Windows.Forms.DateTimePicker();
             this.btnPrint = new System.Windows.Forms.Button();
             this.btnExcel = new System.Windows.Forms.Button();
+            this.btnFirstPage = new System.Windows.Forms.Button();
+            this.btnNextPage = new System.Windows.Forms.Button();
+            this.btnPreviousPage = new System.Windows.Forms.Button();
+            this.btnLastPage = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dgvOrders)).BeginInit();
             this.SuspendLayout();
             // 
@@ -54,7 +58,7 @@
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(164, 154);
+            this.label3.Location = new System.Drawing.Point(12, 85);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(59, 43);
             this.label3.TabIndex = 58;
@@ -64,7 +68,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(725, 47);
+            this.label2.Location = new System.Drawing.Point(577, 9);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(129, 43);
             this.label2.TabIndex = 57;
@@ -73,7 +77,7 @@
             // txtCustomerFilter
             // 
             this.txtCustomerFilter.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtCustomerFilter.Location = new System.Drawing.Point(860, 44);
+            this.txtCustomerFilter.Location = new System.Drawing.Point(712, 6);
             this.txtCustomerFilter.Name = "txtCustomerFilter";
             this.txtCustomerFilter.Size = new System.Drawing.Size(516, 51);
             this.txtCustomerFilter.TabIndex = 56;
@@ -94,7 +98,7 @@
             // txtOrderId
             // 
             this.txtOrderId.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtOrderId.Location = new System.Drawing.Point(495, 44);
+            this.txtOrderId.Location = new System.Drawing.Point(347, 6);
             this.txtOrderId.Name = "txtOrderId";
             this.txtOrderId.Size = new System.Drawing.Size(174, 51);
             this.txtOrderId.TabIndex = 54;
@@ -104,7 +108,7 @@
             this.dtpCreateDate.CustomFormat = "dd/MM/yyyy";
             this.dtpCreateDate.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.dtpCreateDate.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            this.dtpCreateDate.Location = new System.Drawing.Point(229, 148);
+            this.dtpCreateDate.Location = new System.Drawing.Point(77, 79);
             this.dtpCreateDate.Name = "dtpCreateDate";
             this.dtpCreateDate.Size = new System.Drawing.Size(245, 51);
             this.dtpCreateDate.TabIndex = 53;
@@ -113,7 +117,7 @@
             // 
             this.btnSearch.AutoSize = true;
             this.btnSearch.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSearch.Location = new System.Drawing.Point(1232, 149);
+            this.btnSearch.Location = new System.Drawing.Point(1084, 80);
             this.btnSearch.Name = "btnSearch";
             this.btnSearch.Size = new System.Drawing.Size(144, 53);
             this.btnSearch.TabIndex = 52;
@@ -125,7 +129,7 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(160, 47);
+            this.label1.Location = new System.Drawing.Point(12, 9);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(329, 43);
             this.label1.TabIndex = 51;
@@ -133,23 +137,23 @@
             // 
             // dgvOrders
             // 
-            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle1.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dgvOrders.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle17.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle17.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle17.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle17.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle17.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle17.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle17.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dgvOrders.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle17;
             this.dgvOrders.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dgvOrders.DefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle18.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle18.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle18.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle18.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle18.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle18.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle18.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dgvOrders.DefaultCellStyle = dataGridViewCellStyle18;
             this.dgvOrders.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.dgvOrders.Location = new System.Drawing.Point(0, 303);
             this.dgvOrders.Name = "dgvOrders";
@@ -161,7 +165,7 @@
             // 
             this.Customer_Pickup_Check.AutoSize = true;
             this.Customer_Pickup_Check.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Customer_Pickup_Check.Location = new System.Drawing.Point(1727, 244);
+            this.Customer_Pickup_Check.Location = new System.Drawing.Point(247, 170);
             this.Customer_Pickup_Check.Name = "Customer_Pickup_Check";
             this.Customer_Pickup_Check.Size = new System.Drawing.Size(165, 53);
             this.Customer_Pickup_Check.TabIndex = 59;
@@ -173,7 +177,7 @@
             // 
             this.chkPickedup.AutoSize = true;
             this.chkPickedup.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkPickedup.Location = new System.Drawing.Point(1064, 155);
+            this.chkPickedup.Location = new System.Drawing.Point(912, 86);
             this.chkPickedup.Name = "chkPickedup";
             this.chkPickedup.Size = new System.Drawing.Size(121, 47);
             this.chkPickedup.TabIndex = 63;
@@ -184,7 +188,7 @@
             // 
             this.chkNotPickup.AutoSize = true;
             this.chkNotPickup.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkNotPickup.Location = new System.Drawing.Point(860, 155);
+            this.chkNotPickup.Location = new System.Drawing.Point(708, 86);
             this.chkNotPickup.Name = "chkNotPickup";
             this.chkNotPickup.Size = new System.Drawing.Size(130, 47);
             this.chkNotPickup.TabIndex = 62;
@@ -195,7 +199,7 @@
             // 
             this.btnCancel.AutoSize = true;
             this.btnCancel.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnCancel.Location = new System.Drawing.Point(1500, 244);
+            this.btnCancel.Location = new System.Drawing.Point(20, 170);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(165, 53);
             this.btnCancel.TabIndex = 64;
@@ -207,7 +211,7 @@
             // 
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(480, 154);
+            this.label4.Location = new System.Drawing.Point(328, 85);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(82, 43);
             this.label4.TabIndex = 66;
@@ -218,7 +222,7 @@
             this.dtpCreateDateEnd.CustomFormat = "dd/MM/yyyy";
             this.dtpCreateDateEnd.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.dtpCreateDateEnd.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            this.dtpCreateDateEnd.Location = new System.Drawing.Point(568, 148);
+            this.dtpCreateDateEnd.Location = new System.Drawing.Point(416, 79);
             this.dtpCreateDateEnd.Name = "dtpCreateDateEnd";
             this.dtpCreateDateEnd.Size = new System.Drawing.Size(245, 51);
             this.dtpCreateDateEnd.TabIndex = 65;
@@ -227,7 +231,7 @@
             // 
             this.btnPrint.AutoSize = true;
             this.btnPrint.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnPrint.Location = new System.Drawing.Point(12, 244);
+            this.btnPrint.Location = new System.Drawing.Point(1566, 80);
             this.btnPrint.Name = "btnPrint";
             this.btnPrint.Size = new System.Drawing.Size(144, 53);
             this.btnPrint.TabIndex = 69;
@@ -238,18 +242,70 @@
             // 
             this.btnExcel.AutoSize = true;
             this.btnExcel.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnExcel.Location = new System.Drawing.Point(194, 244);
+            this.btnExcel.Location = new System.Drawing.Point(1748, 80);
             this.btnExcel.Name = "btnExcel";
             this.btnExcel.Size = new System.Drawing.Size(144, 53);
             this.btnExcel.TabIndex = 68;
             this.btnExcel.Text = "Excel";
             this.btnExcel.UseVisualStyleBackColor = true;
             // 
+            // btnFirstPage
+            // 
+            this.btnFirstPage.AutoSize = true;
+            this.btnFirstPage.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnFirstPage.Location = new System.Drawing.Point(1227, 170);
+            this.btnFirstPage.Name = "btnFirstPage";
+            this.btnFirstPage.Size = new System.Drawing.Size(144, 53);
+            this.btnFirstPage.TabIndex = 97;
+            this.btnFirstPage.Text = "หน้าแรก";
+            this.btnFirstPage.UseVisualStyleBackColor = true;
+            this.btnFirstPage.Click += new System.EventHandler(this.btnFirstPage_Click);
+            // 
+            // btnNextPage
+            // 
+            this.btnNextPage.AutoSize = true;
+            this.btnNextPage.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnNextPage.Location = new System.Drawing.Point(1576, 170);
+            this.btnNextPage.Name = "btnNextPage";
+            this.btnNextPage.Size = new System.Drawing.Size(144, 53);
+            this.btnNextPage.TabIndex = 96;
+            this.btnNextPage.Text = "ถัดไป";
+            this.btnNextPage.UseVisualStyleBackColor = true;
+            this.btnNextPage.Click += new System.EventHandler(this.btnNextPage_Click);
+            // 
+            // btnPreviousPage
+            // 
+            this.btnPreviousPage.AutoSize = true;
+            this.btnPreviousPage.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnPreviousPage.Location = new System.Drawing.Point(1401, 170);
+            this.btnPreviousPage.Name = "btnPreviousPage";
+            this.btnPreviousPage.Size = new System.Drawing.Size(144, 53);
+            this.btnPreviousPage.TabIndex = 95;
+            this.btnPreviousPage.Text = "ก่อนหน้า";
+            this.btnPreviousPage.UseVisualStyleBackColor = true;
+            this.btnPreviousPage.Click += new System.EventHandler(this.btnPreviousPage_Click);
+            // 
+            // btnLastPage
+            // 
+            this.btnLastPage.AutoSize = true;
+            this.btnLastPage.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnLastPage.Location = new System.Drawing.Point(1748, 170);
+            this.btnLastPage.Name = "btnLastPage";
+            this.btnLastPage.Size = new System.Drawing.Size(144, 53);
+            this.btnLastPage.TabIndex = 94;
+            this.btnLastPage.Text = "หน้าสุดท้าย";
+            this.btnLastPage.UseVisualStyleBackColor = true;
+            this.btnLastPage.Click += new System.EventHandler(this.btnLastPage_Click);
+            // 
             // Pickup_List
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.btnFirstPage);
+            this.Controls.Add(this.btnNextPage);
+            this.Controls.Add(this.btnPreviousPage);
+            this.Controls.Add(this.btnLastPage);
             this.Controls.Add(this.btnPrint);
             this.Controls.Add(this.btnExcel);
             this.Controls.Add(this.label4);
@@ -294,5 +350,9 @@
         private System.Windows.Forms.DateTimePicker dtpCreateDateEnd;
         private System.Windows.Forms.Button btnPrint;
         private System.Windows.Forms.Button btnExcel;
+        private System.Windows.Forms.Button btnFirstPage;
+        private System.Windows.Forms.Button btnNextPage;
+        private System.Windows.Forms.Button btnPreviousPage;
+        private System.Windows.Forms.Button btnLastPage;
     }
 }

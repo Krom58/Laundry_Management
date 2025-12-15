@@ -109,7 +109,7 @@
             // 
             this.Save.AutoSize = true;
             this.Save.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Save.Location = new System.Drawing.Point(1748, 277);
+            this.Save.Location = new System.Drawing.Point(1748, 207);
             this.Save.Name = "Save";
             this.Save.Size = new System.Drawing.Size(144, 53);
             this.Save.TabIndex = 36;
@@ -157,7 +157,7 @@
             // 
             this.btnDelete.AutoSize = true;
             this.btnDelete.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnDelete.Location = new System.Drawing.Point(1386, 277);
+            this.btnDelete.Location = new System.Drawing.Point(1386, 207);
             this.btnDelete.Name = "btnDelete";
             this.btnDelete.Size = new System.Drawing.Size(144, 53);
             this.btnDelete.TabIndex = 41;
@@ -169,7 +169,7 @@
             // 
             this.btnModify.AutoSize = true;
             this.btnModify.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnModify.Location = new System.Drawing.Point(1567, 277);
+            this.btnModify.Location = new System.Drawing.Point(1567, 207);
             this.btnModify.Name = "btnModify";
             this.btnModify.Size = new System.Drawing.Size(144, 53);
             this.btnModify.TabIndex = 42;

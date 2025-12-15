@@ -123,5 +123,7 @@
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.TextBox txtNextReceiptId;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label lblOrderIdPreview;
+        private System.Windows.Forms.Label lblReceiptIdPreview;
     }
 }

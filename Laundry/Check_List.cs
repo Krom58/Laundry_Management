@@ -17,6 +17,11 @@ namespace Laundry_Management.Laundry
 {
     public partial class Check_List : Form
     {
+        // เพิ่มตัวแปรสำหรับ Pagination
+        private int _currentPageNumber = 1;
+        private int _pageSize = 25;
+        private int _totalRecords = 0;
+        private int _totalPages = 0;
         public Check_List()
         {
             InitializeComponent();
@@ -223,7 +228,6 @@ WHERE
                 parameters.Add(new SqlParameter("@CustomerName", "%" + customerName + "%"));
             }
 
-            // แก้ไขส่วนนี้: ใช้ช่วงวันที่แทนวันเดียว
             if (startDate.HasValue && endDate.HasValue)
             {
                 filters.Add("CAST(o.OrderDate AS DATE) BETWEEN @StartDate AND @EndDate");
@@ -246,30 +250,179 @@ WHERE
                 query += " AND " + string.Join(" AND ", filters);
             }
 
-            // **เพิ่มการเรียงลำดับตามวันที่จากน้อยไปมาก (เก่าสุดไปใหม่สุด)**
+            // นับจำนวนรายการทั้งหมดก่อน
+            string countQuery = "SELECT COUNT(*) FROM (" + query + ") AS CountTable";
+
+            using (SqlConnection conn = DBconfig.GetConnection())
+            {
+                conn.Open();
+
+                // สร้าง parameters ชุดแรกสำหรับ COUNT query
+                using (SqlCommand countCmd = new SqlCommand(countQuery, conn))
+                {
+                    // สำเนา parameters สำหรับ count command
+                    foreach (SqlParameter param in parameters)
+                    {
+                        countCmd.Parameters.Add(new SqlParameter(param.ParameterName, param.Value));
+                    }
+
+                    _totalRecords = (int)countCmd.ExecuteScalar();
+                    _totalPages = (int)Math.Ceiling((double)_totalRecords / _pageSize);
+                }
+
+                // เพิ่ม Pagination ด้วย OFFSET และ FETCH
+                query += " ORDER BY o.OrderDate ASC, o.OrderID ASC";
+                query += " OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    // สำเนา parameters สำหรับ data query
+                    foreach (SqlParameter param in parameters)
+                    {
+                        cmd.Parameters.Add(new SqlParameter(param.ParameterName, param.Value));
+                    }
+
+                    // เพิ่ม pagination parameters
+                    cmd.Parameters.AddWithValue("@Offset", (_currentPageNumber - 1) * _pageSize);
+                    cmd.Parameters.AddWithValue("@PageSize", _pageSize);
+
+                    SqlDataAdapter adapter = new SqlDataAdapter(cmd);
+                    DataTable dt = new DataTable();
+                    adapter.Fill(dt);
+                    dgvOrders.DataSource = dt;
+
+                    if (dgvOrders.Columns["OrderID"] != null)
+                        dgvOrders.Columns["OrderID"].Visible = false;
+
+                    if (dgvOrders.Columns["ReceiptID"] != null)
+                        dgvOrders.Columns["ReceiptID"].Visible = false;
+
+                    if (dgvOrders.Columns["CustomerId"] != null)
+                        dgvOrders.Columns["CustomerId"].Visible = false;
+                }
+            }
+
+            // อัพเดทข้อความแสดงสถานะ Pagination
+            UpdatePaginationStatus();
+        }
+        // เพิ่ม method นี้หลัง LoadOrders method
+        private DataTable GetAllOrdersForPrinting(string customId = null, string customerName = null, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            string query = @"
+SELECT 
+    o.OrderID, 
+    r.CustomReceiptId     AS 'หมายเลขใบเสร็จ',
+    o.CustomOrderId       AS 'หมายเลขใบรับผ้า', 
+    o.CustomerId,
+    c.FullName            AS 'ชื่อลูกค้า', 
+    c.Phone               AS 'เบอร์โทรศัพท์',
+    o.GrandTotalPrice     AS 'ราคารวมใบรับผ้า',
+    r.TotalBeforeDiscount AS 'ราคารวมใบเสร็จ',
+    r.Discount            AS 'ส่วนลด',
+    r.TotalAfterDiscount  AS 'ราคารวมหลังหักส่วนลด',
+    o.OrderDate           AS 'วันที่ออกใบรับผ้า',
+    o.PickupDate          AS 'วันที่ครบกำหนด',
+    r.ReceiptID, 
+    r.ReceiptStatus       AS 'สถานะใบเสร็จ',
+    r.PaymentMethod       AS 'วิธีการชำระเงิน',
+    r.IsPickedUp          AS 'สถานะ', 
+    r.CustomerPickupDate  AS 'วันที่ลูกค้ามารับ'
+FROM OrderHeader o
+LEFT JOIN Customer c 
+    ON o.CustomerId = c.CustomerID
+LEFT JOIN Receipt r 
+    ON o.OrderID = r.OrderID
+   AND r.ReceiptStatus <> N'ยกเลิกการพิมพ์'
+WHERE 
+    (o.OrderStatus <> N'รายการถูกยกเลิก'
+    OR o.OrderStatus IS NULL)
+";
+
+            var filters = new List<string>();
+            var parameters = new List<SqlParameter>();
+
+            // ตรวจสอบ checkbox สถานะการรับผ้า
+            if (chkPending.Checked)
+            {
+                filters.Add("(r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว')");
+            }
+            else if (chkCompleted.Checked)
+            {
+                filters.Add("r.IsPickedUp = N'มารับแล้ว'");
+            }
+
+            if (!string.IsNullOrEmpty(customId))
+            {
+                filters.Add("(o.CustomOrderId LIKE @CustomID OR r.CustomReceiptId LIKE @CustomID)");
+                parameters.Add(new SqlParameter("@CustomID", "%" + customId + "%"));
+            }
+
+            if (!string.IsNullOrEmpty(customerName))
+            {
+                filters.Add("c.FullName LIKE @CustomerName");
+                parameters.Add(new SqlParameter("@CustomerName", "%" + customerName + "%"));
+            }
+
+            if (startDate.HasValue && endDate.HasValue)
+            {
+                filters.Add("CAST(o.OrderDate AS DATE) BETWEEN @StartDate AND @EndDate");
+                parameters.Add(new SqlParameter("@StartDate", startDate.Value.Date));
+                parameters.Add(new SqlParameter("@EndDate", endDate.Value.Date));
+            }
+            else if (startDate.HasValue)
+            {
+                filters.Add("CAST(o.OrderDate AS DATE) >= @StartDate");
+                parameters.Add(new SqlParameter("@StartDate", startDate.Value.Date));
+            }
+            else if (endDate.HasValue)
+            {
+                filters.Add("CAST(o.OrderDate AS DATE) <= @EndDate");
+                parameters.Add(new SqlParameter("@EndDate", endDate.Value.Date));
+            }
+
+            if (filters.Count > 0)
+            {
+                query += " AND " + string.Join(" AND ", filters);
+            }
+
+            // เรียงลำดับเหมือนเดิม แต่ไม่มี OFFSET/FETCH (ดึงทั้งหมด)
             query += " ORDER BY o.OrderDate ASC, o.OrderID ASC";
 
             using (SqlConnection conn = DBconfig.GetConnection())
             using (SqlCommand cmd = new SqlCommand(query, conn))
             {
-                cmd.Parameters.AddRange(parameters.ToArray());
+                foreach (SqlParameter param in parameters)
+                {
+                    cmd.Parameters.Add(new SqlParameter(param.ParameterName, param.Value));
+                }
+
                 SqlDataAdapter adapter = new SqlDataAdapter(cmd);
                 DataTable dt = new DataTable();
                 adapter.Fill(dt);
-                dgvOrders.DataSource = dt;
-                if (dgvOrders.Columns["OrderID"] != null)
-                    dgvOrders.Columns["OrderID"].Visible = false;
-
-                if (dgvOrders.Columns["ReceiptID"] != null)
-                    dgvOrders.Columns["ReceiptID"].Visible = false;
-
-                if (dgvOrders.Columns["CustomerId"] != null)
-                    dgvOrders.Columns["CustomerId"].Visible = false;
+                return dt;
             }
         }
-
+        private void UpdatePaginationStatus()
+        {
+            if (_totalRecords == 0)
+            {
+                this.Text = $"รายการข้อมูลการรับผ้า - ไม่พบข้อมูล";
+            }
+            else
+            {
+                int startRecord = ((_currentPageNumber - 1) * _pageSize) + 1;
+                int endRecord = Math.Min(_currentPageNumber * _pageSize, _totalRecords);
+                this.Text = $"รายการข้อมูลการรับผ้า - แสดง {startRecord}-{endRecord} จาก {_totalRecords} รายการ (หน้า {_currentPageNumber}/{_totalPages})";
+            }
+        }
         private void btnSearch_Click(object sender, EventArgs e)
         {
+            // รีเซ็ตหน้ากลับไปหน้าแรกถ้าเป็นการค้นหาใหม่
+            if (!(sender is Button) || ((Button)sender).Name == "btnSearch")
+            {
+                _currentPageNumber = 1;
+            }
+
             string searchId = txtSearchId.Text.Trim();
             string customerName = txtCustomerFilter.Text.Trim();
             DateTime? startDate = dtpStartDate.Checked ? (DateTime?)dtpStartDate.Value.Date : null;
@@ -292,6 +445,7 @@ WHERE
             chkPending.Checked = false;
             chkCompleted.Checked = false;
 
+            _currentPageNumber = 1; // เพิ่มบรรทัดนี้
             LoadOrders(null, null, DateTime.Today, DateTime.Today);
         }
 
@@ -307,7 +461,7 @@ WHERE
             {
                 chkCompleted.Checked = false;
             }
-
+            _currentPageNumber = 1; // เพิ่มบรรทัดนี้
             // ดำเนินการค้นหาอีกครั้ง
             btnSearch_Click(sender, e);
         }
@@ -319,7 +473,7 @@ WHERE
             {
                 chkPending.Checked = false;
             }
-
+            _currentPageNumber = 1; // เพิ่มบรรทัดนี้
             // ดำเนินการค้นหาอีกครั้ง
             btnSearch_Click(sender, e);
         }
@@ -337,6 +491,7 @@ WHERE
                     dtpStartDate.Value = dtpEndDate.Value;
                     return;
                 }
+                _currentPageNumber = 1; // เพิ่มบรรทัดนี้
                 btnSearch_Click(sender, e);
             }
         }
@@ -353,6 +508,7 @@ WHERE
                     dtpEndDate.Value = dtpStartDate.Value;
                     return;
                 }
+                _currentPageNumber = 1; // เพิ่มบรรทัดนี้
                 btnSearch_Click(sender, e);
             }
         }
@@ -852,7 +1008,16 @@ WHERE
         {
             try
             {
-                if (dgvOrders.Rows.Count == 0)
+                // ดึงเงื่อนไขปัจจุบันจากตัวกรอง
+                string searchId = txtSearchId.Text.Trim();
+                string customerName = txtCustomerFilter.Text.Trim();
+                DateTime? startDate = dtpStartDate.Checked ? (DateTime?)dtpStartDate.Value.Date : null;
+                DateTime? endDate = dtpEndDate.Checked ? (DateTime?)dtpEndDate.Value.Date : null;
+
+                // ดึงข้อมูลทั้งหมดสำหรับการพิมพ์ (ไม่ใช่แค่ 25 รายการที่แสดงบนหน้าจอ)
+                _allDataForPrinting = GetAllOrdersForPrinting(searchId, customerName, startDate, endDate);
+
+                if (_allDataForPrinting == null || _allDataForPrinting.Rows.Count == 0)
                 {
                     MessageBox.Show("ไม่มีข้อมูลที่จะพิมพ์", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
@@ -860,9 +1025,9 @@ WHERE
 
                 // Check for valid data before printing
                 bool hasValidRows = false;
-                foreach (DataGridViewRow row in dgvOrders.Rows)
+                foreach (DataRow row in _allDataForPrinting.Rows)
                 {
-                    if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
+                    if (row["หมายเลขใบรับผ้า"] != DBNull.Value || row["ชื่อลูกค้า"] != DBNull.Value)
                     {
                         hasValidRows = true;
                         break;
@@ -901,7 +1066,7 @@ WHERE
                     }
                     else
                     {
-                        PrintPage(s, args);
+                        PrintPageWithAllData(s, args);
                     }
                 };
                 printDoc.EndPrint += PrintDoc_EndPrint;
@@ -910,7 +1075,123 @@ WHERE
                     _currentPage = 0;
                     _isPrintSuccessful = true;
                     _printErrorMessage = "";
-                    _printCanceledOrdersMode = false; // Start with regular report
+                    _printCanceledOrdersMode = false;
+                    _canceledOrdersPrinted = false;
+                };
+
+                // Flag to track print status
+                _isPrintSuccessful = true;
+                _printErrorMessage = "";
+
+                // Create a PrintDialog
+                using (PrintDialog printDialog = new PrintDialog())
+                {
+                    printDialog.Document = printDoc;
+                    printDialog.UseEXDialog = true;
+                    printDialog.AllowSomePages = false;
+
+                    // Show the print dialog
+                    if (printDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        try
+                        {
+                            // Show print status
+                            Cursor = Cursors.WaitCursor;
+
+                            // Double-check paper size is still A4 before printing
+                            EnsureA4PaperSize(printDoc);
+
+                            // Reset pagination variables before printing
+                            _currentPage = 0;
+                            printDoc.Print();
+                        }
+                        catch (Exception ex)
+                        {
+                            _isPrintSuccessful = false;
+                            _printErrorMessage = ex.Message;
+                            MessageBox.Show($"เกิดข้อผิดพลาดในการพิมพ์: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                        finally
+                        {
+                            Cursor = Cursors.Default;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"เกิดข้อผิดพลาดในการเตรียมพิมพ์: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            try
+            {
+                // ดึงเงื่อนไขปัจจุบันจากตัวกรอง
+                string searchId = txtSearchId.Text.Trim();
+                string customerName = txtCustomerFilter.Text.Trim();
+                DateTime? startDate = dtpStartDate.Checked ? (DateTime?)dtpStartDate.Value.Date : null;
+                DateTime? endDate = dtpEndDate.Checked ? (DateTime?)dtpEndDate.Value.Date : null;
+
+                // ดึงข้อมูลทั้งหมดสำหรับการพิมพ์ (ไม่ใช่แค่ 25 รายการที่แสดงบนหน้าจอ)
+                _allDataForPrinting = GetAllOrdersForPrinting(searchId, customerName, startDate, endDate);
+
+                if (_allDataForPrinting == null || _allDataForPrinting.Rows.Count == 0)
+                {
+                    MessageBox.Show("ไม่มีข้อมูลที่จะพิมพ์", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Check for valid data before printing
+                bool hasValidRows = false;
+                foreach (DataRow row in _allDataForPrinting.Rows)
+                {
+                    if (row["หมายเลขใบรับผ้า"] != DBNull.Value || row["ชื่อลูกค้า"] != DBNull.Value)
+                    {
+                        hasValidRows = true;
+                        break;
+                    }
+                }
+
+                if (!hasValidRows)
+                {
+                    MessageBox.Show("ไม่พบข้อมูลที่พร้อมพิมพ์ กรุณาตรวจสอบข้อมูล", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // เตรียมข้อมูลรายการที่ถูกยกเลิก (ถ้ามี)
+                List<CanceledOrderInfo> canceledOrders = null;
+                if (dtpStartDate.Checked)
+                {
+                    canceledOrders = GetCanceledOrdersForDate(dtpStartDate.Value.Date);
+                }
+
+                // Create a PrintDocument object
+                PrintDocument printDoc = new PrintDocument();
+                printDoc.DocumentName = "รายงานข้อมูล";
+
+                // Store the canceledOrders in a class-level field to access it in the handlers
+                _currentCanceledOrders = canceledOrders;
+
+                // Set A4 paper size using our custom method (similar to Print_Service)
+                SetA4PaperSize(printDoc);
+
+                // Add handlers for print events
+                printDoc.PrintPage += (s, args) =>
+                {
+                    if (_printCanceledOrdersMode)
+                    {
+                        PrintCanceledOrdersPage(args, _currentCanceledOrders);
+                    }
+                    else
+                    {
+                        PrintPageWithAllData(s, args);
+                    }
+                };
+                printDoc.EndPrint += PrintDoc_EndPrint;
+                printDoc.BeginPrint += (s, args) =>
+                {
+                    _currentPage = 0;
+                    _isPrintSuccessful = true;
+                    _printErrorMessage = "";
+                    _printCanceledOrdersMode = false;
                     _canceledOrdersPrinted = false;
                 };
 
@@ -958,6 +1239,8 @@ WHERE
                 MessageBox.Show($"เกิดข้อผิดพลาดในการเตรียมพิมพ์: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        // เพิ่มตัวแปรนี้ที่บรรทัด 796 (หลัง _currentCanceledOrders)
+        private DataTable _allDataForPrinting;
         private List<CanceledOrderInfo> _currentCanceledOrders;
         private bool _isPrintSuccessful = false;
         private string _printErrorMessage = "";
@@ -1023,25 +1306,33 @@ WHERE
             }
         }
         // Override the original PrintPage method to handle the page flow
-        private void PrintPage(object sender, PrintPageEventArgs e)
+        // เปลี่ยนชื่อ method PrintPage เป็น PrintPageWithAllData
+        private void PrintPageWithAllData(object sender, PrintPageEventArgs e)
         {
             try
             {
-                // Original print page implementation (unchanged)
-                // Change to portrait orientation
+                // ใช้ _allDataForPrinting แทน dgvOrders
+                // เปลี่ยนทุกจุดที่ใช้ dgvOrders.Rows เป็น _allDataForPrinting.Rows
+
                 e.PageSettings.Landscape = false;
                 var printDoc = sender as PrintDocument;
                 var canceledOrders = _currentCanceledOrders;
-                // Adjust margins to better fit in portrait mode
+
                 float leftMargin = e.MarginBounds.Left - 30;
                 float topMargin = e.MarginBounds.Top;
                 float rightMargin = e.MarginBounds.Right - 20;
                 float availableWidth = rightMargin - leftMargin;
                 float availableHeight = e.MarginBounds.Bottom - topMargin;
 
-                // Calculate total valid rows once at the beginning to avoid duplicate calculation
-                int totalValidRows = dgvOrders.Rows.Cast<DataGridViewRow>().Count(r =>
-                    r.Cells["หมายเลขใบรับผ้า"].Value != null || r.Cells["ชื่อลูกค้า"].Value != null);
+                // เปลี่ยนจาก dgvOrders.Rows เป็น _allDataForPrinting.Rows
+                int totalValidRows = 0;
+                foreach (DataRow row in _allDataForPrinting.Rows)
+                {
+                    if (row["หมายเลขใบรับผ้า"] != DBNull.Value || row["ชื่อลูกค้า"] != DBNull.Value)
+                    {
+                        totalValidRows++;
+                    }
+                }
 
                 // Pre-calculate totals for all valid rows
                 decimal totalOrderAmount = 0m;
@@ -1049,41 +1340,41 @@ WHERE
                 decimal totalDiscount = 0m;
                 decimal totalAfterDiscount = 0m;
 
-                foreach (DataGridViewRow row in dgvOrders.Rows)
+                foreach (DataRow row in _allDataForPrinting.Rows)
                 {
-                    if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
+                    if (row["หมายเลขใบรับผ้า"] != DBNull.Value || row["ชื่อลูกค้า"] != DBNull.Value)
                     {
-                        if (row.Cells["ราคารวมใบรับผ้า"].Value != null && row.Cells["ราคารวมใบรับผ้า"].Value != DBNull.Value)
+                        if (row["ราคารวมใบรับผ้า"] != DBNull.Value)
                         {
                             decimal amount;
-                            if (decimal.TryParse(row.Cells["ราคารวมใบรับผ้า"].Value.ToString(), out amount))
+                            if (decimal.TryParse(row["ราคารวมใบรับผ้า"].ToString(), out amount))
                             {
                                 totalOrderAmount += amount;
                             }
                         }
 
-                        if (row.Cells["ราคารวมใบเสร็จ"].Value != null && row.Cells["ราคารวมใบเสร็จ"].Value != DBNull.Value)
+                        if (row["ราคารวมใบเสร็จ"] != DBNull.Value)
                         {
                             decimal amount;
-                            if (decimal.TryParse(row.Cells["ราคารวมใบเสร็จ"].Value.ToString(), out amount))
+                            if (decimal.TryParse(row["ราคารวมใบเสร็จ"].ToString(), out amount))
                             {
                                 totalReceiptAmount += amount;
                             }
                         }
 
-                        if (row.Cells["ส่วนลด"].Value != null && row.Cells["ส่วนลด"].Value != DBNull.Value)
+                        if (row["ส่วนลด"] != DBNull.Value)
                         {
                             decimal discount;
-                            if (decimal.TryParse(row.Cells["ส่วนลด"].Value.ToString(), out discount))
+                            if (decimal.TryParse(row["ส่วนลด"].ToString(), out discount))
                             {
                                 totalDiscount += discount;
                             }
                         }
 
-                        if (row.Cells["ราคารวมหลังหักส่วนลด"].Value != null && row.Cells["ราคารวมหลังหักส่วนลด"].Value != DBNull.Value)
+                        if (row["ราคารวมหลังหักส่วนลด"] != DBNull.Value)
                         {
                             decimal netAmount;
-                            if (decimal.TryParse(row.Cells["ราคารวมหลังหักส่วนลด"].Value.ToString(), out netAmount))
+                            if (decimal.TryParse(row["ราคารวมหลังหักส่วนลด"].ToString(), out netAmount))
                             {
                                 totalAfterDiscount += netAmount;
                             }
@@ -1091,7 +1382,6 @@ WHERE
                     }
                 }
 
-                // Use smaller fonts to fit better in portrait mode
                 using (Font titleFont = new Font("Angsana New", 12, FontStyle.Bold))
                 using (Font headerFont = new Font("Angsana New", 10, FontStyle.Bold))
                 using (Font normalFont = new Font("Angsana New", 10))
@@ -1100,17 +1390,14 @@ WHERE
                 {
                     float yPosition = topMargin;
 
-                    // Center the title based on the new margins
                     string title = "รายงานข้อมูลการรับผ้า";
                     float titleX = leftMargin + (availableWidth / 2) - (e.Graphics.MeasureString(title, titleFont).Width / 2);
                     e.Graphics.DrawString(title, titleFont, Brushes.Black, titleX, yPosition);
                     yPosition += titleFont.GetHeight();
 
-                    // Draw line across the full width with the new margins
                     e.Graphics.DrawLine(new Pen(Color.Black, 1.5f), leftMargin, yPosition, leftMargin + availableWidth, yPosition);
                     yPosition += 10;
 
-                    // Left-aligned date/time info using the new left margin
                     DateTime today = DateTime.Now;
                     string dateTimeInfo = $"พิมพ์เมื่อ: {today.Day}/{today.Month}/{today.Year} {today.ToString("HH:mm:ss")}";
                     string filterInfo = dtpStartDate.Checked ? $"วันที่: {dtpStartDate.Value.ToString("dd/MM/yyyy")}" : "ทุกวันที่";
@@ -1119,39 +1406,30 @@ WHERE
 
                     e.Graphics.DrawString(dateTimeInfo, normalFont, Brushes.Black, leftMargin, yPosition);
 
-                    // Right-aligned filter info based on the new right margin
                     string filterText = $"กรอง: {filterInfo}";
                     float filterX = rightMargin - e.Graphics.MeasureString(filterText, normalFont).Width;
                     e.Graphics.DrawString(filterText, normalFont, Brushes.Black, filterX, yPosition);
 
                     yPosition += normalFont.GetHeight() * 1.5f;
 
-                    // Adjust row height and spacing for portrait mode
                     float rowHeight = normalFont.GetHeight() * 1.2f;
                     float headerSpace = titleFont.GetHeight() + 10 + normalFont.GetHeight() * 1.5f;
                     float tableHeaderHeight = headerFont.GetHeight() * 2.5f;
-
-                    // Space needed for the title, filter info and table header
                     float fixedHeaderSpace = headerSpace + tableHeaderHeight;
-
-                    // Calculate how many rows can fit on each page
-                    // Include space for total row on the last page
                     float totalRowHeight = rowHeight * 1.3f;
+
                     int rowsPerFirstPage = (int)((availableHeight - fixedHeaderSpace - totalRowHeight) / rowHeight);
                     int rowsPerSubsequentPage = (int)((availableHeight - fixedHeaderSpace - totalRowHeight) / rowHeight);
 
-                    // Ensure at least one row per page (minimum)
                     rowsPerFirstPage = Math.Max(1, rowsPerFirstPage);
                     rowsPerSubsequentPage = Math.Max(1, rowsPerSubsequentPage);
 
-                    // Calculate total pages based on row count
                     int totalPages = 1;
                     if (rowsPerFirstPage < totalValidRows)
                     {
                         totalPages = 1 + (int)Math.Ceiling((double)(totalValidRows - rowsPerFirstPage) / rowsPerSubsequentPage);
                     }
 
-                    // Show continuation marker for pages after the first
                     if (_currentPage > 0)
                     {
                         string continuationText = $"(ต่อ) - หน้า {_currentPage + 1} จาก {totalPages}";
@@ -1160,56 +1438,29 @@ WHERE
                             rightMargin - textWidth, yPosition - normalFont.GetHeight());
                     }
 
-                    // Define column names for the table header - shorter text for portrait mode
                     string[] columnNames = new string[] {
-                "ลำดับ",
-                "เลขใบรับผ้า",
-                "เลขใบเสร็จ",
-                "ชื่อลูกค้า",
-                "เบอร์โทร",
-                "ใบรับผ้า",
-                "ราคาก่อนลด",
-                "ส่วนลด",
-                "ราคาสุทธิ",
-                "วันออกใบรับผ้า",
-                "วันครบกำหนด",
-                "สถานะ",
-                "วันที่มารับ"
+                "ลำดับ", "เลขใบรับผ้า", "เลขใบเสร็จ", "ชื่อลูกค้า", "เบอร์โทร",
+                "ใบรับผ้า", "ราคาก่อนลด", "ส่วนลด", "ราคาสุทธิ",
+                "วันออกใบรับผ้า", "วันครบกำหนด", "สถานะ", "วันที่มารับ"
             };
 
-                    // Adjust column width percentages for better fit including row numbers
                     float[] columnWidthPercentages = new float[] {
-                0.04f, // ลำดับ (new column)
-                0.08f, // หมายเลขใบรับผ้า
-                0.08f, // หมายเลขใบเสร็จ
-                0.12f, // ชื่อลูกค้า
-                0.07f, // เบอร์โทรศัพท์
-                0.07f, // ราคารวมใบรับผ้า
-                0.07f, // ราคารวมใบเสร็จ
-                0.05f, // ส่วนลด
-                0.08f, // ราคารวมหลังหักส่วนลด
-                0.08f, // วันที่ออกใบรับผ้า
-                0.08f, // วันที่ครบกำหนด
-                0.08f, // สถานะ
-                0.10f  // วันที่ลูกค้ามารับ
+                0.04f, 0.08f, 0.08f, 0.12f, 0.07f, 0.07f, 0.07f,
+                0.05f, 0.08f, 0.08f, 0.08f, 0.08f, 0.10f
             };
 
-                    // Calculate column widths
                     float[] columnWidths = new float[columnWidthPercentages.Length];
                     for (int i = 0; i < columnWidthPercentages.Length; i++)
                     {
                         columnWidths[i] = availableWidth * columnWidthPercentages[i];
                     }
 
-                    // Draw table header
                     float headerHeight = headerFont.GetHeight() * 2.7f;
                     float headerX = leftMargin;
 
-                    // Draw header cells
                     for (int i = 0; i < columnNames.Length; i++)
                     {
                         RectangleF headerRect = new RectangleF(headerX, yPosition, columnWidths[i], headerHeight);
-
                         using (StringFormat sf = new StringFormat())
                         {
                             sf.Alignment = StringAlignment.Center;
@@ -1219,13 +1470,11 @@ WHERE
                             e.Graphics.DrawRectangle(Pens.Black, headerRect.X, headerRect.Y, headerRect.Width, headerRect.Height);
                             e.Graphics.DrawString(columnNames[i], headerFont, Brushes.Black, headerRect, sf);
                         }
-
                         headerX += columnWidths[i];
                     }
 
                     yPosition += headerHeight;
 
-                    // Calculate start and end row for current page
                     int startRow;
                     int endRow;
                     bool isLastPage = false;
@@ -1233,28 +1482,25 @@ WHERE
                     if (_currentPage == 0)
                     {
                         startRow = 0;
-                        endRow = Math.Min(rowsPerFirstPage, dgvOrders.Rows.Count);
+                        endRow = Math.Min(rowsPerFirstPage, _allDataForPrinting.Rows.Count);
                     }
                     else
                     {
                         startRow = rowsPerFirstPage + (_currentPage - 1) * rowsPerSubsequentPage;
-                        endRow = Math.Min(startRow + rowsPerSubsequentPage, dgvOrders.Rows.Count);
+                        endRow = Math.Min(startRow + rowsPerSubsequentPage, _allDataForPrinting.Rows.Count);
                     }
 
-                    // Track valid rows for row numbering
                     int validRowCount = 0;
-
-                    // Get the starting row number for this page
                     int rowNumberStart = 0;
+
                     if (_currentPage > 0)
                     {
-                        // Count valid rows on previous pages
                         for (int i = 0; i < startRow; i++)
                         {
-                            if (i < dgvOrders.Rows.Count)
+                            if (i < _allDataForPrinting.Rows.Count)
                             {
-                                DataGridViewRow row = dgvOrders.Rows[i];
-                                if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
+                                DataRow row = _allDataForPrinting.Rows[i];
+                                if (row["หมายเลขใบรับผ้า"] != DBNull.Value || row["ชื่อลูกค้า"] != DBNull.Value)
                                 {
                                     rowNumberStart++;
                                 }
@@ -1262,30 +1508,22 @@ WHERE
                         }
                     }
 
-                    // Draw data rows for this page
                     int validRowsPrinted = 0;
                     for (int i = startRow; i < endRow; i++)
                     {
-                        // Skip if we've reached the end of rows
-                        if (i >= dgvOrders.Rows.Count)
+                        if (i >= _allDataForPrinting.Rows.Count)
                             break;
 
-                        DataGridViewRow row = dgvOrders.Rows[i];
+                        DataRow row = _allDataForPrinting.Rows[i];
 
-                        // Skip rows with no valid data
-                        if (row.Cells["หมายเลขใบรับผ้า"].Value == null &&
-                            row.Cells["ชื่อลูกค้า"].Value == null)
+                        if (row["หมายเลขใบรับผ้า"] == DBNull.Value && row["ชื่อลูกค้า"] == DBNull.Value)
                         {
                             continue;
                         }
 
-                        // Increment valid row counter (for row numbers)
                         validRowCount++;
-
-                        // Position for this row
                         float rowX = leftMargin;
 
-                        // Draw row number column first
                         RectangleF rowNumberRect = new RectangleF(rowX, yPosition, columnWidths[0], rowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
@@ -1296,13 +1534,11 @@ WHERE
                         }
                         rowX += columnWidths[0];
 
-                        // Print each cell in the row
-                        for (int j = 1; j < columnNames.Length; j++) // Start from 1 to skip row number column
+                        for (int j = 1; j < columnNames.Length; j++)
                         {
                             string cellValue = "";
                             try
                             {
-                                // Map column names to data property names
                                 string dataProperty = "";
                                 switch (j)
                                 {
@@ -1320,31 +1556,23 @@ WHERE
                                     case 12: dataProperty = "วันที่ลูกค้ามารับ"; break;
                                 }
 
-                                if (row.Cells[dataProperty].Value != null &&
-                                    row.Cells[dataProperty].Value != DBNull.Value)
+                                if (row[dataProperty] != DBNull.Value)
                                 {
-                                    // Format values based on column type
-                                    if (dataProperty == "ราคารวมใบรับผ้า" ||
-                                        dataProperty == "ราคารวมใบเสร็จ" ||
-                                        dataProperty == "ส่วนลด" ||
-                                        dataProperty == "ราคารวมหลังหักส่วนลด")
+                                    if (dataProperty == "ราคารวมใบรับผ้า" || dataProperty == "ราคารวมใบเสร็จ" ||
+                                        dataProperty == "ส่วนลด" || dataProperty == "ราคารวมหลังหักส่วนลด")
                                     {
-                                        decimal amount = Convert.ToDecimal(row.Cells[dataProperty].Value);
-                                        cellValue = amount.ToString("N2"); // Shorter format
+                                        decimal amount = Convert.ToDecimal(row[dataProperty]);
+                                        cellValue = amount.ToString("N2");
                                     }
-                                    else if (dataProperty == "วันที่ออกใบรับผ้า" ||
-                                             dataProperty == "วันที่ครบกำหนด" ||
+                                    else if (dataProperty == "วันที่ออกใบรับผ้า" || dataProperty == "วันที่ครบกำหนด" ||
                                              dataProperty == "วันที่ลูกค้ามารับ")
                                     {
-                                        if (row.Cells[dataProperty].Value != DBNull.Value)
-                                        {
-                                            DateTime date = Convert.ToDateTime(row.Cells[dataProperty].Value);
-                                            cellValue = date.ToString("dd/MM/yy"); // Shorter date format
-                                        }
+                                        DateTime date = Convert.ToDateTime(row[dataProperty]);
+                                        cellValue = date.ToString("dd/MM/yy");
                                     }
                                     else
                                     {
-                                        cellValue = row.Cells[dataProperty].Value.ToString();
+                                        cellValue = row[dataProperty].ToString();
                                     }
                                 }
                             }
@@ -1358,27 +1586,22 @@ WHERE
                                 cellValue = "?";
                             }
 
-                            // Draw the cell
                             RectangleF cellRect = new RectangleF(rowX, yPosition, columnWidths[j], rowHeight);
-
                             using (StringFormat sf = new StringFormat())
                             {
                                 sf.Alignment = StringAlignment.Center;
                                 sf.LineAlignment = StringAlignment.Center;
                                 sf.Trimming = StringTrimming.EllipsisCharacter;
 
-                                // Apply special formatting for status and discount
-                                if (j == 11 && !string.IsNullOrEmpty(cellValue)) // Status column
+                                if (j == 11 && !string.IsNullOrEmpty(cellValue))
                                 {
                                     using (SolidBrush statusBrush = new SolidBrush(cellValue == "มารับแล้ว" ? Color.Green : Color.Blue))
                                     {
                                         e.Graphics.DrawString(cellValue, normalFont, statusBrush, cellRect, sf);
                                     }
                                 }
-                                else if (j == 7 && !string.IsNullOrEmpty(cellValue) && // Discount column
-                                         cellValue != "-" && cellValue != "?" &&
-                                         row.Cells["ส่วนลด"].Value != null &&
-                                         Convert.ToDecimal(row.Cells["ส่วนลด"].Value) > 0)
+                                else if (j == 7 && !string.IsNullOrEmpty(cellValue) && cellValue != "-" && cellValue != "?" &&
+                                         row["ส่วนลด"] != DBNull.Value && Convert.ToDecimal(row["ส่วนลด"]) > 0)
                                 {
                                     using (SolidBrush discountBrush = new SolidBrush(Color.Red))
                                     {
@@ -1400,30 +1623,22 @@ WHERE
                         validRowsPrinted++;
                     }
 
-                    // Determine if this is the last page
-                    isLastPage = endRow >= dgvOrders.Rows.Count || startRow + validRowsPrinted >= totalValidRows;
+                    isLastPage = endRow >= _allDataForPrinting.Rows.Count || startRow + validRowsPrinted >= totalValidRows;
 
-                    // Draw the totals row right after the last data row on the last page
                     if (isLastPage)
                     {
-                        // Draw the total summary row immediately after the last data row
-                        using (SolidBrush totalRowBrush = new SolidBrush(Color.FromArgb(245, 245, 220))) // Beige color
+                        using (SolidBrush totalRowBrush = new SolidBrush(Color.FromArgb(245, 245, 220)))
                         {
-                            // Draw a full-width rectangle for the total row
                             RectangleF totalRowRect = new RectangleF(leftMargin, yPosition, availableWidth, totalRowHeight);
                             e.Graphics.FillRectangle(totalRowBrush, totalRowRect);
-
-                            // Draw a border around the total row with thicker line
                             using (Pen totalRowPen = new Pen(Color.Black, 1.5f))
                             {
                                 e.Graphics.DrawRectangle(totalRowPen, totalRowRect.X, totalRowRect.Y, totalRowRect.Width, totalRowRect.Height);
                             }
                         }
 
-                        // Now draw each cell of the total row
                         float totalX = leftMargin;
 
-                        // Draw "รวม" label in first column
                         RectangleF totalLabelRect = new RectangleF(totalX, yPosition, columnWidths[0], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
@@ -1434,7 +1649,6 @@ WHERE
                         }
                         totalX += columnWidths[0];
 
-                        // Skip columns 1-4 (keep them empty)
                         for (int j = 1; j <= 4; j++)
                         {
                             RectangleF emptyRect = new RectangleF(totalX, yPosition, columnWidths[j], totalRowHeight);
@@ -1442,7 +1656,6 @@ WHERE
                             totalX += columnWidths[j];
                         }
 
-                        // Draw total order amount in column 5
                         RectangleF totalOrderRect = new RectangleF(totalX, yPosition, columnWidths[5], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
@@ -1453,7 +1666,6 @@ WHERE
                         }
                         totalX += columnWidths[5];
 
-                        // Draw total receipt amount in column 6
                         RectangleF totalReceiptRect = new RectangleF(totalX, yPosition, columnWidths[6], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
@@ -1464,7 +1676,6 @@ WHERE
                         }
                         totalX += columnWidths[6];
 
-                        // Draw total discount in column 7
                         RectangleF totalDiscountRect = new RectangleF(totalX, yPosition, columnWidths[7], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
@@ -1475,7 +1686,6 @@ WHERE
                         }
                         totalX += columnWidths[7];
 
-                        // Draw total after discount in column 8
                         RectangleF totalAfterDiscountRect = new RectangleF(totalX, yPosition, columnWidths[8], totalRowHeight);
                         using (StringFormat sf = new StringFormat())
                         {
@@ -1486,7 +1696,6 @@ WHERE
                         }
                         totalX += columnWidths[8];
 
-                        // Draw remaining empty cells
                         for (int j = 9; j < columnNames.Length; j++)
                         {
                             RectangleF emptyRect = new RectangleF(totalX, yPosition, columnWidths[j], totalRowHeight);
@@ -1494,23 +1703,18 @@ WHERE
                             totalX += columnWidths[j];
                         }
 
-                        // Move position past the summary row
                         yPosition = yPosition + totalRowHeight + 15;
 
-                        // Add summary text below the total row
                         string summaryText = $"จำนวนรายการทั้งหมด {totalValidRows} รายการ";
                         e.Graphics.DrawString(summaryText, normalFont, Brushes.Black, leftMargin, yPosition);
                         yPosition += normalFont.GetHeight() * 1.5f;
                     }
 
-                    // Add page number at the bottom
                     string pageText = $"หน้า {_currentPage + 1} จาก {totalPages}";
-
                     e.Graphics.DrawString(pageText, smallFont, Brushes.Black,
                         rightMargin - e.Graphics.MeasureString(pageText, smallFont).Width,
                         e.MarginBounds.Bottom + 10);
 
-                    // Determine if we need to print more pages
                     if (!isLastPage)
                     {
                         _currentPage++;
@@ -1518,7 +1722,6 @@ WHERE
                     }
                     else
                     {
-                        // Check if we should print canceled orders after the normal report
                         if (!_canceledOrdersPrinted && dtpStartDate.Checked &&
                             canceledOrders != null && canceledOrders.Count > 0)
                         {
@@ -1537,7 +1740,6 @@ WHERE
             }
             catch (Exception ex)
             {
-                // Mark print as failed and store error message
                 _isPrintSuccessful = false;
                 _printErrorMessage = ex.Message;
 
@@ -2437,6 +2639,42 @@ WHERE
                     e.Graphics.DrawString(errorMsg, errorFont, Brushes.Red, e.MarginBounds.Left, e.MarginBounds.Top + 100);
                 }
                 e.HasMorePages = false;
+            }
+        }
+
+        private void btnFirstPage_Click(object sender, EventArgs e)
+        {
+            if (_currentPageNumber != 1)
+            {
+                _currentPageNumber = 1;
+                btnSearch_Click(sender, e);
+            }
+        }
+
+        private void btnPreviousPage_Click(object sender, EventArgs e)
+        {
+            if (_currentPageNumber > 1)
+            {
+                _currentPageNumber--;
+                btnSearch_Click(sender, e);
+            }
+        }
+
+        private void btnNextPage_Click(object sender, EventArgs e)
+        {
+            if (_currentPageNumber < _totalPages)
+            {
+                _currentPageNumber++;
+                btnSearch_Click(sender, e);
+            }
+        }
+
+        private void btnLastPage_Click(object sender, EventArgs e)
+        {
+            if (_currentPageNumber != _totalPages && _totalPages > 0)
+            {
+                _currentPageNumber = _totalPages;
+                btnSearch_Click(sender, e);
             }
         }
     }

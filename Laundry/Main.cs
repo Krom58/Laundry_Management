@@ -83,5 +83,11 @@ namespace Laundry_Management
             var Service_ReportForm = new Service_Report();
             Service_ReportForm.ShowDialog();
         }
+
+        private void OverallReport_Click(object sender, EventArgs e)
+        {
+            var OverallReportForm = new OverallReport();
+            OverallReportForm.ShowDialog();
+        }
     }
 }

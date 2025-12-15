@@ -39,6 +39,7 @@
             this.Modify_Service = new System.Windows.Forms.Button();
             this.Vat_Report = new System.Windows.Forms.Button();
             this.Service_Report = new System.Windows.Forms.Button();
+            this.OverallReport = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnAdd_Type_Service
@@ -116,7 +117,6 @@
             // btnSetting
             // 
             this.btnSetting.AutoSize = true;
-            this.btnSetting.Enabled = false;
             this.btnSetting.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSetting.Location = new System.Drawing.Point(823, 12);
             this.btnSetting.Name = "btnSetting";
@@ -124,7 +124,6 @@
             this.btnSetting.TabIndex = 42;
             this.btnSetting.Text = "ตั้งค่า X";
             this.btnSetting.UseVisualStyleBackColor = true;
-            this.btnSetting.Visible = false;
             this.btnSetting.Click += new System.EventHandler(this.btnSetting_Click);
             // 
             // Report
@@ -175,11 +174,24 @@
             this.Service_Report.UseVisualStyleBackColor = true;
             this.Service_Report.Click += new System.EventHandler(this.Service_Report_Click);
             // 
+            // OverallReport
+            // 
+            this.OverallReport.AutoSize = true;
+            this.OverallReport.Font = new System.Drawing.Font("Angsana New", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.OverallReport.Location = new System.Drawing.Point(823, 643);
+            this.OverallReport.Name = "OverallReport";
+            this.OverallReport.Size = new System.Drawing.Size(282, 109);
+            this.OverallReport.TabIndex = 47;
+            this.OverallReport.Text = "รายงานลูกค้า";
+            this.OverallReport.UseVisualStyleBackColor = true;
+            this.OverallReport.Click += new System.EventHandler(this.OverallReport_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1904, 1041);
+            this.Controls.Add(this.OverallReport);
             this.Controls.Add(this.Service_Report);
             this.Controls.Add(this.Vat_Report);
             this.Controls.Add(this.Modify_Service);
@@ -212,5 +224,6 @@
         private System.Windows.Forms.Button Modify_Service;
         private System.Windows.Forms.Button Vat_Report;
         private System.Windows.Forms.Button Service_Report;
+        private System.Windows.Forms.Button OverallReport;
     }
 }

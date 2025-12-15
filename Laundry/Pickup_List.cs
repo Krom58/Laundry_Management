@@ -18,7 +18,10 @@ namespace Laundry_Management.Laundry
         private bool _isPrintSuccessful = false;
         private string _printErrorMessage = "";
         private int _currentPage = 0;
-        
+        private List<PickupOrderDto> _allData = new List<PickupOrderDto>();
+        private int _currentPageIndex = 0;
+        private const int _pageSize = 25;
+        private int _totalPages = 0;
         public Pickup_List()
         {
             InitializeComponent();
@@ -62,7 +65,24 @@ namespace Laundry_Management.Laundry
             // เสร็จสิ้นการ initialize
             _isInitializing = false;
         }
-        
+
+        // DTO สำหรับเก็บข้อมูลรายการรับผ้า
+        public class PickupOrderDto
+        {
+            public int OrderID { get; set; }
+            public string CustomOrderId { get; set; }
+            public int CustomerId { get; set; }
+            public string CustomerName { get; set; }
+            public string Phone { get; set; }
+            public int ReceiptID { get; set; }
+            public string CustomReceiptId { get; set; }
+            public DateTime OrderDate { get; set; }
+            public DateTime PickupDate { get; set; }
+            public string IsPickedUp { get; set; }
+            public DateTime? CustomerPickupDate { get; set; }
+            public string OrderStatus { get; set; }
+        }
+
         private void DtpCreateDate_ValueChanged(object sender, EventArgs e)
         {
             // ข้ามการทำงานถ้ากำลัง initialize
@@ -96,49 +116,75 @@ namespace Laundry_Management.Laundry
         private void LoadPickupOrders()
         {
             string query = @"
-                        SELECT 
-                            o.OrderID, 
-                            o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                            o.CustomerId,
-                            c.FullName as 'ชื่อลูกค้า', 
-                            c.Phone as 'เบอร์โทรศัพท์',
-                            r.ReceiptID,
-                            r.CustomReceiptId as 'หมายเลขใบเสร็จ',
-                            o.OrderDate as 'วันที่ส่งผ้า',
-                            o.PickupDate as 'วันที่ครบกำหนด',
-                            r.IsPickedUp as 'สถานะ', 
-                            r.CustomerPickupDate as 'วันที่มารับ'
-                        FROM OrderHeader o
-                        LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
-                        INNER JOIN Receipt r ON o.OrderID = r.OrderID
-                        WHERE (r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว')
-                        AND CAST(o.OrderDate AS DATE) = @TodayDate
-                        AND o.OrderStatus = N'ออกใบเสร็จแล้ว' AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
-                        ORDER BY o.OrderDate ASC, r.ReceiptID ASC
-                    ";
+                SELECT 
+                    o.OrderID, 
+                    o.CustomOrderId, 
+                    o.CustomerId,
+                    c.FullName, 
+                    c.Phone,
+                    r.ReceiptID,
+                    r.CustomReceiptId,
+                    o.OrderDate,
+                    o.PickupDate,
+                    r.IsPickedUp, 
+                    r.CustomerPickupDate,
+                    o.OrderStatus
+                FROM OrderHeader o
+                LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
+                INNER JOIN Receipt r ON o.OrderID = r.OrderID
+                WHERE (r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว')
+                AND CAST(o.OrderDate AS DATE) = @TodayDate
+                AND o.OrderStatus = N'ออกใบเสร็จแล้ว' AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
+                ORDER BY o.OrderDate ASC, r.ReceiptID ASC
+            ";
+
+            var pickupOrders = new List<PickupOrderDto>();
 
             using (SqlConnection conn = Laundry_Management.Laundry.DBconfig.GetConnection())
             {
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
                     cmd.Parameters.AddWithValue("@TodayDate", DateTime.Today);
+                    conn.Open();
 
-                    SqlDataAdapter adapter = new SqlDataAdapter(cmd);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    dgvOrders.DataSource = dt;
-                    if (dgvOrders.Columns["OrderID"] != null)
-                        dgvOrders.Columns["OrderID"].Visible = false;
-
-                    if (dgvOrders.Columns["ReceiptID"] != null)
-                        dgvOrders.Columns["ReceiptID"].Visible = false;
-
-                    if (dgvOrders.Columns["CustomerId"] != null)
-                        dgvOrders.Columns["CustomerId"].Visible = false;
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            pickupOrders.Add(new PickupOrderDto
+                            {
+                                OrderID = reader.GetInt32(0),
+                                CustomOrderId = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                CustomerId = reader.GetInt32(2),
+                                CustomerName = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                Phone = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                ReceiptID = reader.GetInt32(5),
+                                CustomReceiptId = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                                OrderDate = reader.GetDateTime(7),
+                                PickupDate = reader.GetDateTime(8),
+                                IsPickedUp = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                                CustomerPickupDate = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10),
+                                OrderStatus = reader.IsDBNull(11) ? "" : reader.GetString(11)
+                            });
+                        }
+                    }
                 }
             }
-        }
 
+            // เก็บข้อมูลทั้งหมดไว้
+            _allData = pickupOrders;
+
+            // คำนวณจำนวนหน้าทั้งหมด
+            _totalPages = (int)Math.Ceiling((double)_allData.Count / _pageSize);
+            if (_totalPages == 0) _totalPages = 1;
+
+            // แสดงข้อมูลหน้าปัจจุบัน
+            DisplayCurrentPage();
+
+            // อัปเดตสถานะปุ่ม
+            UpdatePaginationButtons();
+        }
+         
         private void Back_Click(object sender, EventArgs e)
         {
             this.Close();
@@ -148,59 +194,70 @@ namespace Laundry_Management.Laundry
         {
             string orderId = txtOrderId.Text.Trim();
             string customerFilter = txtCustomerFilter.Text.Trim();
-            
+
             // ใช้วันที่จาก DateTimePicker ตลอดเวลา
             DateTime startDate = dtpCreateDate.Value.Date;
             DateTime endDate = dtpCreateDateEnd.Value.Date;
 
+            // แก้ไข query ให้ไม่ใช้ alias ภาษาไทย
             var query = @"
-                        SELECT 
-                            o.OrderID,
-                            o.CustomOrderId as 'หมายเลขใบรับผ้า', 
-                            o.CustomerId,
-                            c.FullName as 'ชื่อลูกค้า', 
-                            c.Phone as 'เบอร์โทรศัพท์', 
-                            r.ReceiptID,
-                            r.CustomReceiptId as 'หมายเลขใบเสร็จ',
-                            o.OrderDate as 'วันที่ส่งผ้า',
-                            o.PickupDate as 'วันที่ครบกำหนด',
-                            r.IsPickedUp as 'สถานะ', 
-                            r.CustomerPickupDate as 'วันที่มารับ'
-                        FROM OrderHeader o
-                        LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
-                        INNER JOIN Receipt r ON o.OrderID = r.OrderID
-                        WHERE 1=1
-                        AND o.OrderStatus = N'ออกใบเสร็จแล้ว' AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
-                    ";
+                SELECT 
+                    o.OrderID,
+                    o.CustomOrderId,
+                    o.CustomerId,
+                    c.FullName,
+                    c.Phone,
+                    r.ReceiptID,
+                    r.CustomReceiptId,
+                    o.OrderDate,
+                    o.PickupDate,
+                    r.IsPickedUp,
+                    r.CustomerPickupDate,
+                    o.OrderStatus
+                FROM OrderHeader o
+                LEFT JOIN Customer c ON o.CustomerId = c.CustomerID
+                LEFT JOIN Receipt r ON o.OrderID = r.OrderID AND r.ReceiptStatus <> N'ยกเลิกการพิมพ์'
+                WHERE 1=1
+            ";
 
             var filters = new List<string>();
             var parameters = new List<SqlParameter>();
             string orderByClause = "";
 
-            // ตรวจสอบ checkbox สถานะการรับผ้า และเลือกคอลัมน์วันที่ที่เหมาะสม
+            // ตรวจสอบ checkbox สถานะการรับผ้า
             if (chkNotPickup.Checked)
             {
-                filters.Add("(r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว')");
-                // ค้นหาตามวันที่ส่งผ้า (OrderDate) - นี่คือจุดที่แก้ไข
+                // เปลี่ยนเป็น INNER JOIN เพราะต้องมีใบเสร็จ
+                query = query.Replace("LEFT JOIN Receipt r", "INNER JOIN Receipt r");
+
+                filters.Add(@"(
+        (o.OrderStatus = N'ดำเนินการสำเร็จ') 
+        OR 
+        (o.OrderStatus = N'ออกใบเสร็จแล้ว' 
+         AND r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'
+         AND (r.IsPickedUp IS NULL OR r.IsPickedUp <> N'มารับแล้ว'))
+    )");
+
                 filters.Add("CAST(o.OrderDate AS DATE) BETWEEN @StartDate AND @EndDate");
-                // เรียงตามวันที่ส่งผ้า
-                orderByClause = " ORDER BY o.OrderDate ASC, r.ReceiptID ASC";
+                orderByClause = " ORDER BY o.OrderDate ASC, ISNULL(r.ReceiptID, 0) ASC";
             }
             else if (chkPickedup.Checked)
             {
+                // เปลี่ยนเป็น INNER JOIN เพราะต้องมีใบเสร็จ
+                query = query.Replace("LEFT JOIN Receipt r", "INNER JOIN Receipt r");
+
+                filters.Add("o.OrderStatus = N'ออกใบเสร็จแล้ว'");
+                filters.Add("r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว'");
                 filters.Add("r.IsPickedUp = N'มารับแล้ว'");
-                // ค้นหาตามวันที่มารับผ้า (CustomerPickupDate)
                 filters.Add("CAST(r.CustomerPickupDate AS DATE) BETWEEN @StartDate AND @EndDate");
-                // เรียงตามวันที่มารับผ้า
                 orderByClause = " ORDER BY r.CustomerPickupDate ASC, r.ReceiptID ASC";
             }
-            
+
             parameters.Add(new SqlParameter("@StartDate", startDate));
             parameters.Add(new SqlParameter("@EndDate", endDate));
 
             if (!string.IsNullOrEmpty(orderId))
             {
-                // ถ้าผู้ใช้ป้อนข้อมูลในรูปแบบ OR-xxx/yyy
                 if (orderId.StartsWith("OR-") && orderId.Contains("/"))
                 {
                     string[] parts = orderId.Replace("OR-", "").Split('/');
@@ -212,14 +269,12 @@ namespace Laundry_Management.Laundry
                     }
                     else
                     {
-                        // ถ้ารูปแบบไม่ถูกต้อง ให้ค้นหาแบบ LIKE
                         filters.Add("(o.CustomOrderId LIKE @CustomID OR r.CustomReceiptId LIKE @CustomID)");
                         parameters.Add(new SqlParameter("@CustomID", "%" + orderId + "%"));
                     }
                 }
                 else
                 {
-                    // ถ้าไม่ได้ป้อนในรูปแบบ OR-xxx/yyy ให้ค้นหาแบบ LIKE
                     filters.Add("(o.CustomOrderId LIKE @CustomID OR r.CustomReceiptId LIKE @CustomID)");
                     parameters.Add(new SqlParameter("@CustomID", "%" + orderId + "%"));
                 }
@@ -235,26 +290,56 @@ namespace Laundry_Management.Laundry
             {
                 query += " AND " + string.Join(" AND ", filters);
             }
-            
-            // เพิ่ม ORDER BY clause
+
             query += orderByClause;
 
             using (SqlConnection conn = Laundry_Management.Laundry.DBconfig.GetConnection())
             using (SqlCommand cmd = new SqlCommand(query, conn))
             {
                 cmd.Parameters.AddRange(parameters.ToArray());
-                SqlDataAdapter adapter = new SqlDataAdapter(cmd);
-                DataTable dt = new DataTable();
-                adapter.Fill(dt);
-                dgvOrders.DataSource = dt;
-                if (dgvOrders.Columns["OrderID"] != null)
-                    dgvOrders.Columns["OrderID"].Visible = false;
+                conn.Open();
 
-                if (dgvOrders.Columns["ReceiptID"] != null)
-                    dgvOrders.Columns["ReceiptID"].Visible = false;
+                var pickupOrders = new List<PickupOrderDto>();
 
-                if (dgvOrders.Columns["CustomerId"] != null)
-                    dgvOrders.Columns["CustomerId"].Visible = false;
+                using (SqlDataReader reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        // ตรวจสอบว่า ReceiptID เป็น NULL หรือไม่ ถ้าเป็น NULL ให้ข้าม
+                        if (reader.IsDBNull(5)) // ReceiptID อยู่ที่ index 5
+                            continue;
+
+                        pickupOrders.Add(new PickupOrderDto
+                        {
+                            OrderID = reader.GetInt32(0),
+                            CustomOrderId = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                            CustomerId = reader.GetInt32(2),
+                            CustomerName = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                            Phone = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                            ReceiptID = reader.GetInt32(5), // ตอนนี้ปลอดภัยแล้วเพราะตรวจสอบแล้ว
+                            CustomReceiptId = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                            OrderDate = reader.GetDateTime(7),
+                            PickupDate = reader.GetDateTime(8),
+                            IsPickedUp = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                            CustomerPickupDate = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10),
+                            OrderStatus = reader.IsDBNull(11) ? "" : reader.GetString(11)
+                        });
+                    }
+                }
+
+                // เก็บข้อมูลทั้งหมดไว้
+                _allData = pickupOrders;
+
+                // คำนวณจำนวนหน้าทั้งหมด
+                _currentPageIndex = 0;
+                _totalPages = (int)Math.Ceiling((double)_allData.Count / _pageSize);
+                if (_totalPages == 0) _totalPages = 1;
+
+                // แสดงข้อมูลหน้าปัจจุบัน
+                DisplayCurrentPage();
+
+                // อัปเดตสถานะปุ่ม
+                UpdatePaginationButtons();
             }
         }
 
@@ -533,26 +618,10 @@ namespace Laundry_Management.Laundry
         {
             try
             {
-                if (dgvOrders.Rows.Count == 0)
+                // เปลี่ยนจากการตรวจสอบ dgvOrders.Rows เป็น _allData
+                if (_allData == null || _allData.Count == 0)
                 {
                     MessageBox.Show("ไม่มีข้อมูลที่จะพิมพ์", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                // Check for valid data before printing
-                bool hasValidRows = false;
-                foreach (DataGridViewRow row in dgvOrders.Rows)
-                {
-                    if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
-                    {
-                        hasValidRows = true;
-                        break;
-                    }
-                }
-
-                if (!hasValidRows)
-                {
-                    MessageBox.Show("ไม่พบข้อมูลที่พร้อมพิมพ์ กรุณาตรวจสอบข้อมูล", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -768,18 +837,15 @@ namespace Laundry_Management.Laundry
                     float rowHeight = normalFont.GetHeight() * 1.2f;
                     int rowsPerPage = (int)((availableHeight - (yPosition - topMargin) - 40) / rowHeight);
 
-                    // Calculate row range for current page
+                    // Calculate row range for current page จาก _allData
                     int startRow = _currentPage * rowsPerPage;
-                    int endRow = Math.Min(startRow + rowsPerPage, dgvOrders.Rows.Count);
+                    int endRow = Math.Min(startRow + rowsPerPage, _allData.Count);
 
-                    // Print data rows
+                    // Print data rows จาก _allData
                     int sequenceNumber = startRow + 1;
                     for (int i = startRow; i < endRow; i++)
                     {
-                        DataGridViewRow row = dgvOrders.Rows[i];
-
-                        if (row.Cells["หมายเลขใบรับผ้า"].Value == null)
-                            continue;
+                        PickupOrderDto dataRow = _allData[i];
 
                         currentX = leftMargin;
 
@@ -792,73 +858,88 @@ namespace Laundry_Management.Laundry
                         }
                         currentX += columnWidths[0];
 
-                        // Data columns
-                        string[] dataColumns = new string[] {
-                            "หมายเลขใบรับผ้า",
-                            "หมายเลขใบเสร็จ",
-                            "ชื่อลูกค้า",
-                            "เบอร์โทรศัพท์",
-                            "วันที่ส่งผ้า",
-                            "วันที่ครบกำหนด",
-                            "สถานะ",
-                            "วันที่มารับ"
-                        };
-
-                        for (int j = 0; j < dataColumns.Length; j++)
+                        // หมายเลขใบรับผ้า
+                        RectangleF orderIdRect = new RectangleF(currentX, yPosition, columnWidths[1], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter })
                         {
-                            string cellValue = "";
-                            try
-                            {
-                                if (row.Cells[dataColumns[j]].Value != null && row.Cells[dataColumns[j]].Value != DBNull.Value)
-                                {
-                                    if (dataColumns[j].Contains("วันที่"))
-                                    {
-                                        DateTime date = Convert.ToDateTime(row.Cells[dataColumns[j]].Value);
-                                        cellValue = date.ToString("dd/MM/yy");
-                                    }
-                                    else
-                                    {
-                                        cellValue = row.Cells[dataColumns[j]].Value.ToString();
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                cellValue = "-";
-                            }
+                            e.Graphics.DrawString(dataRow.CustomOrderId ?? "", normalFont, Brushes.Black, orderIdRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, orderIdRect.X, orderIdRect.Y, orderIdRect.Width, orderIdRect.Height);
+                        }
+                        currentX += columnWidths[1];
 
-                            RectangleF cellRect = new RectangleF(currentX, yPosition, columnWidths[j + 1], rowHeight);
-                            using (StringFormat sf = new StringFormat())
-                            {
-                                sf.Alignment = StringAlignment.Center;
-                                sf.LineAlignment = StringAlignment.Center;
-                                sf.Trimming = StringTrimming.EllipsisCharacter;
+                        // หมายเลขใบเสร็จ
+                        RectangleF receiptIdRect = new RectangleF(currentX, yPosition, columnWidths[2], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter })
+                        {
+                            e.Graphics.DrawString(dataRow.CustomReceiptId ?? "", normalFont, Brushes.Black, receiptIdRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, receiptIdRect.X, receiptIdRect.Y, receiptIdRect.Width, receiptIdRect.Height);
+                        }
+                        currentX += columnWidths[2];
 
-                                if (dataColumns[j] == "สถานะ" && !string.IsNullOrEmpty(cellValue))
-                                {
-                                    using (SolidBrush statusBrush = new SolidBrush(cellValue == "มารับแล้ว" ? Color.Green : Color.Blue))
-                                    {
-                                        e.Graphics.DrawString(cellValue, normalFont, statusBrush, cellRect, sf);
-                                    }
-                                }
-                                else
-                                {
-                                    e.Graphics.DrawString(cellValue, normalFont, Brushes.Black, cellRect, sf);
-                                }
+                        // ชื่อลูกค้า
+                        RectangleF nameRect = new RectangleF(currentX, yPosition, columnWidths[3], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter })
+                        {
+                            e.Graphics.DrawString(dataRow.CustomerName ?? "", normalFont, Brushes.Black, nameRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, nameRect.X, nameRect.Y, nameRect.Width, nameRect.Height);
+                        }
+                        currentX += columnWidths[3];
 
-                                e.Graphics.DrawRectangle(Pens.Black, cellRect.X, cellRect.Y, cellRect.Width, cellRect.Height);
-                            }
-                            currentX += columnWidths[j + 1];
+                        // เบอร์โทร
+                        RectangleF phoneRect = new RectangleF(currentX, yPosition, columnWidths[4], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter })
+                        {
+                            e.Graphics.DrawString(dataRow.Phone ?? "", normalFont, Brushes.Black, phoneRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, phoneRect.X, phoneRect.Y, phoneRect.Width, phoneRect.Height);
+                        }
+                        currentX += columnWidths[4];
+
+                        // วันที่ส่งผ้า
+                        RectangleF orderDateRect = new RectangleF(currentX, yPosition, columnWidths[5], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            string orderDateStr = dataRow.OrderDate != DateTime.MinValue ? dataRow.OrderDate.ToString("dd/MM/yy") : "-";
+                            e.Graphics.DrawString(orderDateStr, normalFont, Brushes.Black, orderDateRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, orderDateRect.X, orderDateRect.Y, orderDateRect.Width, orderDateRect.Height);
+                        }
+                        currentX += columnWidths[5];
+
+                        // วันที่ครบกำหนด
+                        RectangleF pickupDateRect = new RectangleF(currentX, yPosition, columnWidths[6], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            string pickupDateStr = dataRow.PickupDate != DateTime.MinValue ? dataRow.PickupDate.ToString("dd/MM/yy") : "-";
+                            e.Graphics.DrawString(pickupDateStr, normalFont, Brushes.Black, pickupDateRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, pickupDateRect.X, pickupDateRect.Y, pickupDateRect.Width, pickupDateRect.Height);
+                        }
+                        currentX += columnWidths[6];
+
+                        // สถานะ
+                        RectangleF statusRect = new RectangleF(currentX, yPosition, columnWidths[7], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            string statusValue = dataRow.IsPickedUp ?? "";
+                            Brush statusBrush = statusValue == "มารับแล้ว" ? Brushes.Green : Brushes.Blue;
+                            e.Graphics.DrawString(statusValue, normalFont, statusBrush, statusRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, statusRect.X, statusRect.Y, statusRect.Width, statusRect.Height);
+                        }
+                        currentX += columnWidths[7];
+
+                        // วันที่มารับ
+                        RectangleF customerPickupRect = new RectangleF(currentX, yPosition, columnWidths[8], rowHeight);
+                        using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        {
+                            string pickupStr = dataRow.CustomerPickupDate.HasValue ? dataRow.CustomerPickupDate.Value.ToString("dd/MM/yy") : "-";
+                            e.Graphics.DrawString(pickupStr, normalFont, Brushes.Black, customerPickupRect, sf);
+                            e.Graphics.DrawRectangle(Pens.Black, customerPickupRect.X, customerPickupRect.Y, customerPickupRect.Width, customerPickupRect.Height);
                         }
 
                         yPosition += rowHeight;
                         sequenceNumber++;
                     }
 
-                    // Page number
-                    int totalValidRows = dgvOrders.Rows.Cast<DataGridViewRow>().Count(r =>
-                        r.Cells["หมายเลขใบรับผ้า"].Value != null);
-                    int totalPages = (int)Math.Ceiling((double)totalValidRows / rowsPerPage);
+                    // Page number - ใช้ _allData.Count
+                    int totalPages = (int)Math.Ceiling((double)_allData.Count / rowsPerPage);
                     if (totalPages == 0) totalPages = 1;
 
                     string pageText = $"หน้า {_currentPage + 1} จาก {totalPages}";
@@ -866,7 +947,7 @@ namespace Laundry_Management.Laundry
                         rightMargin - e.Graphics.MeasureString(pageText, smallFont).Width, bottomMargin);
 
                     // Check if more pages needed
-                    if (endRow < dgvOrders.Rows.Count)
+                    if (endRow < _allData.Count)
                     {
                         _currentPage++;
                         e.HasMorePages = true;
@@ -895,26 +976,10 @@ namespace Laundry_Management.Laundry
         {
             try
             {
-                if (dgvOrders.Rows.Count == 0)
+                // เปลี่ยนจากการตรวจสอบ dgvOrders.Rows เป็น _allData
+                if (_allData == null || _allData.Count == 0)
                 {
                     MessageBox.Show("ไม่มีข้อมูลที่จะส่งออก", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                // Check for valid data
-                bool hasValidRows = false;
-                foreach (DataGridViewRow row in dgvOrders.Rows)
-                {
-                    if (row.Cells["หมายเลขใบรับผ้า"].Value != null || row.Cells["ชื่อลูกค้า"].Value != null)
-                    {
-                        hasValidRows = true;
-                        break;
-                    }
-                }
-
-                if (!hasValidRows)
-                {
-                    MessageBox.Show("ไม่พบข้อมูลที่พร้อมส่งออก กรุณาตรวจสอบข้อมูล", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -931,9 +996,9 @@ namespace Laundry_Management.Laundry
                         Cursor = Cursors.WaitCursor;
 
                         var columnNames = new List<string> {
-                            "หมายเลขใบรับผ้า", "หมายเลขใบเสร็จ", "ชื่อลูกค้า", "เบอร์โทรศัพท์",
-                            "วันที่ส่งผ้า", "วันที่ครบกำหนด", "สถานะ", "วันที่มารับ"
-                        };
+                    "ลำดับ", "หมายเลขใบรับผ้า", "หมายเลขใบเสร็จ", "ชื่อลูกค้า", "เบอร์โทรศัพท์",
+                    "วันที่ส่งผ้า", "วันที่ครบกำหนด", "สถานะ", "วันที่มารับ"
+                };
 
                         StringBuilder csv = new StringBuilder();
                         csv.Append("\uFEFF"); // UTF-8 BOM
@@ -941,45 +1006,56 @@ namespace Laundry_Management.Laundry
                         // Header row
                         csv.AppendLine(string.Join(",", columnNames.Select(name => $"\"{name}\"")));
 
-                        // Data rows
-                        int validRowCount = 0;
-                        foreach (DataGridViewRow row in dgvOrders.Rows)
+                        // Data rows จาก _allData
+                        for (int i = 0; i < _allData.Count; i++)
                         {
-                            if (row.Cells["หมายเลขใบรับผ้า"].Value == null)
-                                continue;
-
-                            validRowCount++;
+                            var dataRow = _allData[i];
                             var rowValues = new List<string>();
 
-                            foreach (string col in columnNames)
-                            {
-                                string value = "";
-                                if (row.Cells[col].Value != null && row.Cells[col].Value != DBNull.Value)
-                                {
-                                    if (col.Contains("วันที่") && row.Cells[col].Value is DateTime date)
-                                    {
-                                        value = date.ToString("dd/MM/yyyy HH:mm");
-                                    }
-                                    else
-                                    {
-                                        value = row.Cells[col].Value.ToString();
-                                    }
+                            // ลำดับ
+                            rowValues.Add($"\"{i + 1}\"");
 
-                                    if (col == "เบอร์โทรศัพท์" || col == "หมายเลขใบรับผ้า" || col == "หมายเลขใบเสร็จ")
-                                    {
-                                        value = $"=\"{value}\"";
-                                    }
+                            // หมายเลขใบรับผ้า
+                            rowValues.Add($"=\"{dataRow.CustomOrderId ?? ""}\"");
 
-                                    value = value.Replace("\"", "\"\"");
-                                }
-                                rowValues.Add($"\"{value}\"");
-                            }
+                            // หมายเลขใบเสร็จ
+                            rowValues.Add($"=\"{dataRow.CustomReceiptId ?? ""}\"");
+
+                            // ชื่อลูกค้า
+                            string customerName = (dataRow.CustomerName ?? "").Replace("\"", "\"\"");
+                            rowValues.Add($"\"{customerName}\"");
+
+                            // เบอร์โทรศัพท์
+                            rowValues.Add($"=\"{dataRow.Phone ?? ""}\"");
+
+                            // วันที่ส่งผ้า
+                            string orderDate = dataRow.OrderDate != DateTime.MinValue
+                                ? dataRow.OrderDate.ToString("dd/MM/yyyy HH:mm")
+                                : "";
+                            rowValues.Add($"\"{orderDate}\"");
+
+                            // วันที่ครบกำหนด
+                            string pickupDate = dataRow.PickupDate != DateTime.MinValue
+                                ? dataRow.PickupDate.ToString("dd/MM/yyyy HH:mm")
+                                : "";
+                            rowValues.Add($"\"{pickupDate}\"");
+
+                            // สถานะ
+                            string status = (dataRow.IsPickedUp ?? "").Replace("\"", "\"\"");
+                            rowValues.Add($"\"{status}\"");
+
+                            // วันที่มารับ
+                            string customerPickupDate = dataRow.CustomerPickupDate.HasValue
+                                ? dataRow.CustomerPickupDate.Value.ToString("dd/MM/yyyy HH:mm")
+                                : "";
+                            rowValues.Add($"\"{customerPickupDate}\"");
+
                             csv.AppendLine(string.Join(",", rowValues));
                         }
 
                         // Summary
                         csv.AppendLine();
-                        csv.AppendLine($"\"จำนวนรายการทั้งหมด {validRowCount} รายการ\"");
+                        csv.AppendLine($"\"จำนวนรายการทั้งหมด {_allData.Count} รายการ\"");
                         csv.AppendLine();
                         csv.AppendLine("\"รายงานการมารับผ้า\"");
                         csv.AppendLine($"\"พิมพ์เมื่อ: {DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")}\"");
@@ -1001,6 +1077,91 @@ namespace Laundry_Management.Laundry
                 Cursor = Cursors.Default;
                 MessageBox.Show($"เกิดข้อผิดพลาดในการส่งออกข้อมูล: {ex.Message}", "ข้อผิดพลาด", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+        private void DisplayCurrentPage()
+        {
+            if (_allData == null || _allData.Count == 0)
+            {
+                dgvOrders.DataSource = null;
+                return;
+            }
+
+            // ดึงข้อมูลเฉพาะหน้าปัจจุบัน
+            var pageData = _allData
+                .Skip(_currentPageIndex * _pageSize)
+                .Take(_pageSize)
+                .Select(x => new
+                {
+                    OrderID = x.OrderID,
+                    หมายเลขใบรับผ้า = x.CustomOrderId,
+                    CustomerId = x.CustomerId,
+                    ชื่อลูกค้า = x.CustomerName,
+                    เบอร์โทรศัพท์ = x.Phone,
+                    ReceiptID = x.ReceiptID,
+                    หมายเลขใบเสร็จ = x.CustomReceiptId,
+                    วันที่ส่งผ้า = x.OrderDate,
+                    วันที่ครบกำหนด = x.PickupDate,
+                    สถานะ = x.IsPickedUp,
+                    วันที่มารับ = x.CustomerPickupDate,
+                    OrderStatus = x.OrderStatus
+                })
+                .ToList();
+
+            // ผูกข้อมูลกับ DataGridView
+            dgvOrders.DataSource = pageData;
+
+            // ซ่อนคอลัมน์ที่ไม่จำเป็น
+            if (dgvOrders.Columns["OrderID"] != null)
+                dgvOrders.Columns["OrderID"].Visible = false;
+            if (dgvOrders.Columns["ReceiptID"] != null)
+                dgvOrders.Columns["ReceiptID"].Visible = false;
+            if (dgvOrders.Columns["CustomerId"] != null)
+                dgvOrders.Columns["CustomerId"].Visible = false;
+            if (dgvOrders.Columns["OrderStatus"] != null)
+                dgvOrders.Columns["OrderStatus"].Visible = false;
+
+            // อัปเดตข้อความแสดงหน้า
+            int startRecord = (_currentPageIndex * _pageSize) + 1;
+            int endRecord = Math.Min((_currentPageIndex + 1) * _pageSize, _allData.Count);
+            this.Text = $"รายการมารับผ้า - จำนวน {_allData.Count} รายการ (แสดง {startRecord}-{endRecord})";
+        }
+
+        private void UpdatePaginationButtons()
+        {
+            // เปิด/ปิดปุ่มตามหน้าปัจจุบัน
+            btnFirstPage.Enabled = _currentPageIndex > 0;
+            btnPreviousPage.Enabled = _currentPageIndex > 0;
+            btnNextPage.Enabled = _currentPageIndex < _totalPages - 1;
+            btnLastPage.Enabled = _currentPageIndex < _totalPages - 1;
+        }
+
+        private void NavigateToPage(int pageIndex)
+        {
+            if (pageIndex < 0 || pageIndex >= _totalPages)
+                return;
+
+            _currentPageIndex = pageIndex;
+            DisplayCurrentPage();
+            UpdatePaginationButtons();
+        }
+        private void btnFirstPage_Click(object sender, EventArgs e)
+        {
+            NavigateToPage(0);
+        }
+
+        private void btnPreviousPage_Click(object sender, EventArgs e)
+        {
+            NavigateToPage(_currentPageIndex - 1);
+        }
+
+        private void btnNextPage_Click(object sender, EventArgs e)
+        {
+            NavigateToPage(_currentPageIndex + 1);
+        }
+
+        private void btnLastPage_Click(object sender, EventArgs e)
+        {
+            NavigateToPage(_totalPages - 1);
         }
     }
 }

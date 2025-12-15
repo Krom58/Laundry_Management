@@ -14,6 +14,12 @@ namespace Laundry_Management
 {
     public partial class Add_Type__Service : Form
     {
+        // เพิ่มตัวแปรสำหรับ Pagination
+        private int _currentPage = 1;
+        private int _pageSize = 25;
+        private int _totalRecords = 0;
+        private int _totalPages = 0;
+        
         public Add_Type__Service()
         {
             InitializeComponent();
@@ -22,6 +28,7 @@ namespace Laundry_Management
             Price.KeyDown += TextBox_KeyDown;
             ItemNumber.KeyDown += TextBox_KeyDown;
         }
+        
         private void TextBox_KeyDown(object sender, KeyEventArgs e)
         {
             // Check if Enter key was pressed
@@ -34,6 +41,7 @@ namespace Laundry_Management
                 Search_Click(sender, e);
             }
         }
+        
         private void Save_Click(object sender, EventArgs e)
         {
             // ตรวจสอบว่ากรอกข้อมูลครบทุกช่องหรือไม่
@@ -79,6 +87,7 @@ namespace Laundry_Management
                     connection.Open();
                     command.ExecuteNonQuery();
                     MessageBox.Show("บันทึกข้อมูลสำเร็จ");
+                    _currentPage = 1; // กลับไปหน้าแรก
                     LoadData();
                     ClearForm();
                 }
@@ -118,31 +127,153 @@ namespace Laundry_Management
                 MessageBox.Show("เลือกข้อมูลก่อนที่จะลบ");
             }
         }
+        
         private void LoadData()
         {
-            string query = "SELECT ServiceID, ItemNumber, ServiceType, ItemName, Price, Gender, CreatedAt, IsCancelled, CancelledDate FROM LaundryService";
-            using (SqlConnection connection = DBconfig.GetConnection())
+            LoadDataWithPagination(null, null, null, null, null, null, null);
+        }
+        
+        private void LoadDataWithPagination(string itemName, string itemNumber, string price, 
+            string gender, string serviceType, bool? isUsing, bool? isNotUsing)
+        {
+            try
             {
-                using (SqlDataAdapter adapter = new SqlDataAdapter(query, connection))
+                using (SqlConnection connection = DBconfig.GetConnection())
                 {
-                    DataTable dataTable = new DataTable();
-                    adapter.Fill(dataTable);
-                    dataGridView1.DataSource = dataTable;
-                }
-                // สมมติว่าชื่อ DataGridView ของคุณคือ dataGridView1
-                dataGridView1.Columns["ItemNumber"].HeaderText = "หมายเลขรายการ";
-                dataGridView1.Columns["ServiceType"].HeaderText = "ประเภทการซัก";
-                dataGridView1.Columns["ItemName"].HeaderText = "ชื่อ-รายการ";
-                dataGridView1.Columns["Price"].HeaderText = "ราคา";
-                dataGridView1.Columns["Gender"].HeaderText = "เพศ";
-                dataGridView1.Columns["CreatedAt"].HeaderText = "สร้างเมื่อ";
-                dataGridView1.Columns["IsCancelled"].HeaderText = "การใช้งาน";
-                dataGridView1.Columns["CancelledDate"].HeaderText = "วันที่ยกเลิกการใช้งาน";
-                if (dataGridView1.Columns["ServiceID"] != null)
-                {
-                    dataGridView1.Columns["ServiceID"].Visible = false;
+                    connection.Open();
+
+                    // นับจำนวนข้อมูลทั้งหมด
+                    string countQuery = "SELECT COUNT(*) FROM LaundryService WHERE 1=1";
+                    
+                    if (!string.IsNullOrEmpty(itemName))
+                        countQuery += " AND ItemName LIKE @itemName";
+                    if (!string.IsNullOrEmpty(itemNumber))
+                        countQuery += " AND ItemNumber LIKE @itemNumber";
+                    if (!string.IsNullOrEmpty(price))
+                        countQuery += " AND Price LIKE @price";
+                    if (!string.IsNullOrEmpty(gender))
+                        countQuery += " AND Gender = @gender";
+                    if (!string.IsNullOrEmpty(serviceType))
+                        countQuery += " AND ServiceType = @serviceType";
+                    if (isUsing == true && isNotUsing != true)
+                        countQuery += " AND (IsCancelled IS NULL OR IsCancelled = N'ใช้งาน')";
+                    else if (isUsing != true && isNotUsing == true)
+                        countQuery += " AND IsCancelled = N'ไม่ใช้งาน'";
+
+                    using (SqlCommand countCmd = new SqlCommand(countQuery, connection))
+                    {
+                        AddSearchParameters(countCmd, itemName, itemNumber, price, gender, serviceType);
+                        _totalRecords = (int)countCmd.ExecuteScalar();
+                        _totalPages = (int)Math.Ceiling((double)_totalRecords / _pageSize);
+                        
+                        if (_totalPages == 0) _totalPages = 1;
+                    }
+
+                    // ดึงข้อมูลตามหน้าที่เลือก
+                    string query = @"
+                        SELECT ServiceID, ItemNumber, ServiceType, ItemName, Price, Gender, CreatedAt, IsCancelled, CancelledDate 
+                        FROM LaundryService 
+                        WHERE 1=1";
+                    
+                    if (!string.IsNullOrEmpty(itemName))
+                        query += " AND ItemName LIKE @itemName";
+                    if (!string.IsNullOrEmpty(itemNumber))
+                        query += " AND ItemNumber LIKE @itemNumber";
+                    if (!string.IsNullOrEmpty(price))
+                        query += " AND Price LIKE @price";
+                    if (!string.IsNullOrEmpty(gender))
+                        query += " AND Gender = @gender";
+                    if (!string.IsNullOrEmpty(serviceType))
+                        query += " AND ServiceType = @serviceType";
+                    if (isUsing == true && isNotUsing != true)
+                        query += " AND (IsCancelled IS NULL OR IsCancelled = N'ใช้งาน')";
+                    else if (isUsing != true && isNotUsing == true)
+                        query += " AND IsCancelled = N'ไม่ใช้งาน'";
+
+                    query += @"
+                        ORDER BY ServiceID
+                        OFFSET @Offset ROWS
+                        FETCH NEXT @PageSize ROWS ONLY";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        AddSearchParameters(command, itemName, itemNumber, price, gender, serviceType);
+                        command.Parameters.AddWithValue("@Offset", (_currentPage - 1) * _pageSize);
+                        command.Parameters.AddWithValue("@PageSize", _pageSize);
+
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                        {
+                            DataTable dataTable = new DataTable();
+                            adapter.Fill(dataTable);
+                            dataGridView1.DataSource = dataTable;
+                        }
+                    }
+
+                    // ตั้งค่าหัวคอลัมน์
+                    if (dataGridView1.Columns.Count > 0)
+                    {
+                        dataGridView1.Columns["ItemNumber"].HeaderText = "หมายเลขรายการ";
+                        dataGridView1.Columns["ServiceType"].HeaderText = "ประเภทการซัก";
+                        dataGridView1.Columns["ItemName"].HeaderText = "ชื่อ-รายการ";
+                        dataGridView1.Columns["Price"].HeaderText = "ราคา";
+                        dataGridView1.Columns["Gender"].HeaderText = "เพศ";
+                        dataGridView1.Columns["CreatedAt"].HeaderText = "สร้างเมื่อ";
+                        dataGridView1.Columns["IsCancelled"].HeaderText = "การใช้งาน";
+                        dataGridView1.Columns["CancelledDate"].HeaderText = "วันที่ยกเลิกการใช้งาน";
+                        
+                        if (dataGridView1.Columns["ServiceID"] != null)
+                            dataGridView1.Columns["ServiceID"].Visible = false;
+                    }
+
+                    // อัพเดทข้อความแสดงหน้า
+                    UpdatePaginationInfo();
                 }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"เกิดข้อผิดพลาดในการโหลดข้อมูล: {ex.Message}", "ข้อผิดพลาด",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void AddSearchParameters(SqlCommand command, string itemName, string itemNumber, 
+            string price, string gender, string serviceType)
+        {
+            if (!string.IsNullOrEmpty(itemName))
+                command.Parameters.AddWithValue("@itemName", "%" + itemName + "%");
+            if (!string.IsNullOrEmpty(itemNumber))
+                command.Parameters.AddWithValue("@itemNumber", "%" + itemNumber + "%");
+            if (!string.IsNullOrEmpty(price))
+                command.Parameters.AddWithValue("@price", "%" + price + "%");
+            if (!string.IsNullOrEmpty(gender))
+                command.Parameters.AddWithValue("@gender", gender);
+            if (!string.IsNullOrEmpty(serviceType))
+                command.Parameters.AddWithValue("@serviceType", serviceType);
+        }
+
+        private void UpdatePaginationInfo()
+        {
+            // อัพเดทข้อความแสดงข้อมูลหน้า (ถ้ามี Label หรือ TextBox สำหรับแสดง)
+            // สมมติว่ามี Label ชื่อ lblPageInfo
+            int startRecord = (_currentPage - 1) * _pageSize + 1;
+            int endRecord = Math.Min(_currentPage * _pageSize, _totalRecords);
+            
+            string pageInfo = $"แสดง {startRecord}-{endRecord} จาก {_totalRecords} รายการ (หน้า {_currentPage}/{_totalPages})";
+            this.Text = $"จัดการประเภทบริการ - {pageInfo}";
+        }
+
+        private void LoadDataOrSearch()
+        {
+            // ตรวจสอบว่ามีการค้นหาหรือไม่
+            string itemName = ItemName.Text.Trim();
+            string itemNumber = ItemNumber.Text.Trim();
+            string price = Price.Text.Trim();
+            string gender = Gender.SelectedItem?.ToString() ?? "";
+            string serviceType = ServiceType.SelectedItem?.ToString() ?? "";
+            bool? isUsing = chkUsing.Checked ? (bool?)true : null;
+            bool? isNotUsing = chkNotUse.Checked ? (bool?)true : null;
+
+            LoadDataWithPagination(itemName, itemNumber, price, gender, serviceType, isUsing, isNotUsing);
         }
 
         // เพิ่มเมธอดสำหรับล้างข้อมูลในฟอร์ม
@@ -177,6 +308,7 @@ namespace Laundry_Management
 
             LoadData();
         }
+        
         private void ChkStatus_CheckedChanged(object sender, EventArgs e)
         {
             CheckBox currentCheckBox = (CheckBox)sender;
@@ -221,7 +353,7 @@ namespace Laundry_Management
                     var modifyForm = new Modify_Type_Service(itemName, serviceType, gender, price, itemNumber, serviceId);
 
                     if (modifyForm.ShowDialog() == DialogResult.OK)
-                        LoadData();
+                        LoadDataOrSearch(); // ใช้ LoadDataOrSearch เพื่อคงหน้าปัจจุบัน
                 }
                 else
                 {
@@ -281,6 +413,44 @@ namespace Laundry_Management
                     }
                 }
             }
+        }
+
+        private void btnFirstPage_Click(object sender, EventArgs e)
+        {
+            _currentPage = 1;
+            LoadDataOrSearch();
+        }
+
+        private void btnPreviousPage_Click(object sender, EventArgs e)
+        {
+            if (_currentPage > 1)
+            {
+                _currentPage--;
+                LoadDataOrSearch();
+            }
+            else
+            {
+                MessageBox.Show("คุณอยู่ที่หน้าแรกแล้ว", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void btnNextPage_Click(object sender, EventArgs e)
+        {
+            if (_currentPage < _totalPages)
+            {
+                _currentPage++;
+                LoadDataOrSearch();
+            }
+            else
+            {
+                MessageBox.Show("คุณอยู่ที่หน้าสุดท้ายแล้ว", "แจ้งเตือน", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void btnLastPage_Click(object sender, EventArgs e)
+        {
+            _currentPage = _totalPages;
+            LoadDataOrSearch();
         }
     }
 }

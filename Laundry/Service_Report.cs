@@ -66,7 +66,7 @@ namespace Laundry_Management.Laundry
         private void InitializeDataGridView()
         {
             // Configure DataGridView properties for Thai language
-            dgvReport.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvReport.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None; // Changed to None for better performance
             dgvReport.AllowUserToAddRows = false;
             dgvReport.AllowUserToDeleteRows = false;
             dgvReport.ReadOnly = true;
@@ -75,15 +75,16 @@ namespace Laundry_Management.Laundry
             dgvReport.RowTemplate.Height = 30;
             dgvReport.EnableHeadersVisualStyles = false;
 
-            // Custom column widths for hierarchical display
-            dgvReport.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-
             // Disable cell selection to keep the hierarchical display consistent
             dgvReport.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
 
+            // Performance optimizations
+            dgvReport.DoubleBuffered(true); // Reduce flickering
+            
             // Add event handler for cell painting to show borders correctly
             dgvReport.CellPainting += DgvReport_CellPainting;
         }
+        
         private void DgvReport_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             // Skip header cells
@@ -128,14 +129,15 @@ namespace Laundry_Management.Laundry
                 }
             }
         }
-        private void DateFilter_ValueChanged(object sender, EventArgs e)
+        
+        private async void DateFilter_ValueChanged(object sender, EventArgs e)
         {
             // Validate date range
             if (!ValidateDateRange())
                 return;
 
-            // Load the report data with the new date range
-            LoadReportData();
+            // Load the report data with the new date range asynchronously
+            await LoadReportDataAsync();
         }
 
         private bool ValidateDateRange()
@@ -197,107 +199,29 @@ namespace Laundry_Management.Laundry
             return true;
         }
 
-        private void LoadReportData()
+        // New async method for loading data
+        private async Task LoadReportDataAsync()
         {
             Cursor = Cursors.WaitCursor;
 
             try
             {
-                using (SqlConnection connection = DBconfig.GetConnection())
-                {
-                    connection.Open();
+                // Suspend layout updates
+                dgvReport.SuspendLayout();
+                
+                // Get selected month and year values
+                int startMonth = dtpCreateMonthFirst.Value.Month;
+                int startYear = dtpCreateYearFirst.Value.Year;
+                int endMonth = dtpCreateMonthLast.Value.Month;
+                int endYear = dtpCreateYearLast.Value.Year;
 
-                    // Get selected month and year values
-                    int startMonth = dtpCreateMonthFirst.Value.Month;
-                    int startYear = dtpCreateYearFirst.Value.Year;
-                    int endMonth = dtpCreateMonthLast.Value.Month;
-                    int endYear = dtpCreateYearLast.Value.Year;
+                // Load data asynchronously
+                var data = await Task.Run(() => LoadDataFromDatabase(startMonth, startYear, endMonth, endYear));
+                
+                reportData = data;
 
-                    // Create a query to get all laundry services as base data, including those with zero usage
-                    string query = @"
-                            WITH MonthsInRange AS (
-                                -- Generate all months in the selected date range
-                                SELECT 
-                                    m.MonthNumber AS Month,
-                                    m.YearNumber AS Year
-                                FROM (
-                                    SELECT 
-                                        MONTH(DATEADD(MONTH, number, @StartDate)) AS MonthNumber,
-                                        YEAR(DATEADD(MONTH, number, @StartDate)) AS YearNumber
-                                    FROM master.dbo.spt_values
-                                    WHERE 
-                                        type = 'P' AND 
-                                        number <= DATEDIFF(MONTH, @StartDate, @EndDate)
-                                ) m
-                            ),
-                            ServiceItems AS (
-                                -- Get all laundry services
-                                SELECT 
-                                    ls.ServiceType,
-                                    ls.Gender,
-                                    ls.ItemName,
-                                    ls.ItemNumber
-                                FROM LaundryService ls
-                                WHERE ls.IsCancelled = N'ใช้งาน'
-                            ),
-                            SuccessfulItems AS (
-                                -- Get successful receipt items (printed receipts, not canceled items)
-                                SELECT 
-                                    oi.ItemNumber,
-                                    COUNT(ri.ReceiptItemID) AS UsageCount,
-                                    MONTH(r.ReceiptDate) AS Month,
-                                    YEAR(r.ReceiptDate) AS Year
-                                FROM ReceiptItem ri
-                                INNER JOIN Receipt r ON ri.ReceiptID = r.ReceiptID
-                                INNER JOIN OrderItem oi ON ri.OrderItemID = oi.OrderItemID
-                                WHERE r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว' 
-                                    AND ri.IsCanceled = 0
-                                    AND (
-                                        (YEAR(r.ReceiptDate) = @StartYear AND MONTH(r.ReceiptDate) >= @StartMonth)
-                                        OR (YEAR(r.ReceiptDate) = @EndYear AND MONTH(r.ReceiptDate) <= @EndMonth)
-                                        OR (YEAR(r.ReceiptDate) > @StartYear AND YEAR(r.ReceiptDate) < @EndYear)
-                                    )
-                                GROUP BY oi.ItemNumber, MONTH(r.ReceiptDate), YEAR(r.ReceiptDate)
-                            )
-
-                            -- Cross join services with months to ensure all combinations exist
-                            SELECT 
-                                si.ServiceType AS 'ประเภทการซัก', 
-                                si.Gender AS 'เพศ',
-                                si.ItemName AS 'รายการ',
-                                ISNULL(su.UsageCount, 0) AS 'จำนวนที่ใช้งาน',
-                                mir.Month,
-                                mir.Year
-                            FROM ServiceItems si
-                            CROSS JOIN MonthsInRange mir
-                            LEFT JOIN SuccessfulItems su ON si.ItemNumber = su.ItemNumber 
-                                                        AND mir.Month = su.Month 
-                                                        AND mir.Year = su.Year
-                            ORDER BY si.ServiceType, si.Gender, si.ItemName, mir.Year, mir.Month";
-
-                    // Create the adapter and fill the data
-                    using (SqlCommand command = new SqlCommand(query, connection))
-                    {
-                        // Set date parameters for full month range
-                        DateTime startDate = new DateTime(startYear, startMonth, 1);
-                        DateTime endDate = new DateTime(endYear, endMonth,
-                            DateTime.DaysInMonth(endYear, endMonth)).AddDays(1).AddSeconds(-1);
-
-                        command.Parameters.AddWithValue("@StartDate", startDate);
-                        command.Parameters.AddWithValue("@EndDate", endDate);
-                        command.Parameters.AddWithValue("@StartMonth", startMonth);
-                        command.Parameters.AddWithValue("@StartYear", startYear);
-                        command.Parameters.AddWithValue("@EndMonth", endMonth);
-                        command.Parameters.AddWithValue("@EndYear", endYear);
-
-                        SqlDataAdapter adapter = new SqlDataAdapter(command);
-                        reportData = new DataTable();
-                        adapter.Fill(reportData);
-
-                        // Create pivot data for monthly report format
-                        pivotData = CreatePivotTableWithGroups(reportData);
-                    }
-                }
+                // Create pivot data
+                pivotData = await Task.Run(() => CreatePivotTableWithGroups(reportData));
 
                 // Detach the current data source
                 dgvReport.DataSource = null;
@@ -305,11 +229,14 @@ namespace Laundry_Management.Laundry
                 // Clear any existing columns
                 dgvReport.Columns.Clear();
 
-                // In the LoadReportData method, after setting the DataSource:
+                // Assign new data source
                 dgvReport.DataSource = pivotData;
 
                 // Apply formatting after assigning the data source
                 ApplyGroupingFormatting();
+
+                // Resume layout updates
+                dgvReport.ResumeLayout();
 
                 // Force a refresh of the layout
                 dgvReport.Refresh();
@@ -331,6 +258,100 @@ namespace Laundry_Management.Laundry
             {
                 Cursor = Cursors.Default;
             }
+        }
+
+        // Separated database loading logic
+        private DataTable LoadDataFromDatabase(int startMonth, int startYear, int endMonth, int endYear)
+        {
+            DataTable data = new DataTable();
+            
+            using (SqlConnection connection = DBconfig.GetConnection())
+            {
+                connection.Open();
+
+                // Optimized query with better indexing hints
+                string query = @"
+                    WITH MonthsInRange AS (
+                        SELECT 
+                            m.MonthNumber AS Month,
+                            m.YearNumber AS Year
+                        FROM (
+                            SELECT 
+                                MONTH(DATEADD(MONTH, number, @StartDate)) AS MonthNumber,
+                                YEAR(DATEADD(MONTH, number, @StartDate)) AS YearNumber
+                            FROM master.dbo.spt_values
+                            WHERE 
+                                type = 'P' AND 
+                                number <= DATEDIFF(MONTH, @StartDate, @EndDate)
+                        ) m
+                    ),
+                    ServiceItems AS (
+                        SELECT 
+                            ls.ServiceType,
+                            ls.Gender,
+                            ls.ItemName,
+                            ls.ItemNumber
+                        FROM LaundryService ls WITH (NOLOCK)
+                        WHERE ls.IsCancelled = N'ใช้งาน'
+                    ),
+                    SuccessfulItems AS (
+                        SELECT 
+                            oi.ItemNumber,
+                            COUNT(ri.ReceiptItemID) AS UsageCount,
+                            MONTH(r.ReceiptDate) AS Month,
+                            YEAR(r.ReceiptDate) AS Year
+                        FROM ReceiptItem ri WITH (NOLOCK)
+                        INNER JOIN Receipt r WITH (NOLOCK) ON ri.ReceiptID = r.ReceiptID
+                        INNER JOIN OrderItem oi WITH (NOLOCK) ON ri.OrderItemID = oi.OrderItemID
+                        WHERE r.ReceiptStatus = N'พิมพ์เรียบร้อยแล้ว' 
+                            AND ri.IsCanceled = 0
+                            AND r.ReceiptDate >= @StartDate
+                            AND r.ReceiptDate <= @EndDate
+                        GROUP BY oi.ItemNumber, MONTH(r.ReceiptDate), YEAR(r.ReceiptDate)
+                    )
+                    SELECT 
+                        si.ServiceType AS 'ประเภทการซัก', 
+                        si.Gender AS 'เพศ',
+                        si.ItemName AS 'รายการ',
+                        ISNULL(su.UsageCount, 0) AS 'จำนวนที่ใช้งาน',
+                        mir.Month,
+                        mir.Year
+                    FROM ServiceItems si
+                    CROSS JOIN MonthsInRange mir
+                    LEFT JOIN SuccessfulItems su ON si.ItemNumber = su.ItemNumber 
+                                                AND mir.Month = su.Month 
+                                                AND mir.Year = su.Year
+                    ORDER BY si.ServiceType, si.Gender, si.ItemName, mir.Year, mir.Month";
+
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    // Set command timeout for large queries
+                    command.CommandTimeout = 120;
+
+                    // Set date parameters for full month range
+                    DateTime startDate = new DateTime(startYear, startMonth, 1);
+                    DateTime endDate = new DateTime(endYear, endMonth,
+                        DateTime.DaysInMonth(endYear, endMonth)).AddDays(1).AddSeconds(-1);
+
+                    command.Parameters.AddWithValue("@StartDate", startDate);
+                    command.Parameters.AddWithValue("@EndDate", endDate);
+                    command.Parameters.AddWithValue("@StartMonth", startMonth);
+                    command.Parameters.AddWithValue("@StartYear", startYear);
+                    command.Parameters.AddWithValue("@EndMonth", endMonth);
+                    command.Parameters.AddWithValue("@EndYear", endYear);
+
+                    SqlDataAdapter adapter = new SqlDataAdapter(command);
+                    adapter.Fill(data);
+                }
+            }
+            
+            return data;
+        }
+
+        // Keep original LoadReportData for backward compatibility
+        private void LoadReportData()
+        {
+            LoadReportDataAsync().Wait();
         }
 
         private DataTable CreatePivotTableWithGroups(DataTable sourceTable)
@@ -991,10 +1012,22 @@ namespace Laundry_Management.Laundry
             }
         }
 
-        private void Service_Report_Load(object sender, EventArgs e)
+        private async void Service_Report_Load(object sender, EventArgs e)
         {
             InitializeDataGridView();
-            LoadReportData(); // Load data with initial date range
+            await LoadReportDataAsync(); // Load data with initial date range asynchronously
         }
+    }
+}
+
+// Extension method for DataGridView double buffering
+public static class DataGridViewExtensions
+{
+    public static void DoubleBuffered(this DataGridView dgv, bool setting)
+    {
+        Type dgvType = dgv.GetType();
+        System.Reflection.PropertyInfo pi = dgvType.GetProperty("DoubleBuffered",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        pi.SetValue(dgv, setting, null);
     }
 }

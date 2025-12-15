@@ -48,7 +48,7 @@
             // 
             this.btnPrint.AutoSize = true;
             this.btnPrint.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnPrint.Location = new System.Drawing.Point(1566, 131);
+            this.btnPrint.Location = new System.Drawing.Point(1566, 76);
             this.btnPrint.Name = "btnPrint";
             this.btnPrint.Size = new System.Drawing.Size(144, 53);
             this.btnPrint.TabIndex = 111;
@@ -60,7 +60,7 @@
             // 
             this.btnExcel.AutoSize = true;
             this.btnExcel.Font = new System.Drawing.Font("Angsana New", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnExcel.Location = new System.Drawing.Point(1748, 131);
+            this.btnExcel.Location = new System.Drawing.Point(1748, 76);
             this.btnExcel.Name = "btnExcel";
             this.btnExcel.Size = new System.Drawing.Size(144, 53);
             this.btnExcel.TabIndex = 110;

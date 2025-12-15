@@ -9,42 +9,82 @@ namespace Laundry_Management.Laundry
 {
     internal class AppSettingsManager
     {
-        // Removed _cs, now using DBconfig.GetConnection()
-
+        // สำหรับ Order ใช้ปี พ.ศ.
         public static string GetNextOrderId()
         {
-            string nextId = GetSetting("NextOrderId", "1");
-
-            int numericId;
-            if (int.TryParse(nextId, out numericId))
-            {
-                if (!UpdateSetting("NextOrderId", (numericId + 1).ToString()))
-                {
-                    System.Windows.Forms.MessageBox.Show("ไม่สามารถเพิ่มค่า Order ID ได้ กรุณาตรวจสอบการตั้งค่า",
-                        "คำเตือน", System.Windows.Forms.MessageBoxButtons.OK,
-                        System.Windows.Forms.MessageBoxIcon.Warning);
-                }
-            }
-
-            return nextId;
+            return GetNextIdWithYearPrefix("NextOrderId", "NextOrderYear", true); // true = ใช้ปี พ.ศ.
         }
 
+        // สำหรับ Receipt ใช้ปี ค.ศ.
         public static string GetNextReceiptId()
         {
-            string nextId = GetSetting("NextReceiptId", "1");
+            return GetNextIdWithYearPrefix("NextReceiptId", "NextReceiptYear", false); // false = ใช้ปี ค.ศ.
+        }
 
-            int numericId;
-            if (int.TryParse(nextId, out numericId))
+        private static string GetNextIdWithYearPrefix(string idKey, string yearKey, bool useBuddhistYear)
+        {
+            try
             {
-                if (!UpdateSetting("NextReceiptId", (numericId + 1).ToString()))
+                using (var conn = DBconfig.GetConnection())
                 {
-                    System.Windows.Forms.MessageBox.Show("ไม่สามารถเพิ่มค่า Receipt ID ได้ กรุณาตรวจสอบการตั้งค่า",
-                        "คำเตือน", System.Windows.Forms.MessageBoxButtons.OK,
-                        System.Windows.Forms.MessageBoxIcon.Warning);
+                    conn.Open();
+                    EnsureTableExists(conn);
+
+                    // คำนวณปีปัจจุบัน
+                    int currentYear;
+                    if (useBuddhistYear)
+                    {
+                        // ปี พ.ศ. = ค.ศ. + 543
+                        currentYear = DateTime.Now.Year + 543;
+                    }
+                    else
+                    {
+                        // ปี ค.ศ.
+                        currentYear = DateTime.Now.Year;
+                    }
+                    
+                    int lastTwoDigits = currentYear % 100; // เอา 2 ตัวท้าย เช่น 2568 -> 68, 2025 -> 25
+
+                    // อ่านปีที่เก็บไว้
+                    string savedYear = GetSetting(yearKey, "0");
+                    int.TryParse(savedYear, out int storedYear);
+
+                    string nextId;
+                    int runningNumber;
+
+                    // ตรวจสอบว่าปีเปลี่ยนหรือไม่
+                    if (storedYear != lastTwoDigits)
+                    {
+                        // ปีเปลี่ยน: รีเซ็ตเลขวิ่งเป็น 1
+                        runningNumber = 1;
+                        UpdateSetting(idKey, "2"); // เซ็ตค่าถัดไปเป็น 2
+                        UpdateSetting(yearKey, lastTwoDigits.ToString()); // บันทึกปีใหม่
+                    }
+                    else
+                    {
+                        // ปีเดิม: ใช้เลขวิ่งต่อเนื่อง
+                        nextId = GetSetting(idKey, "1");
+                        if (!int.TryParse(nextId, out runningNumber))
+                        {
+                            runningNumber = 1;
+                        }
+                        UpdateSetting(idKey, (runningNumber + 1).ToString());
+                    }
+
+                    // สร้าง ID รูปแบบ YYNNNN (2 ตัวปี + 4 ตัวเลขวิ่ง)
+                    return $"{lastTwoDigits:D2}{runningNumber:D4}";
                 }
             }
-
-            return nextId;
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show($"เกิดข้อผิดพลาดในการดึง {idKey}: {ex.Message}",
+                    "ข้อผิดพลาด", System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+                
+                // กรณีเกิดข้อผิดพลาด ส่งค่าเริ่มต้น
+                int year = useBuddhistYear ? (DateTime.Now.Year + 543) % 100 : DateTime.Now.Year % 100;
+                return $"{year:D2}0001";
+            }
         }
 
         public static string GetSetting(string key, string defaultValue = "")

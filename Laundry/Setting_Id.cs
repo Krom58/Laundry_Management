@@ -13,13 +13,111 @@ namespace Laundry_Management.Laundry
 {
     public partial class Setting_Id : Form
     {
-        // ลบตัวแปร _cs ออก
 
         public Setting_Id()
         {
             InitializeComponent();
-            LoadSettings();
+            
+            // เพิ่ม Load event
+            this.Load += Setting_Id_Load;
         }
+
+        private void Setting_Id_Load(object sender, EventArgs e)
+        {
+            // สร้าง Label หลังจากฟอร์มโหลดเสร็จแล้ว
+            CreatePreviewLabels();
+            
+            // โหลดค่าจากฐานข้อมูล
+            LoadSettings();
+            
+            // เพิ่ม event สำหรับการเปลี่ยนค่าใน TextBox
+            txtNextOrderId.TextChanged += TxtNextOrderId_TextChanged;
+            txtNextReceiptId.TextChanged += TxtNextReceiptId_TextChanged;
+        }
+
+        private void CreatePreviewLabels()
+        {
+            // สร้าง Label แสดงตัวอย่าง Order ID
+            lblOrderIdPreview = new Label();
+            lblOrderIdPreview.Font = new Font("Angsana New", 18, FontStyle.Bold);
+            lblOrderIdPreview.ForeColor = Color.Blue;
+            lblOrderIdPreview.AutoSize = true;
+            lblOrderIdPreview.Location = new Point(txtNextOrderId.Right + 20, txtNextOrderId.Top + 10);
+            lblOrderIdPreview.Text = "";
+            this.Controls.Add(lblOrderIdPreview);
+
+            // สร้าง Label แสดงตัวอย่าง Receipt ID
+            lblReceiptIdPreview = new Label();
+            lblReceiptIdPreview.Font = new Font("Angsana New", 18, FontStyle.Bold);
+            lblReceiptIdPreview.ForeColor = Color.Blue;
+            lblReceiptIdPreview.AutoSize = true;
+            lblReceiptIdPreview.Location = new Point(txtNextReceiptId.Right + 20, txtNextReceiptId.Top + 10);
+            lblReceiptIdPreview.Text = "";
+            this.Controls.Add(lblReceiptIdPreview);
+        }
+
+        private void TxtNextOrderId_TextChanged(object sender, EventArgs e)
+        {
+            UpdateOrderIdPreview();
+        }
+
+        private void TxtNextReceiptId_TextChanged(object sender, EventArgs e)
+        {
+            UpdateReceiptIdPreview();
+        }
+
+        private void UpdateOrderIdPreview()
+        {
+            if (lblOrderIdPreview == null) return; // ป้องกัน null
+
+            if (int.TryParse(txtNextOrderId.Text, out int runningNumber) && runningNumber > 0 && runningNumber <= 9999)
+            {
+                // คำนวณปี พ.ศ. 2 ตัวท้าย
+                int buddhistYear = DateTime.Now.Year + 543;
+                int yearPrefix = buddhistYear % 100;
+
+                // แสดงตัวอย่าง
+                string preview = $"{yearPrefix:D2}{runningNumber:D4}";
+                lblOrderIdPreview.Text = $"→ ตัวอย่าง: {preview}";
+                lblOrderIdPreview.ForeColor = Color.Blue;
+            }
+            else if (!string.IsNullOrEmpty(txtNextOrderId.Text))
+            {
+                lblOrderIdPreview.Text = "⚠ ต้องเป็นตัวเลข 1-9999";
+                lblOrderIdPreview.ForeColor = Color.Red;
+            }
+            else
+            {
+                lblOrderIdPreview.Text = "";
+            }
+        }
+
+        private void UpdateReceiptIdPreview()
+        {
+            if (lblReceiptIdPreview == null) return; // ป้องกัน null
+
+            if (int.TryParse(txtNextReceiptId.Text, out int runningNumber) && runningNumber > 0 && runningNumber <= 9999)
+            {
+                // คำนวณปี ค.ศ. 2 ตัวท้าย
+                int christianYear = DateTime.Now.Year;
+                int yearPrefix = christianYear % 100;
+
+                // แสดงตัวอย่าง
+                string preview = $"{yearPrefix:D2}{runningNumber:D4}";
+                lblReceiptIdPreview.Text = $"→ ตัวอย่าง: {preview}";
+                lblReceiptIdPreview.ForeColor = Color.Blue;
+            }
+            else if (!string.IsNullOrEmpty(txtNextReceiptId.Text))
+            {
+                lblReceiptIdPreview.Text = "⚠ ต้องเป็นตัวเลข 1-9999";
+                lblReceiptIdPreview.ForeColor = Color.Red;
+            }
+            else
+            {
+                lblReceiptIdPreview.Text = "";
+            }
+        }
+
         private void LoadSettings()
         {
             try
@@ -41,15 +139,15 @@ namespace Laundry_Management.Laundry
                     {
                         using (var cmd = new SqlCommand(
                             @"CREATE TABLE AppSettings (
-                                    SettingKey NVARCHAR(50) PRIMARY KEY,
-                                    SettingValue NVARCHAR(255) NULL
-                                )", conn))
+                                        SettingKey NVARCHAR(50) PRIMARY KEY,
+                                        SettingValue NVARCHAR(255) NULL
+                                    )", conn))
                         {
                             cmd.ExecuteNonQuery();
                         }
                     }
 
-                    // Get settings values
+                    // Get settings values (เฉพาะเลขวิ่ง)
                     using (var cmd = new SqlCommand(
                         "SELECT SettingKey, SettingValue FROM AppSettings WHERE SettingKey IN ('NextOrderId', 'NextReceiptId')", conn))
                     {
@@ -82,6 +180,10 @@ namespace Laundry_Management.Laundry
                                 txtNextReceiptId.Text = "1";
                         }
                     }
+
+                    // อัพเดทตัวอย่างหลังจากโหลดเสร็จ
+                    UpdateOrderIdPreview();
+                    UpdateReceiptIdPreview();
                 }
             }
             catch (Exception ex)
@@ -94,6 +196,7 @@ namespace Laundry_Management.Laundry
                 txtNextReceiptId.Text = "1";
             }
         }
+
         private void btnOk_Click(object sender, EventArgs e)
         {
             try
@@ -107,22 +210,39 @@ namespace Laundry_Management.Laundry
                     return;
                 }
 
-                // Validate numeric values
-                if (!int.TryParse(txtNextOrderId.Text, out int orderIdValue) || orderIdValue < 1)
+                // Validate numeric values (เลขวิ่ง 1-9999)
+                if (!int.TryParse(txtNextOrderId.Text, out int orderIdValue) || orderIdValue < 1 || orderIdValue > 9999)
                 {
-                    MessageBox.Show("กรุณากรอกเลข Order เริ่มต้นเป็นตัวเลขที่มากกว่า 0 และกรอกแต่ตัวเลขเท่านั้น", "ข้อมูลไม่ถูกต้อง",
+                    MessageBox.Show("กรุณากรอกเลข Order เริ่มต้นเป็นตัวเลข 1-9999 เท่านั้น", "ข้อมูลไม่ถูกต้อง",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     txtNextOrderId.Focus();
                     return;
                 }
 
-                if (!int.TryParse(txtNextReceiptId.Text, out int receiptIdValue) || receiptIdValue < 1)
+                if (!int.TryParse(txtNextReceiptId.Text, out int receiptIdValue) || receiptIdValue < 1 || receiptIdValue > 9999)
                 {
-                    MessageBox.Show("กรุณากรอกเลข Receipt เริ่มต้นเป็นตัวเลขที่มากกว่า 0 และกรอกแต่ตัวเลขเท่านั้น", "ข้อมูลไม่ถูกต้อง",
+                    MessageBox.Show("กรุณากรอกเลข Receipt เริ่มต้นเป็นตัวเลข 1-9999 เท่านั้น", "ข้อมูลไม่ถูกต้อง",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     txtNextReceiptId.Focus();
                     return;
                 }
+
+                // แสดงตัวอย่าง ID ที่จะใช้
+                int buddhistYear = DateTime.Now.Year + 543;
+                int christianYear = DateTime.Now.Year;
+                string orderIdExample = $"{buddhistYear % 100:D2}{orderIdValue:D4}";
+                string receiptIdExample = $"{christianYear % 100:D2}{receiptIdValue:D4}";
+
+                var confirmResult = MessageBox.Show(
+                    $"ต้องการบันทึกการตั้งค่าหรือไม่?\n\n" +
+                    $"Order ID ถัดไป: {orderIdExample} (ปี พ.ศ. {buddhistYear})\n" +
+                    $"Receipt ID ถัดไป: {receiptIdExample} (ปี ค.ศ. {christianYear})",
+                    "ยืนยันการบันทึก",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (confirmResult != DialogResult.Yes)
+                    return;
 
                 // Save settings
                 using (var conn = DBconfig.GetConnection())
@@ -132,27 +252,50 @@ namespace Laundry_Management.Laundry
                     {
                         try
                         {
-                            // Update or insert NextOrderId
+                            // Update or insert NextOrderId (เก็บเฉพาะเลขวิ่ง)
                             using (var cmd = new SqlCommand(
                                 @"IF EXISTS (SELECT 1 FROM AppSettings WHERE SettingKey = 'NextOrderId')
-                                        UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextOrderId'
-                                      ELSE
-                                        INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextOrderId', @value)",
+                                            UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextOrderId'
+                                          ELSE
+                                            INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextOrderId', @value)",
                                 conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@value", txtNextOrderId.Text.Trim());
                                 cmd.ExecuteNonQuery();
                             }
 
-                            // Update or insert NextReceiptId
+                            // Update or insert NextReceiptId (เก็บเฉพาะเลขวิ่ง)
                             using (var cmd = new SqlCommand(
                                 @"IF EXISTS (SELECT 1 FROM AppSettings WHERE SettingKey = 'NextReceiptId')
-                                        UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextReceiptId'
-                                      ELSE
-                                        INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextReceiptId', @value)",
+                                            UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextReceiptId'
+                                          ELSE
+                                            INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextReceiptId', @value)",
                                 conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@value", txtNextReceiptId.Text.Trim());
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // บันทึกปีปัจจุบัน (สำหรับตรวจสอบการเปลี่ยนปี)
+                            using (var cmd = new SqlCommand(
+                                @"IF EXISTS (SELECT 1 FROM AppSettings WHERE SettingKey = 'NextOrderYear')
+                                            UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextOrderYear'
+                                          ELSE
+                                            INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextOrderYear', @value)",
+                                conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@value", (buddhistYear % 100).ToString());
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            using (var cmd = new SqlCommand(
+                                @"IF EXISTS (SELECT 1 FROM AppSettings WHERE SettingKey = 'NextReceiptYear')
+                                            UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = 'NextReceiptYear'
+                                          ELSE
+                                            INSERT INTO AppSettings (SettingKey, SettingValue) VALUES ('NextReceiptYear', @value)",
+                                conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@value", (christianYear % 100).ToString());
                                 cmd.ExecuteNonQuery();
                             }
 
