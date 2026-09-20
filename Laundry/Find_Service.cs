@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -973,9 +973,9 @@ WHERE 1=1
                             {
                                 try
                                 {
-                                    // 1. อัพเดทสถานะของ Receipt เป็น "ยกเลิกการพิมพ์"
+                                    // 1. อัพเดทสถานะของ Receipt เป็น "ยกเลิกการพิมพ์" และล้าง CustomReceiptId เพื่อให้เลขนี้ใช้ซ้ำได้
                                     using (var cmd1 = new SqlCommand(
-                                        "UPDATE Receipt SET ReceiptStatus = @status WHERE ReceiptID = @rid", cn, tx))
+                                        "UPDATE Receipt SET ReceiptStatus = @status, CustomReceiptId = NULL WHERE ReceiptID = @rid", cn, tx))
                                     {
                                         cmd1.Parameters.AddWithValue("@status", "ยกเลิกการพิมพ์");
                                         cmd1.Parameters.AddWithValue("@rid", receiptId);
@@ -1010,16 +1010,31 @@ WHERE 1=1
                                         cmd4.ExecuteNonQuery();
                                     }
 
-                                    tx.Commit();
-
-                                    // คืนค่า ReceiptId เพื่อให้ใช้ซ้ำได้
-                                    string currentId = AppSettingsManager.GetSetting("NextReceiptId");
-                                    int nextId;
-                                    if (int.TryParse(currentId, out nextId) && nextId > 1)
+                                    // 5. คืนค่า ReceiptId อย่างปลอดภัย:
+                                    //    - CustomReceiptId ถูกล้างเป็น NULL แล้ว (ขั้นตอน 1) จึงไม่มีเลขซ้ำในตาราง
+                                    //    - ลดค่า counter เฉพาะเมื่อยังไม่มีคนอื่นใช้เลขถัดไป (ป้องกัน race condition)
+                                    if (!string.IsNullOrEmpty(customReceiptId) && customReceiptId.Length == 6)
                                     {
-                                        // ตั้งค่า NextReceiptId ให้กลับไปเป็นค่าเดิม (ลดลง 1)
-                                        AppSettingsManager.UpdateSetting("NextReceiptId", (nextId - 1).ToString());
+                                        int cancelledNumber;
+                                        if (int.TryParse(customReceiptId.Substring(2), out cancelledNumber))
+                                        {
+                                            int expectedNext = cancelledNumber + 1;
+                                            // UPDATE เฉพาะเมื่อ counter ยังเป็นค่าถัดไปจากเลขที่ยกเลิก
+                                            // ถ้าคนอื่นดึงเลขใหม่ไปแล้ว WHERE จะไม่ตรง → ไม่อัพเดท (ปลอดภัย)
+                                            using (var cmd5 = new SqlCommand(
+                                                @"UPDATE AppSettings 
+                                                  SET SettingValue = @reclaimValue 
+                                                  WHERE SettingKey = 'NextReceiptId' 
+                                                  AND CAST(SettingValue AS INT) = @expectedNext", cn, tx))
+                                            {
+                                                cmd5.Parameters.AddWithValue("@reclaimValue", cancelledNumber.ToString());
+                                                cmd5.Parameters.AddWithValue("@expectedNext", expectedNext);
+                                                cmd5.ExecuteNonQuery();
+                                            }
+                                        }
                                     }
+
+                                    tx.Commit();
 
                                     // แก้ไขข้อความที่แสดงเมื่อยกเลิกการพิมพ์
                                     MessageBox.Show("ยกเลิกการพิมพ์ใบเสร็จเรียบร้อยแล้ว", "แจ้งเตือน",
@@ -1262,7 +1277,22 @@ WHERE 1=1
             {
                 cn.Open();
                 using (var tx = cn.BeginTransaction())
-                using (var cmd = new SqlCommand(@"
+                {
+                    // ตรวจสอบว่าเลขที่ใบเสร็จซ้ำหรือไม่ (ป้องกันซ้ำ)
+                    using (var chk = new SqlCommand(
+                        "SELECT COUNT(*) FROM Receipt WHERE CustomReceiptId = @customId", cn, tx))
+                    {
+                        chk.Parameters.AddWithValue("@customId", customReceiptId);
+                        int count = (int)chk.ExecuteScalar();
+                        if (count > 0)
+                        {
+                            tx.Rollback();
+                            throw new InvalidOperationException(
+                                $"เลขที่ใบเสร็จ {customReceiptId} ซ้ำในระบบ กรุณาลองใหม่อีกครั้ง");
+                        }
+                    }
+
+                    using (var cmd = new SqlCommand(@"
         INSERT INTO Receipt (
             OrderID,
             TotalBeforeDiscount,   -- ยอดรวมก่อนหักส่วนลด
@@ -1276,30 +1306,31 @@ WHERE 1=1
         VALUES (
             @oid, @subTotal, @netTotal, @vat, @customId, @status, @payMethod, @discount
         )", cn, tx))
-                {
-                    cmd.Parameters.AddWithValue("@oid", orderId);
-                    cmd.Parameters.AddWithValue("@subTotal", subTotal);
-                    cmd.Parameters.AddWithValue("@netTotal", netTotal);
-                    cmd.Parameters.AddWithValue("@vat", vatAmount);
-                    cmd.Parameters.AddWithValue("@customId", customReceiptId);
-                    cmd.Parameters.AddWithValue("@status", "ออกใบเสร็จแล้ว");
-                    cmd.Parameters.AddWithValue("@payMethod", paymentMethod);
-                    cmd.Parameters.AddWithValue("@discount", discountAmount);
+                    {
+                        cmd.Parameters.AddWithValue("@oid", orderId);
+                        cmd.Parameters.AddWithValue("@subTotal", subTotal);
+                        cmd.Parameters.AddWithValue("@netTotal", netTotal);
+                        cmd.Parameters.AddWithValue("@vat", vatAmount);
+                        cmd.Parameters.AddWithValue("@customId", customReceiptId);
+                        cmd.Parameters.AddWithValue("@status", "ออกใบเสร็จแล้ว");
+                        cmd.Parameters.AddWithValue("@payMethod", paymentMethod);
+                        cmd.Parameters.AddWithValue("@discount", discountAmount);
 
-                    int receiptId = (int)cmd.ExecuteScalar();
+                        int receiptId = (int)cmd.ExecuteScalar();
 
-                    // อัพเดท OrderHeader
-                    using (var upd = new SqlCommand(@"
+                        // อัพเดท OrderHeader
+                        using (var upd = new SqlCommand(@"
         UPDATE OrderHeader
         SET IsReceiptPrinted = 1
         WHERE OrderID = @oid", cn, tx))
-                    {
-                        upd.Parameters.AddWithValue("@oid", orderId);
-                        upd.ExecuteNonQuery();
-                    }
+                        {
+                            upd.Parameters.AddWithValue("@oid", orderId);
+                            upd.ExecuteNonQuery();
+                        }
 
-                    tx.Commit();
-                    return receiptId;
+                        tx.Commit();
+                        return receiptId;
+                    }
                 }
             }
         }

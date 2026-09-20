@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,69 +21,131 @@ namespace Laundry_Management.Laundry
             return GetNextIdWithYearPrefix("NextReceiptId", "NextReceiptYear", false); // false = ใช้ปี ค.ศ.
         }
 
+        private const int MAX_RETRIES = 3;
+
         private static string GetNextIdWithYearPrefix(string idKey, string yearKey, bool useBuddhistYear)
         {
-            try
+            // คำนวณปีปัจจุบัน
+            int currentYear;
+            if (useBuddhistYear)
             {
-                using (var conn = DBconfig.GetConnection())
+                // ปี พ.ศ. = ค.ศ. + 543
+                currentYear = DateTime.Now.Year + 543;
+            }
+            else
+            {
+                // ปี ค.ศ.
+                currentYear = DateTime.Now.Year;
+            }
+            int lastTwoDigits = currentYear % 100; // เอา 2 ตัวท้าย เช่น 2568 -> 68, 2025 -> 25
+
+            Exception lastException = null;
+
+            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
+            {
+                try
                 {
-                    conn.Open();
-                    EnsureTableExists(conn);
-
-                    // คำนวณปีปัจจุบัน
-                    int currentYear;
-                    if (useBuddhistYear)
+                    using (var conn = DBconfig.GetConnection())
                     {
-                        // ปี พ.ศ. = ค.ศ. + 543
-                        currentYear = DateTime.Now.Year + 543;
-                    }
-                    else
-                    {
-                        // ปี ค.ศ.
-                        currentYear = DateTime.Now.Year;
-                    }
-                    
-                    int lastTwoDigits = currentYear % 100; // เอา 2 ตัวท้าย เช่น 2568 -> 68, 2025 -> 25
+                        conn.Open();
+                        EnsureTableExists(conn);
 
-                    // อ่านปีที่เก็บไว้
-                    string savedYear = GetSetting(yearKey, "0");
-                    int.TryParse(savedYear, out int storedYear);
-
-                    string nextId;
-                    int runningNumber;
-
-                    // ตรวจสอบว่าปีเปลี่ยนหรือไม่
-                    if (storedYear != lastTwoDigits)
-                    {
-                        // ปีเปลี่ยน: รีเซ็ตเลขวิ่งเป็น 1
-                        runningNumber = 1;
-                        UpdateSetting(idKey, "2"); // เซ็ตค่าถัดไปเป็น 2
-                        UpdateSetting(yearKey, lastTwoDigits.ToString()); // บันทึกปีใหม่
-                    }
-                    else
-                    {
-                        // ปีเดิม: ใช้เลขวิ่งต่อเนื่อง
-                        nextId = GetSetting(idKey, "1");
-                        if (!int.TryParse(nextId, out runningNumber))
+                        // ใช้ Transaction เพื่อ lock row ป้องกัน race condition
+                        using (var tx = conn.BeginTransaction(System.Data.IsolationLevel.Serializable))
                         {
-                            runningNumber = 1;
-                        }
-                        UpdateSetting(idKey, (runningNumber + 1).ToString());
-                    }
+                            try
+                            {
+                                int runningNumber;
 
-                    // สร้าง ID รูปแบบ YYNNNN (2 ตัวปี + 4 ตัวเลขวิ่ง)
-                    return $"{lastTwoDigits:D2}{runningNumber:D4}";
+                                // อ่านปีที่เก็บไว้ (พร้อม lock row เพื่อป้องกันการอ่านซ้ำจากผู้ใช้คนอื่น)
+                                string savedYear = "0";
+                                using (var cmdYear = new SqlCommand(
+                                    @"SELECT SettingValue FROM AppSettings WITH (UPDLOCK, HOLDLOCK) 
+                                      WHERE SettingKey = @key", conn, tx))
+                                {
+                                    cmdYear.Parameters.AddWithValue("@key", yearKey);
+                                    var result = cmdYear.ExecuteScalar();
+                                    if (result != null && result != DBNull.Value)
+                                        savedYear = result.ToString();
+                                }
+                                int.TryParse(savedYear, out int storedYear);
+
+                                // ตรวจสอบว่าปีเปลี่ยนหรือไม่
+                                if (storedYear != lastTwoDigits)
+                                {
+                                    // ปีเปลี่ยน: รีเซ็ตเลขวิ่งเป็น 1
+                                    runningNumber = 1;
+                                    UpsertSettingInTransaction(conn, tx, idKey, "2"); // เซ็ตค่าถัดไปเป็น 2
+                                    UpsertSettingInTransaction(conn, tx, yearKey, lastTwoDigits.ToString()); // บันทึกปีใหม่
+                                }
+                                else
+                                {
+                                    // ปีเดิม: อ่านเลขวิ่งปัจจุบัน (พร้อม lock)
+                                    string nextId = "1";
+                                    using (var cmdId = new SqlCommand(
+                                        @"SELECT SettingValue FROM AppSettings WITH (UPDLOCK, HOLDLOCK) 
+                                          WHERE SettingKey = @key", conn, tx))
+                                    {
+                                        cmdId.Parameters.AddWithValue("@key", idKey);
+                                        var result = cmdId.ExecuteScalar();
+                                        if (result != null && result != DBNull.Value)
+                                            nextId = result.ToString();
+                                    }
+
+                                    if (!int.TryParse(nextId, out runningNumber))
+                                    {
+                                        runningNumber = 1;
+                                    }
+
+                                    // เพิ่มค่าเลขวิ่ง +1 ภายใน transaction เดียวกัน
+                                    UpsertSettingInTransaction(conn, tx, idKey, (runningNumber + 1).ToString());
+                                }
+
+                                tx.Commit();
+
+                                // สร้าง ID รูปแบบ YYNNNN (2 ตัวปี + 4 ตัวเลขวิ่ง)
+                                return $"{lastTwoDigits:D2}{runningNumber:D4}";
+                            }
+                            catch
+                            {
+                                tx.Rollback();
+                                throw;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    if (attempt < MAX_RETRIES)
+                    {
+                        // รอสักครู่ก่อน retry (เพิ่มเวลารอแบบ exponential)
+                        System.Threading.Thread.Sleep(200 * attempt);
+                    }
                 }
             }
-            catch (Exception ex)
+
+            // ลอง retry หมดแล้ว - แจ้งข้อผิดพลาด (ไม่ส่งค่าเริ่มต้นเพราะอาจซ้ำ)
+            throw new InvalidOperationException(
+                $"ไม่สามารถดึงเลข {idKey} ได้หลังจากลอง {MAX_RETRIES} ครั้ง: {lastException?.Message}",
+                lastException);
+        }
+
+        /// <summary>
+        /// อัพเดทหรือเพิ่มค่า Setting ภายใน Transaction ที่มีอยู่แล้ว (ไม่เปิด connection ใหม่)
+        /// </summary>
+        private static void UpsertSettingInTransaction(SqlConnection conn, SqlTransaction tx, string key, string value)
+        {
+            using (var cmd = new SqlCommand(
+                @"IF EXISTS (SELECT 1 FROM AppSettings WHERE SettingKey = @key)
+                    UPDATE AppSettings SET SettingValue = @value WHERE SettingKey = @key
+                  ELSE
+                    INSERT INTO AppSettings (SettingKey, SettingValue) VALUES (@key, @value)",
+                conn, tx))
             {
-                System.Windows.Forms.MessageBox.Show($"เกิดข้อผิดพลาดในการดึง {idKey}: {ex.Message}",
-                    "ข้อผิดพลาด", System.Windows.Forms.MessageBoxButtons.OK,
-                    System.Windows.Forms.MessageBoxIcon.Error);
-                
-                // กรณีเกิดข้อผิดพลาด ส่งค่าเริ่มต้น
-                int year = useBuddhistYear ? (DateTime.Now.Year + 543) % 100 : DateTime.Now.Year % 100;
-                return $"{year:D2}0001";
+                cmd.Parameters.AddWithValue("@key", key);
+                cmd.Parameters.AddWithValue("@value", value);
+                cmd.ExecuteNonQuery();
             }
         }
 
