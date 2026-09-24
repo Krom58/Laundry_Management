@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -235,7 +235,7 @@ namespace Laundry_Management.Laundry
                 _remainingItems = new List<ServiceItem>(_items);
 
                 // Calculate total pages based on how many items we can fit per page
-                int itemsPerFirstPage = CalculateItemsPerPage(e.Graphics, e.MarginBounds.Height - 400); // First page has header
+                int itemsPerFirstPage = CalculateItemsPerPage(e.Graphics, e.MarginBounds.Height - 450); // First page has header and footer
                 int itemsPerSubsequentPage = CalculateItemsPerPage(e.Graphics, e.MarginBounds.Height - 200); // Subsequent pages have less header
 
                 if (_items.Count <= itemsPerFirstPage)
@@ -350,7 +350,8 @@ namespace Laundry_Management.Laundry
 
             // กำหนดพื้นที่และระยะห่างเริ่มต้น
             float initialY = y;
-            float headerHeight = 80; // ความสูงส่วนหัว
+            float infoRowHeight = subHeaderFont.GetHeight(g) * 1.3f;  // ระยะห่างแต่ละแถว
+            float headerHeight = 25 + (4 * infoRowHeight) + 3; // ความสูงส่วนหัวให้คลุมพอดีถึงเส้นคั่น (ประมาณ 98px แทนที่ 80px)
 
             // 1. วาดสีพื้นเบาๆ สำหรับส่วนหัว
             using (LinearGradientBrush headerBrush = new LinearGradientBrush(
@@ -402,7 +403,6 @@ namespace Laundry_Management.Laundry
             // 4. ข้อมูลร้าน - จัดแบบคู่ขนาน ซ้าย-ขวา และชิดหัวข้อ
             float leftColumnX = leftX + 5;      // ช่องข้อความซ้าย
             float rightColumnX = leftX + (rightX - leftX) / 2 + 10;  // ช่องข้อความขวา
-            float infoRowHeight = subHeaderFont.GetHeight(g) * 1.3f;  // ระยะห่างแต่ละแถว
 
             // ข้อมูลที่จะแสดง - จัดคู่กัน
             string[][] infoData = new string[][] {
@@ -590,7 +590,7 @@ namespace Laundry_Management.Laundry
             string[] checks = new[]
     {
         "[  ] หดรอยเตารีด เหลือง ไหม้",
-        "[  ] สีกล้ำ เปื้อนน้ำมัน",
+        "[  ] สีคล้ำ เปื้อนน้ำมัน",
         "[  ] เปื้อนสี หมึก เลือด อาหาร",
         "[  ] ไม่สมประกอบ กระดุมแตก หาย",
         "[  ] รอยย่น",
@@ -668,7 +668,7 @@ namespace Laundry_Management.Laundry
 
             // สร้างพื้นที่สรุปยอด
             float summaryWidth = 180;
-            float summaryHeight = _customerDiscount > 0 ? 80 : 50; // เพิ่มความสูงถ้ามีส่วนลด
+            float summaryHeight = 58f; // ปรับความสูงให้กระชับพอดีกับ 3 บรรทัด
             float summaryX = rightX - summaryWidth;
 
             // วาดพื้นหลังและกรอบ
@@ -683,8 +683,8 @@ namespace Laundry_Management.Laundry
             }
 
             // คำนวณความสูงของตัวอักษรสำหรับเว้นบรรทัด
-            float lineHeight = font.GetHeight(g) * 1.2f;
-            float currentY = y + 8;
+            float lineHeight = font.GetHeight(g) * 1.15f;
+            float currentY = y + 6;
             string discountLine;
             // ยอดรวม (Subtotal)
             string subtotalLine = $"ยอดรวม : {subtotal:N2} บาท";
@@ -725,7 +725,7 @@ namespace Laundry_Management.Laundry
                 // เพิ่มเส้นใต้ยอดรวมสุทธิเป็นสีแดง
                 using (Pen redPen = new Pen(Color.Red, 1.5f))
                 {
-                    float underlineY = currentY + totalFont.GetHeight(g) + 2;
+                    float underlineY = currentY + totalFont.GetHeight(g) + 1;
                     float underlineStartX = summaryX + 10;
                     float underlineWidth = g.MeasureString(totalLine, totalFont).Width;
 
@@ -744,8 +744,8 @@ namespace Laundry_Management.Laundry
             // Add some spacing between the table and footer
             float footerY = y + 15; // Add spacing after the table
 
-            // Make sure footer doesn't go off the page
-            float maxFooterY = page.Bottom - 120; // Reserve minimal space for footer
+            // Make sure footer doesn't go off the page (reserve space for checklist, summary, and terms)
+            float maxFooterY = page.Bottom - 260;
             if (footerY > maxFooterY)
             {
                 footerY = maxFooterY;
@@ -756,7 +756,73 @@ namespace Laundry_Management.Laundry
 
             // Draw the summary on the right side of the footer
             DrawSummaryRight(g, font, page, footerY, rightX);
+
+            // Calculate bottom position of checklist and summary section
+            float checklistHeight = 10 * (font.GetHeight(g) + 1) + 10;
+            float summaryHeight = 58f;
+            float signatureBottom = summaryHeight + 20 + font.GetHeight(g) + 10;
+            float middleBottom = footerY + Math.Max(checklistHeight, signatureBottom);
+
+            // Draw terms and conditions across the full width below the checklist and signature
+            DrawTermsAndConditions(g, font, leftX, middleBottom + 8, rightX);
         }
+
+        private void DrawTermsAndConditions(Graphics g, Font baseFont, float leftX, float y, float rightX)
+        {
+            float totalWidth = rightX - leftX;
+
+            using (Font regularFont = new Font(baseFont.FontFamily, 6.8f, FontStyle.Regular))
+            using (Font boldUnderlineFont = new Font(baseFont.FontFamily, 6.8f, FontStyle.Bold | FontStyle.Underline))
+            using (Pen borderPen = new Pen(Color.FromArgb(230, 230, 235), 1))
+            using (SolidBrush darkBrush = new SolidBrush(Color.FromArgb(50, 50, 50)))
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(60, 60, 60)))
+            {
+                float lineHeight = regularFont.GetHeight(g) + 2f;
+                float boxPadding = 5f;
+                float textWidth = totalWidth - (boxPadding * 2 + 4);
+
+                string noteText = "ทางโรงแรมเอเชีย จะไม่รับผิดชอบใดๆในกรณีที่เสื้อผ้าของท่านเป็นไปตามรายการข้างบนนี้มาก่อน หรือสิ่งของที่ลืมอยู่ในกระเป๋า";
+                SizeF noteSize = g.MeasureString(noteText, regularFont, (int)textWidth);
+                float noteHeight = Math.Max(lineHeight, noteSize.Height);
+
+                string rulesHeader = "ข้อระเบียบ";
+                string[] rules = new[]
+                {
+                    "1. ทางโรงแรมรับชดใช้เพียง 10 เท่าของราคาซักเมื่อทางโรงแรมทำเสียหาย",
+                    "2. ทางโรงแรมไม่รับผิดชอบใดๆ กรณีไม่มารับเสื้อผ้า ภายใน 30วัน",
+                    "3. กรณีใบรับผ้าสูญหายกรุณานำสำเนาบัตรประชาชนมาเพื่อรับผ้า"
+                };
+
+                float termsHeight = (boxPadding * 2) + noteHeight + 3f + lineHeight + (rules.Length * lineHeight);
+
+                // Draw subtle background and border matching the checklist style
+                using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(252, 252, 254)))
+                {
+                    g.FillRectangle(bgBrush, leftX, y, totalWidth, termsHeight);
+                }
+                g.DrawRectangle(borderPen, leftX, y, totalWidth, termsHeight);
+
+                float currentY = y + boxPadding;
+                float textX = leftX + boxPadding + 2;
+
+                // 1. Note regarding checklist / items
+                RectangleF noteRect = new RectangleF(textX, currentY, textWidth, noteHeight);
+                g.DrawString(noteText, regularFont, darkBrush, noteRect);
+                currentY += noteHeight + 3f;
+
+                // 2. Header: ข้อระเบียบ
+                g.DrawString(rulesHeader, boldUnderlineFont, darkBrush, textX, currentY);
+                currentY += lineHeight;
+
+                // 3. Rules 1-3
+                foreach (var rule in rules)
+                {
+                    g.DrawString(rule, regularFont, textBrush, textX, currentY);
+                    currentY += lineHeight;
+                }
+            }
+        }
+
         private void DrawSignatureLine(Graphics g, Font font, float rightX, float y)
         {
             g.ResetClip();
@@ -765,17 +831,16 @@ namespace Laundry_Management.Laundry
 
             // Calculate signature position based on the provided y value
             // instead of using a fixed offset
-            float signatureY = y + 35; // Still keep some space below the summary box
+            float signatureY = y + 25; // Keep space below the summary box
 
             // Draw the line
             g.DrawLine(Pens.Black, signatureX, signatureY, signatureX + signatureLineWidth, signatureY);
 
             // Draw text below the line
-            string signatureLabel = "ลายเซ้นผู้รับผ้า";
+            string signatureLabel = "ลายเซ็นผู้รับผ้า";
             SizeF labelSize = g.MeasureString(signatureLabel, font);
             float labelX = signatureX + (signatureLineWidth - labelSize.Width) / 2;
             g.DrawString(signatureLabel, font, Brushes.Black, labelX, signatureY + 5);
-
         }
         private void DrawContinuationHeader(Graphics g, Font headerFont, Font subHeaderFont, float leftX, ref float y, float rightX)
         {
@@ -845,13 +910,7 @@ namespace Laundry_Management.Laundry
             Pen tablePen = new Pen(tableBorderColor, 0.8f);
 
             // Calculate how many items can fit on this page
-            float availableHeight = 650 - y - 100; // Reserve space for footer on last page
-
-            // คำนวณพื้นที่เพิ่มสำหรับส่วนสรุปยอดที่ขยายออก
-            if (_remainingItems.Count <= (int)Math.Floor(availableHeight / rowHeight) && _customerDiscount > 0)
-            {
-                availableHeight -= 30; // หากเป็นหน้าสุดท้ายและมีส่วนลด ให้สำรองพื้นที่เพิ่ม
-            }
+            float availableHeight = 650 - y - 160; // Reserve space for footer and terms on last page
 
             int maxItemsThisPage = (int)Math.Floor(availableHeight / rowHeight);
 

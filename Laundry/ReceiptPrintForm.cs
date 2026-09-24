@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -351,32 +351,35 @@ namespace Laundry_Management.Laundry
                         string receiptValue = _header.CustomReceiptId;
                         string fullReceiptText = receiptLabel + receiptValue;
 
-                        // Calculate the size first before using it
-                        SizeF fullReceiptSize = g.MeasureString(fullReceiptText, subF);
-
-                        // Create a StringFormat for center alignment
-                        StringFormat centerFormat = new StringFormat
-                        {
-                            Alignment = StringAlignment.Center,
-                            LineAlignment = StringAlignment.Near
-                        };
-
-                        // Create rectangle for the receipt text area
-                        RectangleF receiptTextRect = new RectangleF(receiptBoxX, boxY + 5, receiptBoxWidth, fullReceiptSize.Height);
-                        g.DrawString(fullReceiptText, subF, Brushes.Black, receiptTextRect, centerFormat);
-
-                        // For date - using the same centering approach
+                        // For date
                         string dateLabel = "วันที่ : ";
                         DateTime receiptDate = GetReceiptDate(_receiptId);
                         string dateValue = $"{receiptDate.Day:00}/{receiptDate.Month:00}/{receiptDate.Year + 543}";
                         string fullDateText = dateLabel + dateValue;
 
-                        // Calculate vertical spacing with proper positioning
-                        float dateY = boxY + 5 + fullReceiptSize.Height + 8;
+                        // Calculate sizes to center content vertically and horizontally in the box
+                        SizeF fullReceiptSize = g.MeasureString(fullReceiptText, subF);
+                        SizeF fullDateSize = g.MeasureString(fullDateText, subF);
+                        float lineSpacing = 10f;
+                        float totalContentHeight = fullReceiptSize.Height + lineSpacing + fullDateSize.Height;
+                        float startY = boxY + (receiptBoxHeight - totalContentHeight) / 2f;
 
-                        // Create rectangle for the date text area
-                        RectangleF dateTextRect = new RectangleF(receiptBoxX, dateY, receiptBoxWidth, g.MeasureString(fullDateText, subF).Height);
-                        g.DrawString(fullDateText, subF, Brushes.Black, dateTextRect, centerFormat);
+                        // Create a StringFormat for center alignment
+                        using (StringFormat centerFormat = new StringFormat
+                        {
+                            Alignment = StringAlignment.Center,
+                            LineAlignment = StringAlignment.Near
+                        })
+                        {
+                            // Draw receipt number text
+                            RectangleF receiptTextRect = new RectangleF(receiptBoxX, startY, receiptBoxWidth, fullReceiptSize.Height);
+                            g.DrawString(fullReceiptText, subF, Brushes.Black, receiptTextRect, centerFormat);
+
+                            // Draw date text
+                            float dateY = startY + fullReceiptSize.Height + lineSpacing;
+                            RectangleF dateTextRect = new RectangleF(receiptBoxX, dateY, receiptBoxWidth, fullDateSize.Height);
+                            g.DrawString(fullDateText, subF, Brushes.Black, dateTextRect, centerFormat);
+                        }
                     }
 
                     // Update y to position where table will start
@@ -789,7 +792,7 @@ namespace Laundry_Management.Laundry
             float availableHeight = 650 - y - 30;
 
             // If this is the last page, reserve space for summary and signature
-            int summaryRows = _header.TodayDiscount > 0 ? 3 : 2; // Include subtotal and total (+ discount if applicable)
+            int summaryRows = 3; // Always 3 rows: Subtotal, Discount, and Grand Total
             float summaryHeight = summaryRows * 22 + 40; // Summary rows + space for signature
 
             // We'll only show the summary on the last page
@@ -961,13 +964,7 @@ namespace Laundry_Management.Laundry
                 // Draw horizontal divider after first row
                 g.DrawLine(tablePen, xs[3], y + summaryRowHeight, rightX, y + summaryRowHeight);
 
-                // If discount exists, draw horizontal divider after second row
-                if (_header.TodayDiscount > 0)
-                {
-                    g.DrawLine(tablePen, xs[3], y + (summaryRowHeight * 2), rightX, y + (summaryRowHeight * 2));
-                }
-
-                // Draw horizontal line at the bottom for the Thai baht text
+                // Draw horizontal line at the bottom for the Thai baht text (divider after discount row)
                 g.DrawLine(tablePen, leftX, thaiBahtLineY, rightX, thaiBahtLineY);
 
                 // Subtotal value in top right columns
@@ -1021,8 +1018,6 @@ namespace Laundry_Management.Laundry
                 g.DrawString(discountValue, font, textColor,
                            rightX - 5 - g.MeasureString(discountValue, font).Width, verticalCenter);
 
-                // IMPORTANT: Always draw the horizontal divider after the discount row
-                g.DrawLine(tablePen, xs[3], y + summaryRowHeight, rightX, y + summaryRowHeight);
 
                 // 3. Total row with bold text - Bottom right section
                 y += summaryRowHeight;
